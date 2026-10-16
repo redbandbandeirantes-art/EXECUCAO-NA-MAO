@@ -430,7 +430,7 @@ input.err{border-color:var(--crit)!important;box-shadow:0 0 0 2px var(--crit-bg)
     <div class="legend-cores"><b>Cores das notas:</b><span class="pill good">75 ou mais</span><span class="pill warn">70 a 74,99</span><span class="pill serious">60 a 69,99</span><span class="pill crit">abaixo de 60</span><span>Vermelho aparece só em alerta. ICE em azul, RED em grafite.</span></div>
     <div><b>Estrutura comercial:</b> todas as pesquisas (abr–out) aparecem na gerência, supervisão e rota atuais de cada cliente, tiradas do arquivo mais recente: pesquisas de outubro (iRED360 de 09/10 e ICE de outubro) e, para quem ainda não foi pesquisado em outubro, a base de pesquisa de outubro; depois a base RED de outubro; na falta delas, a última pesquisa do cliente. Consultor, supervisor e gerente vêm da Estrutura Comercial Infocom; repositor e líder de merchandising, da Base Repositores (arquivo 10-PESQUISA BASE BAND CLIENTES OUTUBRO-26).</div>
     <div>Fontes: iRED360 RED abr–out/2026; ICE LATAM abr–ago (pesquisa Dimensiva), set fechado (iRED360 ICE LATAM de 07/10) e out (iRED360 ICE LATAM de 16/10); RED de set fechado (iRED360 RED de 07/10); PESO FDS RED_ICE; Estudos GC (base e prioridades de outubro, objetivos, ICE jan–abr/2025); 10-PESQUISAS BASE BAND DIMENSIVA OUTUBRO-26 (status da pesquisa, ICE jan–mar/2026, cadastro e geolocalização); 10-PESQUISA BASE BAND CLIENTES OUTUBRO-26 (base RED, estrutura comercial, repositores e geolocalização). Pesos RED: ADEGAS 1,4 e CONVENIÊNCIA 1,0, conforme a planilha de pesos. Notas sem ajustes de auditoria.</div>
-    <div>Antes e Depois: formulário oficial Band 2026 V2. Aberto pelo link do Claude, o formulário e a visita de cada cliente ficam gravados e aparecem para todos; hospedado em outro endereço, ficam salvos no aparelho de quem preencheu e podem ser enviados pelo botão Exportar visitas (aba Visitas).</div>
+    <div>Antes e Depois: formulário oficial Band 2026 V3. Aberto pelo link do Claude, o formulário e a visita de cada cliente ficam gravados e aparecem para todos; hospedado em outro endereço, ficam salvos no aparelho de quem preencheu e podem ser enviados pelo botão Exportar visitas (aba Visitas).</div>
   </div></div>
 </div>
 <div class="tt" id="tt" hidden></div>
@@ -1458,7 +1458,7 @@ function renderAD(){
     const A=scope(S.t,S.mes);const worst=A.rows.slice().sort((a,b)=>PM.real[a]/PM.poss[a]-PM.real[b]/PM.poss[b]).slice(0,12);
     const card=(pv,extra)=>{const f=adInfo(pv);if(!f)return'';return`<button type="button" class="cvbtn" data-ad="${esc(pv)}"><span class="q"><span class="num">${pv}</span> · ${esc(f.nome)}</span><span class="small">${C[f.c]||''}</span><span class="small">Rota ${esc(f.rota||'')} · ${esc(f.sup||'')}</span>${extra||''}</button>`};
     el.innerHTML=`<div class="panel"><header><h3>Antes e Depois · escolha o cliente</h3></header>
-      <p class="note">Formulário oficial Antes e Depois (Band 2026 V2), um por canal. A coluna Antes já vem preenchida com a última pesquisa RED do cliente; o consultor marca o Depois após a ação na loja, as somas por pilar e a Pontuação Final são automáticas e o resultado sai em PDF para imprimir e combinar a estratégia com o cliente. Cada cliente tem um link direto para o seu formulário.</p>
+      <p class="note">Formulário oficial Antes e Depois (Band 2026 V3), um por canal. A coluna Antes já vem preenchida com a última pesquisa RED do cliente; o consultor marca o Depois após a ação na loja, as somas por pilar e a Pontuação Final são automáticas e o resultado sai em PDF para imprimir e combinar a estratégia com o cliente. Cada cliente tem um link direto para o seu formulário.</p>
       <div class="f"><label>Formulário em branco</label><div class="chips">${Object.keys(D.adf.forms).map(k=>`<button class="chip" type="button" data-ad="blank:${esc(k)}">${esc(k)}</button>`).join('')}</div></div>
       <div class="f" style="max-width:420px"><label for="adQ">Buscar PDV, nome, setor ou rota</label><input type="search" id="adQ" value="${esc(S.adQ)}" placeholder="ex.: 1073159, supermercado, Maysa ou rota 511"></div>
       ${resS.length?block('Setor (bairro do cadastro): '+(()=>{const ks=Object.keys(setNames).sort((a,b)=>setNames[b]-setNames[a]);return ks.slice(0,4).map(k=>esc(k)+' ('+setNames[k]+')').join(', ')+(ks.length>4?` e mais ${ks.length-4}`:'')})(),resS,'do setor'):''}
@@ -1533,7 +1533,7 @@ else{
   }).catch(()=>sbFail('não carregou a biblioteca do Supabase (sem internet ou bloqueio de rede)'));
 }
 const visBadge=pv=>VIS[pv]&&VIS[pv].vis?`<span class="vbadge" title="Visita registrada em ${new Date(VIS[pv].ts).toLocaleDateString('pt-BR')}${VIS[pv].res?' por '+esc(VIS[pv].res):''}">✓ Visitado ${new Date(VIS[pv].ts).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>`:'';
-// ----- Formulário oficial Antes e Depois (Band 2026 V2) -----
+// ----- Formulário oficial Antes e Depois (Band 2026 V3) -----
 const ADF=D.adf;
 const nCode=s=>String(s||'').replace(/\s/g,'').toUpperCase();
 function adForm(c){const sh=ADF.map[C[c]];return sh?{sh,f:ADF.forms[sh]}:null}
@@ -1563,7 +1563,11 @@ function renderADForm(el){
     if(!f0){el.innerHTML=`<div class="panel"><p class="note">Não há formulário oficial para o canal ${C[info.c]}. Escolha um formulário:</p><div class="chips">${Object.keys(ADF.forms).map(k=>`<button class="chip" data-adsh="${esc(k)}">${esc(k)}</button>`).join('')}</div></div>`;document.querySelectorAll('[data-adsh]').forEach(b=>b.onclick=()=>{S.adSh=b.dataset.adsh;renderAD()});return}}
   const f=f0,items=adFlat(f),key=adKey2(info?pv:'blank',sh);
   let st=info&&VIS[pv]&&VIS[pv].st&&VIS[pv].form===sh?JSON.parse(JSON.stringify(VIS[pv].st)):adLoad2(key);
-  if(!st){st={a:{},d:{},sk:{},res:'',obs:'',data:new Date().toISOString().slice(0,10),src:'',hit:0};if(info){const pf=adPrefill(pv,items);if(pf){st.a=pf.a;st.src=pf.src;st.hit=pf.hit;for(const x of items)if(st.a[x.id]>0)x.sku.forEach((_,i)=>st.sk['a|'+x.id+'|'+i]=1)}}}
+  if(!st){st={a:{},d:{},sk:{},res:'',obs:'',data:new Date().toISOString().slice(0,10),src:'',hit:0,fv:'V3_1'};if(info){const pf=adPrefill(pv,items);if(pf){st.a=pf.a;st.src=pf.src;st.hit=pf.hit;for(const x of items)if(st.a[x.id]>0)x.sku.forEach((_,i)=>st.sk['a|'+x.id+'|'+i]=1)}}}
+  // V3_1: no C&C a Combinada Imperdoáveis KO (3200_1) perdeu o Multipack repetido (5º produto) e trocou a Zero Pet 1L pela Original Pet 1L ou 1,5L (6º);
+  // formulários salvos antes disso têm as marcações dos produtos realinhadas (o produto trocado volta desmarcado)
+  if(sh==='CASH & CARRY'&&st.fv!=='V3_1'){const xc=items.find(z=>nCode(z.c)==='3200_1');if(xc){const nk={};for(const k in st.sk){const p=k.split('|');if(p[1]===String(xc.id)){const i=+p[2];const ni=i<4?i:(i===4||i===5)?null:i-1;if(ni!=null)nk[p[0]+'|'+p[1]+'|'+ni]=st.sk[k]}else nk[k]=st.sk[k]}st.sk=nk}}
+  st.fv='V3_1';
   // combinadas: a pontuação vem só dos produtos (todos marcados = pontuação cheia; senão zero)
   for(const x of items)if(x.sku&&x.sku.length)for(const col of ['a','d']){const all=x.sku.every((_,i)=>st.sk[col+'|'+x.id+'|'+i]);if(all)st[col][x.id]=x.p;else if(st[col][x.id]!=null||x.sku.some((_,i)=>st.sk[col+'|'+x.id+'|'+i]))st[col][x.id]=0}
   if(info&&!String(st.res||'').trim()){try{const lr=localStorage.getItem('adResp');if(lr)st.res=lr}catch(e){}}
