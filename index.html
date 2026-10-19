@@ -110,6 +110,33 @@ svg text{fill:var(--fg-3);font-family:var(--body);font-size:11px}
 .mini b{display:inline-block;min-width:34px;text-align:center;font-size:11px;font-weight:700;border-radius:4px;padding:1px 3px}
 @media (max-width:520px){.tile .v{font-size:38px} h1{font-size:25px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* janela de insight do dia */
+.trend [data-dday]{cursor:pointer}
+.trend [data-dday]:hover{fill:var(--fg);fill-opacity:.05}
+body.dlock{overflow:hidden}
+.dovl{position:fixed;inset:0;z-index:60;background:rgba(20,19,18,.45);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px))}
+.dovl[hidden]{display:none!important}
+.dcard{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;width:min(760px,100%);max-height:100%;overflow:auto;padding:18px 20px 20px;display:flex;flex-direction:column;gap:16px;box-shadow:0 18px 50px rgba(0,0,0,.25);outline:none}
+.dcard section{display:flex;flex-direction:column;gap:8px}
+.dhd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.dhd h2{font-family:var(--display);font-size:34px;line-height:1;margin:2px 0 0;font-weight:700}
+.dkick{font-size:12px;color:var(--fg-3);letter-spacing:.04em}
+.dnav{display:flex;gap:6px}.dnav .btn{min-width:34px;justify-content:center;font-size:16px}
+.dhead{font-family:var(--display);font-size:26px;font-weight:700;line-height:1.1;margin:0;text-wrap:balance}
+.dhead.up{color:var(--good)}.dhead.dn{color:var(--crit)}
+.dkpis,.dpil{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dpil{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+.dkpis>div,.dpil>div{background:var(--surface-2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.dkpis b{font-family:var(--display);font-size:30px;line-height:1.05}
+.dpil b{font-family:var(--display);font-size:22px;line-height:1.05}
+.dwhy{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.45;max-width:75ch}
+.dmix{margin:2px 0 0;padding:8px 10px;border-left:3px solid var(--fg-3);background:var(--surface-2);border-radius:0 6px 6px 0}
+.dcard table{cursor:default;font-size:13px}.dcard td,.dcard th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.dcard .n{text-align:right;white-space:nowrap}
+.dcard .tw{padding:0}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dsub{margin-bottom:2px}
+.drts{display:flex;flex-wrap:wrap;gap:6px}.drt{background:var(--surface-2);border-radius:6px;padding:4px 8px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+@media (max-width:600px){.dovl{padding:0;align-items:flex-end}.dcard{border-radius:14px 14px 0 0;max-height:92%;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px))}.dkpis{grid-template-columns:1fr 1fr 1fr;gap:6px}.dkpis b{font-size:22px}.dgrid{grid-template-columns:1fr}.dhd h2{font-size:28px}.dhead{font-size:21px}}
+@media print{.dovl{display:none!important}}
 </style>
 <style>
 .svbar{display:flex;align-items:center;gap:8px}
@@ -960,7 +987,7 @@ let AD_LOCK=null;
 function adBlock(){if(!AD_LOCK)return false;
   toast(`Termine o Depois deste cliente: faltam ${AD_LOCK.n} ${AD_LOCK.n===1?'item':'itens'}. Marque ✓ ou ✗ em todos, ou use "Limpar Depois" para sair.`);
   const b=document.querySelector(`#tab-ad [data-tg="d|${AD_LOCK.first}"]`);if(b){b.scrollIntoView({block:'center',behavior:'smooth'});b.classList.add('need');setTimeout(()=>b.classList.remove('need'),2600)}return true}
-const adNavEl=t=>{if(!t||!t.closest)return false;if(t.closest('#tab-ad')){return !!t.closest('#adBack,[data-cr]')}if(t.closest('#fTog'))return false;return !!t.closest('button,a[href],select,[data-drill],[data-tab],input')};
+const adNavEl=t=>{if(!t||!t.closest)return false;if(t.closest('#dayDlg'))return false;if(t.closest('#tab-ad')){return !!t.closest('#adBack,[data-cr]')}if(t.closest('#fTog'))return false;return !!t.closest('button,a[href],select,[data-drill],[data-tab],input')};
 ['click','pointerdown','mousedown','touchstart','focusin','keydown'].forEach(ev=>document.addEventListener(ev,e=>{if(!AD_LOCK)return;const t=e.target;if(!adNavEl(t))return;
   if(ev==='keydown'&&!['Enter',' ','ArrowDown','ArrowUp'].includes(e.key))return;e.preventDefault();e.stopPropagation();if(t.blur)t.blur();if(ev==='click'||ev==='focusin'||ev==='keydown')adBlock()},true));
 window.addEventListener('beforeunload',e=>{if(AD_LOCK){e.preventDefault();e.returnValue='';return ''}});
@@ -995,7 +1022,7 @@ function dailySVG(t,m,cls,obj,prevScore){
   const w=640,h=240,ml=34,mr=78,mt=14,mb=26;const vals=pts.map(p=>p.v).filter(v=>v!=null).concat([obj,prevScore].filter(v=>v!=null));
   let lo=Math.floor(Math.min(...vals)/5)*5-5,hi=Math.min(100,Math.ceil(Math.max(...vals)/5)*5);if(hi-lo<10)lo=hi-10;
   const nx=pts.length,bw=Math.max(4,Math.min(22,(w-ml-mr)/nx*0.6));const x=k=>nx===1?(ml+w-mr)/2:ml+k*(w-ml-mr)/(nx-1);const y=v=>mt+(hi-v)*(h-mt-mb)/(hi-lo);
-  const mxN=Math.max(...pts.map(p=>p.n)),bh=(h-mt-mb)*0.32;const mm=String(m).padStart(2,'0');const MC=`var(--${cls})`;
+  DAYCTX={t,m,cls,obj,days};const mxN=Math.max(...pts.map(p=>p.n)),bh=(h-mt-mb)*0.32;const mm=String(m).padStart(2,'0');const MC=`var(--${cls})`;
   let g='';for(let v=lo;v<=hi;v+=5)g+=`<line x1="${ml}" x2="${w-mr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width=".6"/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end" style="fill:var(--fg-3);font-size:10px">${v}</text>`;
   pts.forEach((p,k)=>{const hh=Math.max(2,p.n/mxN*bh);g+=`<rect x="${x(k)-bw/2}" y="${h-mb-hh}" width="${bw}" height="${hh}" rx="2" fill="${MC}" opacity=".16"/>`;if(nx<=16)g+=`<text x="${x(k)}" y="${h-mb-hh-3}" text-anchor="middle" style="fill:${MC};font-size:9.5px;font-weight:600;opacity:.8">${p.n}</text>`});
   const step=Math.ceil(nx/12);pts.forEach((p,k)=>{if(k%step===0||k===nx-1)g+=`<text x="${x(k)}" y="${h-8}" text-anchor="middle" style="fill:var(--fg-3);font-size:10px">${String(p.d).padStart(2,'0')}/${mm}</text>`});
@@ -1006,9 +1033,83 @@ function dailySVG(t,m,cls,obj,prevScore){
   const lv=pts[nx-1].v;const labs=[];if(lv!=null)labs.push({v:lv,t:fmt(lv,2),c:'var(--fg)',b:1});if(obj!=null)labs.push({v:obj,t:'Obj. '+fmt(obj,1),c:'var(--obj)'});if(prevScore!=null&&prevM(m)!=null)labs.push({v:prevScore,t:MESN[prevM(m)]+' '+fmt(prevScore,1),c:'var(--prevm)'});
   labs.forEach(l=>l.y=y(l.v)+4);labs.sort((a,b)=>a.y-b.y);for(let k=1;k<labs.length;k++)if(labs[k].y-labs[k-1].y<13)labs[k].y=labs[k-1].y+13;
   labs.forEach(l=>g+=`<text x="${w-mr+8}" y="${l.y}" style="fill:${l.c};font-size:11px;font-weight:${l.b?700:600}">${l.t}</text>`);
-  pts.forEach((p,k)=>{const x0=nx===1?ml:(k===0?ml:(x(k-1)+x(k))/2),x1=nx===1?w-mr:(k===nx-1?w-mr:(x(k)+x(k+1))/2);g+=`<rect x="${x0}" y="${mt}" width="${x1-x0}" height="${h-mt-mb}" fill="transparent" data-tt="<b>${String(p.d).padStart(2,'0')}/${mm}</b><br>Nota acumulada: <b>${fmt(p.v,2)}</b> (${p.acc} PDVs)<br>Pesquisados no dia: ${p.n}${p.dv!=null?' · nota do dia '+fmt(p.dv,1):''}"/>`});
+  pts.forEach((p,k)=>{const x0=nx===1?ml:(k===0?ml:(x(k-1)+x(k))/2),x1=nx===1?w-mr:(k===nx-1?w-mr:(x(k)+x(k+1))/2);g+=`<rect x="${x0}" y="${mt}" width="${x1-x0}" height="${h-mt-mb}" fill="transparent" data-dday="${p.d}" data-tt="<b>${String(p.d).padStart(2,'0')}/${mm}</b><br>Nota acumulada: <b>${fmt(p.v,2)}</b> (${p.acc} PDVs)<br>Pesquisados no dia: ${p.n}${p.dv!=null?' · nota do dia '+fmt(p.dv,1):''}<br><i>Clique para ver o que aconteceu</i>"/>`});
   const f=pts[0],l=pts[nx-1];
-  return`<svg class="trend" viewBox="0 0 ${w} ${h}" role="img" aria-label="Nota ${T[t]} acumulada por dia">${g}</svg><p class="small">Linha: nota ${T[t]} acumulada do mês até cada dia. Barras: PDVs pesquisados no dia. Do primeiro ao último dia: ${fmt(f.v,2)} → <b>${fmt(l.v,2)}</b> (${l.v!=null&&f.v!=null?(l.v>=f.v?'<span class="up">+':'<span class="dn">')+fmt(l.v-f.v,2)+'</span>':'–'}). Passe o mouse ou toque nos dias para ver o detalhe.</p>`}
+  return`<svg class="trend" viewBox="0 0 ${w} ${h}" role="img" aria-label="Nota ${T[t]} acumulada por dia">${g}</svg><p class="small">Linha: nota ${T[t]} acumulada do mês até cada dia. Barras: PDVs pesquisados no dia. Do primeiro ao último dia: ${fmt(f.v,2)} → <b>${fmt(l.v,2)}</b> (${l.v!=null&&f.v!=null?(l.v>=f.v?'<span class="up">+':'<span class="dn">')+fmt(l.v-f.v,2)+'</span>':'–'}). <b>Clique em um dia</b> para ver o que aconteceu: canais, pilares, métricas e PDVs que mexeram na nota.</p>`}
+// ---------------- INSIGHT DO DIA (clique no gráfico dia a dia) ----------------
+const dayN=i=>{const d=PM.d[i];return d?parseInt(String(d).slice(0,2),10):null};
+const WD=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+let DAYCTX=null;
+function kpiPct(a){const r=[0,0,0,0,0],p=[0,0,0,0,0];for(const c in a.ch){const o=a.ch[c];if(!o.w)continue;for(let k=0;k<5;k++){r[k]+=o.kr[k];p[k]+=o.kp[k]}}return K.map((_,k)=>p[k]?r[k]/p[k]*100:null)}
+function dayInsightHTML(d){
+  const {t,m,cls,obj,days}=DAYCTX;const k=days.indexOf(d),pd=k>0?days[k-1]:null,mm=String(m).padStart(2,'0'),dd=x=>String(x).padStart(2,'0')+'/'+mm;
+  const A1=agg(t,m,i=>inScope(i)&&dayN(i)<=d),A0=pd?agg(t,m,i=>inScope(i)&&dayN(i)<d):null;
+  const Dd=agg(t,m,i=>inScope(i)&&dayN(i)===d),Dp=pd?agg(t,m,i=>inScope(i)&&dayN(i)===pd):null;
+  const MC=`var(--${cls})`,sg=(v,dc=2)=>v==null?'–':(v>=0?'+':'−')+fmt(Math.abs(v),dc),cl=v=>v==null||Math.abs(v)<0.05?'':v>0?'up':'dn';
+  const dA=A0&&A0.score!=null&&A1.score!=null?A1.score-A0.score:null,dN=Dp?Dd.n-Dp.n:null;
+  const gap=A0&&A0.score!=null&&Dd.score!=null?Dd.score-A0.score:null;
+  // dia da semana a partir da data da pesquisa
+  let wd='';{const s=Dd.rows.length?String(PM.d[Dd.rows[0]]):'';const x=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(x){const y=+x[3]<100?2000+ +x[3]:+x[3];wd=WD[new Date(y,+x[2]-1,+x[1]).getDay()]}}
+  // efeito de cada canal do dia: nota acumulada com o dia inteiro menos a nota sem os PDVs daquele canal no dia
+  const chs=Object.keys(Dd.ch).map(c=>{const o=Dd.ch[c];const wo=agg(t,m,i=>inScope(i)&&dayN(i)<=d&&!(dayN(i)===d&&PM.c[i]==c));const b=A0&&A0.ch[c];
+    return{c:C[c],n:o.n,pct:o.pct,w:o.w,bef:b?b.pct:null,imp:A1.score!=null&&wo.score!=null?A1.score-wo.score:null,novo:!b}}).sort((a,b)=>Math.abs(b.imp||0)-Math.abs(a.imp||0));
+  const kd=kpiPct(Dd),kb=A0?kpiPct(A0):K.map(()=>null);
+  const kRows=K.map((q,i)=>({n:KN[q],d:kd[i],b:kb[i],x:kd[i]!=null&&kb[i]!=null?kd[i]-kb[i]:null})).filter(r=>r.d!=null);
+  // métricas: % de cumprimento no dia × acumulado até a véspera
+  let mUp=[],mDn=[];if(A0&&A0.W&&Dd.W){const Md=metricLoss(t,m,Dd),Mb=metricLoss(t,m,A0);const ls=[];for(const q in Md){const a=Md[q],b=Mb[q];if(!b||a.comp==null||b.comp==null)continue;const x=a.comp-b.comp;if(Math.abs(x)>=3)ls.push({q,d:a.comp,b:b.comp,x})}
+    mUp=ls.filter(r=>r.x>0).sort((a,b)=>b.x-a.x).slice(0,4);mDn=ls.filter(r=>r.x<0).sort((a,b)=>a.x-b.x).slice(0,4)}
+  const pv=Dd.rows.map(i=>({i,s:PM.poss[i]?PM.real[i]/PM.poss[i]*100:null})).filter(x=>x.s!=null).sort((a,b)=>b.s-a.s);
+  const low=pv.filter(x=>x.s<70).length;
+  // rotas do dia
+  const rt={};Dd.rows.forEach(i=>{const r=RK[PM.r[i]];const key=rotaLab(r);const o=rt[key]||(rt[key]={k:key,rota:r.rota,n:0,s:0});o.n++;o.s+=PM.poss[i]?PM.real[i]/PM.poss[i]*100:0});
+  const rts=Object.values(rt).sort((a,b)=>b.n-a.n);
+  // manchete
+  let head,tone='';
+  if(!pd){head=`Primeiro dia de pesquisa do mês`;tone='';}
+  else if(dA==null){head='Sem nota comparável'}
+  else{const st=Math.abs(dA)<0.05,mais=dN>0,menos=dN<0;
+    if(st)head=menos?'Menos pesquisas e a nota ficou estável':mais?'Mais pesquisas e a nota ficou estável':'Mesmo volume e a nota ficou estável';
+    else if(dA>0)head=menos?'Menos pesquisas, mas a nota subiu':mais?'Mais pesquisas e a nota subiu':'Mesmo volume e a nota subiu';
+    else head=menos?'Menos pesquisas e a nota caiu':mais?'Mais pesquisas, mas a nota caiu':'Mesmo volume e a nota caiu';
+    tone=st?'':dA>0?'up':'dn'}
+  // explicações
+  const why=[];
+  if(!pd){why.push(`Foram <b>${Dd.n}</b> PDVs pesquisados, com nota <b>${fmt(Dd.score,2)}</b>. Esse é o ponto de partida da acumulada do mês.`)}
+  else if(gap!=null){
+    why.push(`Os PDVs pesquisados neste dia tiveram nota <b>${fmt(Dd.score,2)}</b>, ${gap>=0?`<span class="up">${fmt(gap,2)} pts acima</span>`:`<span class="dn">${fmt(-gap,2)} pts abaixo</span>`} da nota acumulada até ${dd(pd)} (${fmt(A0.score,2)}). ${gap>=0?'Quando o dia vai melhor que a média, puxa a acumulada para cima':'Quando o dia vai pior que a média, puxa a acumulada para baixo'}${Math.sign(gap)!==Math.sign(dA)&&Math.abs(dA)>=0.05?', mas aqui a mistura de canais falou mais alto (veja abaixo)':''}.`);
+    const sh=A1.n?Dd.n/A1.n*100:0;
+    why.push(`Volume: <b>${Dd.n}</b> PDVs ${dN!=null?`(${dN===0?'igual a':dN>0?dN+' a mais que':(-dN)+' a menos que'} ${dd(pd)}, que teve ${Dp.n})`:''}. Eles representam <b>${fmt(sh,1)}%</b> dos ${A1.n} PDVs do mês até aqui, ${sh<5?'por isso o efeito na acumulada é pequeno':sh<12?'um peso moderado na acumulada':'um peso grande na acumulada'}.${dN<0&&dA>0?' Menos pesquisas não derrubam a nota: o que importa é a qualidade de quem foi pesquisado.':''}${dN>0&&dA<0?' Mais pesquisas não garantem nota maior: se os PDVs novos vêm abaixo da média, a acumulada cai.':''}`);
+    const top=chs.filter(x=>x.imp!=null&&Math.abs(x.imp)>=0.01);const pos=top.filter(x=>x.imp>0).sort((a,b)=>b.imp-a.imp)[0],neg=top.filter(x=>x.imp<0).sort((a,b)=>a.imp-b.imp)[0];
+    if(pos)why.push(`Quem mais puxou para cima: <b>${esc(pos.c)}</b>, ${pos.n} PDV${pos.n>1?'s':''} com nota ${fmt(pos.pct,1)}${pos.novo?' (primeiro registro do canal no mês)':` contra ${fmt(pos.bef,1)} no acumulado do canal`} → <span class="up">${sg(pos.imp)} pts</span>.`);
+    if(neg)why.push(`Quem mais segurou: <b>${esc(neg.c)}</b>, ${neg.n} PDV${neg.n>1?'s':''} com nota ${fmt(neg.pct,1)}${neg.novo?' (primeiro registro do canal no mês)':` contra ${fmt(neg.bef,1)} no acumulado do canal`} → <span class="dn">${sg(neg.imp)} pts</span>.`);
+    const bk=kRows.filter(r=>r.x!=null).sort((a,b)=>b.x-a.x);if(bk.length){const b=bk[0],w=bk[bk.length-1];if(b.x>=2)why.push(`Pilar que mais ajudou: <b>${b.n}</b> com ${fmt(b.d,1)}% atendido no dia (${fmt(b.b,1)}% até a véspera).`);if(w.x<=-2&&w!==b)why.push(`Pilar que mais pesou contra: <b>${w.n}</b> com ${fmt(w.d,1)}% atendido no dia (${fmt(w.b,1)}% até a véspera).`)}
+  }
+  if(low)why.push(`<b>${low}</b> de ${pv.length} PDVs do dia ficaram abaixo de 70.`);else if(pv.length)why.push(`Nenhum PDV do dia ficou abaixo de 70.`);
+  if(obj!=null&&Dd.score!=null)why.push(`Contra o objetivo de ${fmt(obj,1)}: o dia ${Dd.score>=obj?`<span class="up">bateu (${sg(Dd.score-obj)})</span>`:`<span class="dn">ficou ${fmt(obj-Dd.score,2)} pts abaixo</span>`}; a acumulada ${A1.score>=obj?'<span class="up">está acima</span>':`<span class="dn">ainda precisa de ${fmt(obj-A1.score,2)} pts</span>`}.`);
+  const why2=pd?`<p class="note dmix">A nota ${T[t]} é ponderada pelo <b>peso do canal</b>, não pela quantidade de PDVs. Poucos PDVs bons em um canal pesado movem mais a nota do que muitos PDVs em um canal leve.</p>`:'';
+  const pvRow=x=>{const i=x.i,r=RK[PM.r[i]],cs=D.cons[r.rota];return`<tr><td><b class="num">${D.pdv[PM.p[i]]}</b> · ${esc(D.pdvNome[PM.p[i]]||'')}<div class="small">${C[PM.c[i]]} · Rota ${esc(rotaLab(r))}${cs&&cs[0]?' · '+esc(cs[0]):''}</div></td><td class="n"><span class="pill ${scoreCls(x.s)}">${fmt(x.s,1)}</span></td></tr>`};
+  const best=pv.slice(0,Math.min(3,pv.length)),worst=pv.length>3?pv.slice(-Math.min(3,pv.length-3)).reverse():[];
+  const mRow=r=>`<tr><td><span class="kpiTag">${KN[K[D.qKpi[r.q]]]}</span> ${esc(qCode(D.q[r.q]))} ${esc(qDesc(D.q[r.q]).slice(0,70))}</td><td class="n">${fmt(r.b,0)}%</td><td class="n">${fmt(r.d,0)}%</td><td class="n ${cl(r.x)}">${sg(r.x,0)}</td></tr>`;
+  return`<header class="dhd"><div><div class="dkick">${T[t]} · ${esc(scopeName())}${wd?' · '+wd:''}</div><h2 id="dayTit">${dd(d)}</h2></div>
+    <div class="dnav"><button type="button" class="btn" data-dnav="${k>0?days[k-1]:''}"${k>0?'':' disabled'} aria-label="Dia anterior">‹</button><button type="button" class="btn" data-dnav="${k<days.length-1?days[k+1]:''}"${k<days.length-1?'':' disabled'} aria-label="Próximo dia">›</button><button type="button" class="btn" data-dclose aria-label="Fechar">✕</button></div></header>
+  <p class="dhead ${tone}">${head}</p>
+  <div class="dkpis">
+    <div><span class="small">Nota acumulada</span><b class="num">${fmt(A1.score,2)}</b><span class="small">${A0?`${fmt(A0.score,2)} → ${fmt(A1.score,2)} · <span class="${cl(dA)}">${sg(dA)}</span>`:'início do mês'}</span></div>
+    <div><span class="small">Nota do dia</span><b class="num">${fmt(Dd.score,2)}</b><span class="small">${gap!=null?`<span class="${cl(gap)}">${sg(gap)}</span> vs acumulada da véspera`:''}</span></div>
+    <div><span class="small">PDVs no dia</span><b class="num">${Dd.n}</b><span class="small">${dN!=null?`<span class="${dN>0?'up':dN<0?'dn':''}">${dN>0?'+':dN<0?'−':''}${Math.abs(dN)}</span> vs ${dd(pd)}`:''}</span></div>
+  </div>
+  <section><h3>O que aconteceu</h3><ul class="dwhy">${why.map(w=>`<li>${w}</li>`).join('')}</ul>${why2}</section>
+  ${chs.length?`<section><h3>Canais do dia</h3><div class="tw"><table><thead><tr><th>Canal</th><th class="n">Peso</th><th class="n">PDVs</th><th class="n">Nota dia</th><th class="n">Acum. antes</th><th class="n" title="Quanto a nota acumulada mudaria se os PDVs desse canal neste dia não existissem">Efeito</th></tr></thead><tbody>${chs.map(x=>`<tr><td><b>${esc(x.c)}</b></td><td class="n">${fmt(x.w,2)}</td><td class="n">${x.n}</td><td class="n"><span class="pill ${scoreCls(x.pct)}">${fmt(x.pct,1)}</span></td><td class="n">${x.novo?'<span class="small">novo</span>':fmt(x.bef,1)}</td><td class="n ${cl(x.imp)}"><b>${sg(x.imp)}</b></td></tr>`).join('')}</tbody></table></div><p class="small">Efeito = pts que os PDVs do canal neste dia somaram ou tiraram da nota acumulada.</p></section>`:''}
+  ${kRows.length?`<section><h3>Pilares</h3><div class="dpil">${kRows.map(r=>`<div><span class="small">${r.n}</span><b class="num">${fmt(r.d,0)}%</b><span class="small">${r.x!=null?`<span class="${cl(r.x)}">${sg(r.x,1)}</span> vs ${fmt(r.b,0)}%`:''}</span></div>`).join('')}</div></section>`:''}
+  ${mUp.length||mDn.length?`<section><h3>Métricas que mais mudaram</h3><p class="small">% de cumprimento: acumulado até a véspera × neste dia</p><div class="tw"><table><thead><tr><th>Métrica</th><th class="n">Antes</th><th class="n">Dia</th><th class="n">Δ</th></tr></thead><tbody>${mUp.map(mRow).join('')}${mDn.map(mRow).join('')}</tbody></table></div></section>`:''}
+  ${pv.length?`<section><h3>PDVs do dia</h3><div class="dgrid"><div><div class="small dsub">Melhores</div><div class="tw"><table><tbody>${best.map(pvRow).join('')}</tbody></table></div></div>${worst.length?`<div><div class="small dsub">Piores</div><div class="tw"><table><tbody>${worst.map(pvRow).join('')}</tbody></table></div></div>`:''}</div></section>`:''}
+  ${rts.length?`<section><h3>Rotas que pesquisaram</h3><div class="drts">${rts.slice(0,12).map(r=>{const s=r.s/r.n;const cs=D.cons[r.rota];return`<span class="drt"><b>${esc(r.k)}</b> ${r.n} PDV${r.n>1?'s':''} · <span class="pill ${scoreCls(s)}">${fmt(s,1)}</span>${cs&&cs[0]?`<span class="small"> ${esc(cs[0])}</span>`:''}</span>`}).join('')}${rts.length>12?`<span class="small">+${rts.length-12} rotas</span>`:''}</div><p class="small">Nota da rota = média simples dos PDVs dela no dia.</p></section>`:''}`}
+function dayOpen(d){if(!DAYCTX)return;let o=$('dayDlg');if(!o){o=document.createElement('div');o.id='dayDlg';o.className='dovl';o.innerHTML='<div class="dcard" role="dialog" aria-modal="true" aria-labelledby="dayTit" tabindex="-1"></div>';document.body.appendChild(o);
+    o.addEventListener('click',e=>{if(e.target===o||e.target.closest('[data-dclose]')){dayClose();return}const n=e.target.closest('[data-dnav]');if(n&&n.dataset.dnav)dayOpen(+n.dataset.dnav)});
+    document.addEventListener('keydown',e=>{if(o.hidden)return;if(e.key==='Escape')dayClose();else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){const b=o.querySelectorAll('[data-dnav]')[e.key==='ArrowLeft'?0:1];if(b&&b.dataset.dnav)dayOpen(+b.dataset.dnav)}})}
+  const c=o.querySelector('.dcard');c.innerHTML=dayInsightHTML(d);o.hidden=false;document.body.classList.add('dlock');tt.hidden=true;c.scrollTop=0;c.focus({preventScroll:true})}
+function dayClose(){const o=$('dayDlg');if(o)o.hidden=true;document.body.classList.remove('dlock')}
+document.addEventListener('click',e=>{const r=e.target.closest&&e.target.closest('[data-dday]');if(r)dayOpen(+r.dataset.dday)});
 function trendSVG(series){
   const w=640,h=240,ml=34,mr=48,mt=14,mb=26,ms=D.meses;
   const all=series.flatMap(s=>s.v.filter(v=>v!=null));let lo=Math.floor(Math.min(...all,70)/5)*5,hi=Math.min(100,Math.ceil(Math.max(...all,80)/5)*5);
