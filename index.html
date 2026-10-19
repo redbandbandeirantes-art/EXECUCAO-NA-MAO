@@ -383,7 +383,7 @@ input.err{border-color:var(--crit)!important;box-shadow:0 0 0 2px var(--crit-bg)
       <h1>RED 360º · Execução na palma da mão</h1>
       <div class="sub" id="subtitle"></div>
     </div></div>
-    <div class="upd small">Atualizado em <b>16/10/2026</b><br>RED até 15/10 · ICE LATAM até 15/10<br>* outubro parcial</div>
+    <div class="upd small" id="updBox"></div>
   </header>
 
   <div class="filters" role="region" aria-label="Filtros">
@@ -426,10 +426,10 @@ input.err{border-color:var(--crit)!important;box-shadow:0 0 0 2px var(--crit-bg)
   <div class="footrow"><div id="footAtk" class="callout" hidden></div><div class="foot">
     <div><b>Como a nota é calculada.</b> Nota do canal = pontos realizados ÷ pontos possíveis de todos os PDVs pesquisados do canal. Nota do escopo = média dos canais ponderada pelo peso FDS (ICE e RED têm pesos próprios), renormalizada pelos canais presentes no escopo. A nota final da remuneração (média de ICE e RED) aparece só na aba Nota final.</div>
     <div><b>Pts na nota</b> = quanto a nota ponderada do escopo subiria se o item fosse 100% executado. Junta o peso do canal, o tamanho da perda e quantos PDVs falharam.</div>
-    <div><b>Outubro (*)</b> é parcial: RED até 15/10 (1.808 PDVs) e ICE LATAM até 15/10 (542 PDVs), arquivos iRED360 de 16/10/2026.</div>
+    <div id="updFoot"></div>
     <div class="legend-cores"><b>Cores das notas:</b><span class="pill good">75 ou mais</span><span class="pill warn">70 a 74,99</span><span class="pill serious">60 a 69,99</span><span class="pill crit">abaixo de 60</span><span>Vermelho aparece só em alerta. ICE em azul, RED em grafite.</span></div>
     <div><b>Estrutura comercial:</b> todas as pesquisas (abr–out) aparecem na gerência, supervisão e rota atuais de cada cliente, tiradas do arquivo mais recente: pesquisas de outubro (iRED360 de 09/10 e ICE de outubro) e, para quem ainda não foi pesquisado em outubro, a base de pesquisa de outubro; depois a base RED de outubro; na falta delas, a última pesquisa do cliente. Consultor, supervisor e gerente vêm da Estrutura Comercial Infocom; repositor e líder de merchandising, da Base Repositores (arquivo 10-PESQUISA BASE BAND CLIENTES OUTUBRO-26).</div>
-    <div>Fontes: iRED360 RED abr–out/2026; ICE LATAM abr–ago (pesquisa Dimensiva), set fechado (iRED360 ICE LATAM de 07/10) e out (iRED360 ICE LATAM de 16/10); RED de set fechado (iRED360 RED de 07/10); PESO FDS RED_ICE; Estudos GC (base e prioridades de outubro, objetivos, ICE jan–abr/2025); 10-PESQUISAS BASE BAND DIMENSIVA OUTUBRO-26 (status da pesquisa, ICE jan–mar/2026, cadastro e geolocalização); 10-PESQUISA BASE BAND CLIENTES OUTUBRO-26 (base RED, estrutura comercial, repositores e geolocalização). Pesos RED: ADEGAS 1,4 e CONVENIÊNCIA 1,0, conforme a planilha de pesos. Notas sem ajustes de auditoria.</div>
+    <div>Fontes: iRED360 RED abr–out/2026; ICE LATAM abr–ago (pesquisa Dimensiva), set fechado (iRED360 ICE LATAM de 07/10) e out (iRED360 ICE LATAM de <span id="updSrc"></span>); RED de set fechado (iRED360 RED de 07/10); PESO FDS RED_ICE; Estudos GC (base e prioridades de outubro, objetivos, ICE jan–abr/2025); 10-PESQUISAS BASE BAND DIMENSIVA OUTUBRO-26 (status da pesquisa, ICE jan–mar/2026, cadastro e geolocalização); 10-PESQUISA BASE BAND CLIENTES OUTUBRO-26 (base RED, estrutura comercial, repositores e geolocalização). Pesos RED: ADEGAS 1,4 e CONVENIÊNCIA 1,0, conforme a planilha de pesos. Notas sem ajustes de auditoria.</div>
     <div>Antes e Depois: formulário oficial Band 2026 V3. Aberto pelo link do Claude, o formulário e a visita de cada cliente ficam gravados e aparecem para todos; hospedado em outro endereço, ficam salvos no aparelho de quem preencheu e podem ser enviados pelo botão Exportar visitas (aba Visitas).</div>
   </div></div>
 </div>
@@ -1751,6 +1751,11 @@ window.addEventListener('afterprint',()=>{delete document.body.dataset.print});
  else{try{const pp=localStorage.getItem('adPend');if(pp){S.adPv=pp;S.tab='ad';setTimeout(()=>{if(AD_LOCK)toast('Há um Antes e Depois em andamento neste aparelho: termine o Depois ou use Limpar Depois.')},900)}}catch(e){}}}
 try{if(matchMedia('(max-width:640px)').matches)document.body.classList.add('fclosed')}catch(e){}
 try{const fb=document.querySelector('.filters');if(fb&&window.ResizeObserver)new ResizeObserver(()=>document.documentElement.style.setProperty('--fh',(getComputedStyle(fb).position==='sticky'?fb.offsetHeight:0)+'px')).observe(fb)}catch(e){}
+// datas da atualização vêm do data.json (não precisa trocar o index a cada atualização)
+try{const U=D.upd||{},mf=MESF[PARC],Mf=mf.charAt(0).toUpperCase()+mf.slice(1),nR=rowsOf(1,PARC).length,nI=rowsOf(0,PARC).length,nf=n=>n.toLocaleString('pt-BR');
+  $('updBox').innerHTML=`${U.dt?'Atualizado em <b>'+U.dt+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`;
+  $('updFoot').innerHTML=`<b>${Mf} (*)</b> é parcial: RED até ${U.red||'–'} (${nf(nR)} PDVs) e ICE LATAM até ${U.ice||'–'} (${nf(nI)} PDVs)${U.arq?', arquivos iRED360 de '+U.arq:''}.`;
+  $('updSrc').textContent=U.arq?U.arq.slice(0,5):(U.ice||'')}catch(e){}
 buildFilters();render();
 })();
 
