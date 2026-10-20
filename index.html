@@ -1909,13 +1909,16 @@ html.authed #auth{display:none}
 .atabs button{font:inherit;font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.02em;background:none;border:0;border-bottom:3px solid transparent;color:var(--fg-3);padding:6px 12px;cursor:pointer}
 .atabs button.on{color:var(--fg);border-bottom-color:var(--fg)}
 #admBody{display:flex;flex-direction:column;gap:14px}
-.dcard.upd{width:min(980px,100%)}
+.dcard.adm{width:min(980px,100%)}
 .ufrm{display:grid;grid-template-columns:2fr 1fr 1.4fr auto;gap:8px;align-items:end}
 .ufrm label,.ufil{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--fg-3)}
 .ufil{flex-direction:row;flex-wrap:wrap;gap:6px}
 .ufrm input,.ufrm select,.ufil input,.ufil select,.utab select{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0}
 .ulhd{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
-.uacts{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}.uacts .btn{font-size:12px;padding:4px 8px}
+.dcard.adm{text-align:left}
+.utab td{vertical-align:middle}
+.utab td.uacts{text-align:right;white-space:nowrap}
+.uacts .btn{display:inline-flex;margin-left:4px;vertical-align:middle}.uacts .btn{font-size:12px;padding:4px 8px}
 .btn.dng{color:var(--crit)}
 .unew{background:var(--surface-2);border-radius:10px;padding:12px}
 @media (max-width:700px){.ufrm{grid-template-columns:1fr 1fr}.ufrm label:first-child{grid-column:1/-1}}
@@ -1929,7 +1932,7 @@ html.authed #auth{display:none}
 .uav{background:var(--warn-bg);color:var(--fg);border-radius:8px;padding:10px 12px 10px 28px}
 .uact{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .uact .pri{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
-.dcard.upd .dkpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.dcard.adm .dkpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 /* solicitações de acesso */
 .upd-btn{position:relative}
 .ubadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;line-height:1}
@@ -1946,7 +1949,9 @@ html.authed #auth{display:none}
 .upd-btn .sm,.udrop .sm{display:none}
 .atabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.atabs::-webkit-scrollbar{display:none}.atabs button{white-space:nowrap;flex:none}
 .ucard td.ucell-u{word-break:break-word}
-.ulhd .ufil input{flex:1 1 180px}
+.ulhd .ufil{flex:1 1 420px;justify-content:flex-end;align-items:center}
+.ulhd .ufil input{flex:1 1 200px;max-width:320px}
+.ufrm .btn{height:38px;align-self:end}
 @media (max-width:900px){.ufrm{grid-template-columns:1fr 1fr}.ufrm label:first-child{grid-column:1/-1}.ufrm .btn{grid-column:1/-1;justify-content:center;padding:10px}}
 @media (max-width:700px){
   .upd-btn .lg,.udrop .lg{display:none}.upd-btn .sm,.udrop .sm{display:inline}
@@ -1960,7 +1965,7 @@ html.authed #auth{display:none}
   .ulhd{flex-direction:column;align-items:stretch}.ufil{width:100%}.ufil input{flex:1 1 100%}.ufil select{flex:1}
   .udrop{padding:24px 14px}.udrop b{font-size:19px}
   .uact{flex-direction:column-reverse;align-items:stretch}.uact .btn{justify-content:center;padding:11px}
-  .dcard.upd .dkpis{grid-template-columns:1fr}
+  .dcard.adm .dkpis{grid-template-columns:1fr}
   /* tabelas viram cartões */
   .ucard,.ucard tbody,.ucard tr,.ucard td{display:block;width:100%}
   .ucard thead{display:none}
@@ -1970,7 +1975,7 @@ html.authed #auth{display:none}
   .ucard td[data-l]:not([data-l=""])::before{content:attr(data-l);font-size:12px;color:var(--fg-3);flex:none}
   .ucard td[colspan]{display:block}
   .ucard td[data-l="Perfil"] select{flex:1;max-width:60%}
-  .dcard .ucard td.uacts{justify-content:stretch;padding-top:8px}.uacts .btn{flex:1;justify-content:center;font-size:13px;padding:8px 6px}
+  .dcard .ucard td.uacts{display:flex;gap:6px;justify-content:stretch;padding-top:8px;white-space:normal}.uacts .btn{margin-left:0}.uacts .btn{flex:1;justify-content:center;font-size:13px;padding:8px 6px}
 }
 @media (max-width:380px){.uacts{flex-direction:column}}
 </style>
@@ -2121,7 +2126,7 @@ $('fSolic').onsubmit=async ev=>{
   try{const {error}=await sb.from(TAB_SOLIC).insert({nome,email,cargo:cargo||null,obs:obs||null});
     if(!error)salvo=true;else if(error.code==='23505')dup=true;else console.warn('Solicitação:',error.message)}catch(e){console.warn(e)}
   if(!dup){try{const r=await fetch('https://formsubmit.co/ajax/'+AVISO_EMAIL,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-      body:JSON.stringify({_subject:'Painel RED 360º · '+nome+' pediu acesso',_template:'table',_replyto:email,'Nome':nome,'E-mail':email,'Cargo / função':cargo||'—','Gerência / supervisão / rota':obs||'—','Pedido em':new Date().toLocaleString('pt-BR'),'Como liberar':'Entre no painel → Administração → Usuários → Solicitações de acesso'})});
+      body:JSON.stringify({_subject:'Painel RED 360º · '+nome+' pediu acesso',_template:'table',_replyto:email,'Nome':nome,'E-mail':email,'Cargo / função':cargo||'—','Gerência / supervisão / rota':obs||'—','Pedido em':new Date().toLocaleString('pt-BR'),'Como liberar':'Entre no painel → Gestão → Usuários → Solicitações de acesso'})});
     const j=await r.json().catch(()=>({}));avisado=r.ok&&String(j.success)!=='false'}catch(e){console.warn(e)}}
   ocupado(f,false);
   if(dup)return msg('Já existe uma solicitação pendente com esse e-mail. Aguarde o administrador.','ok');
@@ -2317,7 +2322,7 @@ async function poeAtualizar(){
     if(error){console.warn('Perfis:',error.message);return}
     if(!data||String(data.perfil||'').toLowerCase()!=='admin')return}catch(e){return}
   const h=document.querySelector('header.top');if(!h||$('updBtn'))return;
-  const b=document.createElement('button');b.id='updBtn';b.className='sair-btn upd-btn';b.type='button';b.innerHTML='<span class="lg">Administração</span><span class="sm">Admin</span><span class="ubadge" id="solBadge" hidden></span>';b.setAttribute('aria-label','Administração');b.onclick=()=>abreAdmin('upd');
+  const b=document.createElement('button');b.id='updBtn';b.className='sair-btn upd-btn';b.type='button';b.innerHTML='<span class="lg">Gestão</span><span class="sm">Gestão</span><span class="ubadge" id="solBadge" hidden></span>';b.setAttribute('aria-label','Gestão');b.onclick=()=>abreAdmin('upd');
   const s=h.querySelector('.sair-btn:not(.upd-btn)');h.insertBefore(b,s||null);
   contaSolic();
 }
@@ -2329,8 +2334,8 @@ let ADM_TAB='upd';
 function abreAdmin(tab){
   let o=$('updDlg');
   if(!o){o=document.createElement('div');o.id='updDlg';o.className='dovl';
-    o.innerHTML=`<div class="dcard upd" role="dialog" aria-modal="true" aria-labelledby="admTit" tabindex="-1">
-      <header class="dhd"><div><div class="dkick">Painel RED 360º</div><h2 id="admTit">Administração</h2></div><div class="dnav"><button type="button" class="btn" data-ax aria-label="Fechar">✕</button></div></header>
+    o.innerHTML=`<div class="dcard adm" role="dialog" aria-modal="true" aria-labelledby="admTit" tabindex="-1">
+      <header class="dhd"><div><div class="dkick">Painel RED 360º</div><h2 id="admTit">Gestão</h2></div><div class="dnav"><button type="button" class="btn" data-ax aria-label="Fechar">✕</button></div></header>
       <nav class="atabs" role="tablist"><button type="button" role="tab" data-at="upd">Atualizar dados</button><button type="button" role="tab" data-at="usr">Usuários</button></nav>
       <div id="admBody"></div></div>`;document.body.appendChild(o);
     o.addEventListener('click',e=>{if(o.dataset.busy)return;if(e.target===o||e.target.closest('[data-ax]')){fechaAdmin();return}const t=e.target.closest('[data-at]');if(t)mostraTab(t.dataset.at)});
