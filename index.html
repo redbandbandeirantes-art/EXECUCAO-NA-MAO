@@ -987,7 +987,7 @@ let AD_LOCK=null;
 function adBlock(){if(!AD_LOCK)return false;
   toast(`Termine o Depois deste cliente: faltam ${AD_LOCK.n} ${AD_LOCK.n===1?'item':'itens'}. Marque ✓ ou ✗ em todos, ou use "Limpar Depois" para sair.`);
   const b=document.querySelector(`#tab-ad [data-tg="d|${AD_LOCK.first}"]`);if(b){b.scrollIntoView({block:'center',behavior:'smooth'});b.classList.add('need');setTimeout(()=>b.classList.remove('need'),2600)}return true}
-const adNavEl=t=>{if(!t||!t.closest)return false;if(t.closest('#dayDlg'))return false;if(t.closest('#tab-ad')){return !!t.closest('#adBack,[data-cr]')}if(t.closest('#fTog'))return false;return !!t.closest('button,a[href],select,[data-drill],[data-tab],input')};
+const adNavEl=t=>{if(!t||!t.closest)return false;if(t.closest('#dayDlg,#updDlg'))return false;if(t.closest('#tab-ad')){return !!t.closest('#adBack,[data-cr]')}if(t.closest('#fTog'))return false;return !!t.closest('button,a[href],select,[data-drill],[data-tab],input')};
 ['click','pointerdown','mousedown','touchstart','focusin','keydown'].forEach(ev=>document.addEventListener(ev,e=>{if(!AD_LOCK)return;const t=e.target;if(!adNavEl(t))return;
   if(ev==='keydown'&&!['Enter',' ','ArrowDown','ArrowUp'].includes(e.key))return;e.preventDefault();e.stopPropagation();if(t.blur)t.blur();if(ev==='click'||ev==='focusin'||ev==='keydown')adBlock()},true));
 window.addEventListener('beforeunload',e=>{if(AD_LOCK){e.preventDefault();e.returnValue='';return ''}});
@@ -1884,6 +1884,13 @@ html.authed #auth{display:none}
 #auth .go:disabled{opacity:.6;cursor:wait}
 #auth .go:focus-visible,#auth .link:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
 #auth .link{display:inline-block;margin-top:14px;border:0;background:none;padding:0;color:var(--ice);font:inherit;font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+#auth .ou{display:flex;align-items:center;gap:10px;margin:20px 0 0;color:var(--fg-3);font-size:13px}
+#auth .ou::before,#auth .ou::after{content:"";flex:1;height:1px;background:var(--line)}
+#auth .alt{width:100%;margin-top:10px;font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:.04em;padding:10px;border:1px solid var(--line);border-radius:4px;background:none;color:var(--fg);cursor:pointer}
+#auth .alt:hover{border-color:var(--fg-3)}
+#auth .alt:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+#auth .opc{font-weight:400;color:var(--fg-3)}
+#auth .hp{position:absolute!important;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
 #auth .msg{margin-top:14px;padding:10px 12px;border-radius:4px;font-size:14px}
 #auth .msg.err{background:var(--crit-bg);color:var(--crit)}
 #auth .msg.ok{background:var(--good-bg);color:var(--good)}
@@ -1896,6 +1903,76 @@ html.authed #auth{display:none}
 .sair-btn{align-self:center;border:1px solid var(--line);background:var(--surface);color:var(--fg-2);font:inherit;font-size:13px;padding:6px 12px;border-radius:4px;cursor:pointer}
 .sair-btn:hover{color:var(--fg)}
 @media print{.sair-btn{display:none}}
+
+/* atualizar dados */
+.atabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:-6px}
+.atabs button{font:inherit;font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.02em;background:none;border:0;border-bottom:3px solid transparent;color:var(--fg-3);padding:6px 12px;cursor:pointer}
+.atabs button.on{color:var(--fg);border-bottom-color:var(--fg)}
+#admBody{display:flex;flex-direction:column;gap:14px}
+.dcard.upd{width:min(980px,100%)}
+.ufrm{display:grid;grid-template-columns:2fr 1fr 1.4fr auto;gap:8px;align-items:end}
+.ufrm label,.ufil{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--fg-3)}
+.ufil{flex-direction:row;flex-wrap:wrap;gap:6px}
+.ufrm input,.ufrm select,.ufil input,.ufil select,.utab select{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0}
+.ulhd{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.uacts{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}.uacts .btn{font-size:12px;padding:4px 8px}
+.btn.dng{color:var(--crit)}
+.unew{background:var(--surface-2);border-radius:10px;padding:12px}
+@media (max-width:700px){.ufrm{grid-template-columns:1fr 1fr}.ufrm label:first-child{grid-column:1/-1}}
+.usen{display:flex;gap:4px}.usen input{flex:1;min-width:0}.usen .btn{flex:none}
+.upd-btn{margin-right:6px}
+.udrop{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;text-align:center;border:2px dashed var(--line);border-radius:10px;padding:34px 16px;cursor:pointer;background:var(--surface-2)}
+.udrop b{font-family:var(--display);font-size:22px}
+.udrop.on,.udrop:hover{border-color:var(--fg-3)}
+.umsg{font-size:14px;padding:10px 12px;border-radius:8px;background:var(--surface-2)}
+.umsg.err{background:var(--crit-bg);color:var(--crit)}.umsg.ok{background:var(--good-bg);color:var(--good)}
+.uav{background:var(--warn-bg);color:var(--fg);border-radius:8px;padding:10px 12px 10px 28px}
+.uact{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.uact .pri{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.dcard.upd .dkpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+/* solicitações de acesso */
+.upd-btn{position:relative}
+.ubadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;line-height:1}
+.ubadge[hidden]{display:none}
+.usol{border:2px solid var(--warn-bg);border-radius:10px;padding:12px}
+.usolL{display:flex;flex-direction:column;gap:8px}
+.usolI{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:8px;padding:10px 12px}
+.usolT{display:flex;flex-direction:column;gap:2px;min-width:0;word-break:break-word}
+.usolA{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.usolA select{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.umsg a{color:inherit;font-weight:600}
+@media (max-width:700px){.usolA{width:100%}.usolA select{flex:1;font-size:16px}.usolA .btn{flex:1;justify-content:center;padding:9px}}
+/* administração · responsivo */
+.upd-btn .sm,.udrop .sm{display:none}
+.atabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.atabs::-webkit-scrollbar{display:none}.atabs button{white-space:nowrap;flex:none}
+.ucard td.ucell-u{word-break:break-word}
+.ulhd .ufil input{flex:1 1 180px}
+@media (max-width:900px){.ufrm{grid-template-columns:1fr 1fr}.ufrm label:first-child{grid-column:1/-1}.ufrm .btn{grid-column:1/-1;justify-content:center;padding:10px}}
+@media (max-width:700px){
+  .upd-btn .lg,.udrop .lg{display:none}.upd-btn .sm,.udrop .sm{display:inline}
+  #updDlg.dovl{padding:0;align-items:stretch}
+  #updDlg .dcard{width:100%;max-height:none;height:100%;border-radius:0;border:0;padding:max(12px,env(safe-area-inset-top,0px)) 14px calc(16px + env(safe-area-inset-bottom,0px));gap:12px}
+  #updDlg .dhd{position:sticky;top:0;z-index:2;background:var(--surface);margin:calc(-1 * max(12px,env(safe-area-inset-top,0px))) -14px 0;padding:max(12px,env(safe-area-inset-top,0px)) 14px 10px}
+  #updDlg .dhd h2{font-size:26px}
+  .atabs button{font-size:16px;padding:8px 10px}
+  .ufrm{grid-template-columns:1fr}
+  .ufrm input,.ufrm select,.ufil input,.ufil select,.utab select{font-size:16px;padding:9px 10px}
+  .ulhd{flex-direction:column;align-items:stretch}.ufil{width:100%}.ufil input{flex:1 1 100%}.ufil select{flex:1}
+  .udrop{padding:24px 14px}.udrop b{font-size:19px}
+  .uact{flex-direction:column-reverse;align-items:stretch}.uact .btn{justify-content:center;padding:11px}
+  .dcard.upd .dkpis{grid-template-columns:1fr}
+  /* tabelas viram cartões */
+  .ucard,.ucard tbody,.ucard tr,.ucard td{display:block;width:100%}
+  .ucard thead{display:none}
+  .ucard tr{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--surface)}
+  .dcard .ucard td{border:0;padding:4px 0;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px;white-space:normal}
+  .dcard .ucard td.ucell-u{display:block;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px}
+  .ucard td[data-l]:not([data-l=""])::before{content:attr(data-l);font-size:12px;color:var(--fg-3);flex:none}
+  .ucard td[colspan]{display:block}
+  .ucard td[data-l="Perfil"] select{flex:1;max-width:60%}
+  .dcard .ucard td.uacts{justify-content:stretch;padding-top:8px}.uacts .btn{flex:1;justify-content:center;font-size:13px;padding:8px 6px}
+}
+@media (max-width:380px){.uacts{flex-direction:column}}
 </style>
 
 <div id="auth">
@@ -1915,6 +1992,25 @@ html.authed #auth{display:none}
       <div class="pw"><input id="lSenha" type="password" autocomplete="current-password" required><button type="button" data-ver="lSenha">Mostrar</button></div>
       <button class="go" type="submit">Entrar</button>
       <button class="link" type="button" id="aEsqueci">Esqueci minha senha</button>
+      <div class="ou"><span>Ainda não tem acesso?</span></div>
+      <button class="alt" type="button" id="aSolic">Solicitar acesso</button>
+    </form>
+
+    <!-- Solicitar acesso -->
+    <form id="fSolic" novalidate hidden>
+      <h2>Solicitar acesso</h2>
+      <p class="hint">Preencha seus dados. O administrador recebe o pedido por e-mail e te passa o login.</p>
+      <label for="sNome">Nome completo</label>
+      <input id="sNome" type="text" autocomplete="name" maxlength="120" required>
+      <label for="sEmail">E-mail</label>
+      <input id="sEmail" type="email" autocomplete="email" inputmode="email" maxlength="160" required>
+      <label for="sCargo">Cargo ou função</label>
+      <input id="sCargo" type="text" maxlength="120" placeholder="Ex.: supervisor, consultor, repositor">
+      <label for="sObs">Gerência, supervisão ou rota <span class="opc">(opcional)</span></label>
+      <input id="sObs" type="text" maxlength="300">
+      <input id="sHp" class="hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="go" type="submit">Enviar solicitação</button>
+      <button class="link" type="button" data-volta>Voltar para Entrar</button>
     </form>
 
     <!-- Esqueci a senha -->
@@ -1962,6 +2058,11 @@ const SUPABASE_URL      = 'https://yvweqpydwxhtziepemhi.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_I1Pnft0na_kVQ4-3N1DM-g_vBwG3yAd';
 const BUCKET  = 'dados';      // nome do bucket privado no Storage
 const ARQUIVO = 'data.json';  // arquivo com os dados do painel
+// Quem é administrador fica na tabela "perfis" do Supabase (perfil = 'admin'). Só admin vê e usa "Atualizar dados".
+const TAB_PERFIS = 'perfis';
+// Pedidos de acesso feitos na tela de login: ficam na tabela abaixo e chegam neste e-mail
+const TAB_SOLIC  = 'solicitacoes';
+const AVISO_EMAIL = 'daniel.moura@rebic.com.br';
 /* ========================================================= */
 
 const $=id=>document.getElementById(id);
@@ -1974,13 +2075,14 @@ const VEIO_DE_LINK=/type=(recovery|invite|signup|magiclink)/.test(HASH);
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 window.__sbAuth=sb; // o painel reaproveita esta conexão (já logada) para a tabela visitas
 
-const telas=['fLogin','fReset','fNova','sLoad'];
+const telas=['fLogin','fReset','fNova','fSolic','sLoad'];
 function mostra(id){telas.forEach(t=>$(t).hidden=t!==id);msg('');const f=$(id).querySelector('input');if(f)setTimeout(()=>f.focus(),30)}
 function msg(t,tipo){const m=$('authMsg');m.textContent=t||'';m.hidden=!t;m.className='msg '+(tipo||'err')}
 function ocupado(form,sim){form.querySelectorAll('button,input').forEach(b=>b.disabled=sim)}
 
 document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{const i=$(b.dataset.ver);const v=i.type==='password';i.type=v?'text':'password';b.textContent=v?'Ocultar':'Mostrar'});
 $('aEsqueci').onclick=()=>{$('rEmail').value=$('lEmail').value;mostra('fReset')};
+$('aSolic').onclick=()=>{$('sEmail').value=$('lEmail').value;mostra('fSolic')};
 document.querySelectorAll('[data-volta]').forEach(b=>b.onclick=()=>mostra('fLogin'));
 
 function traduz(e){
@@ -2004,6 +2106,27 @@ $('fLogin').onsubmit=async ev=>{
   ocupado(f,false);
   if(error)return msg(traduz(error));
   segue(data.session);
+};
+
+// ---- Solicitar acesso: grava o pedido no Supabase e avisa o administrador por e-mail
+$('fSolic').onsubmit=async ev=>{
+  ev.preventDefault();const f=ev.target;
+  if($('sHp').value){f.reset();return msg('Solicitação enviada!','ok')}
+  const nome=$('sNome').value.trim(),email=$('sEmail').value.trim().toLowerCase(),cargo=$('sCargo').value.trim(),obs=$('sObs').value.trim();
+  if(nome.length<3)return msg('Digite seu nome completo.');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return msg('Digite um e-mail válido.');
+  try{const u=+localStorage.getItem('r360-solic:'+email)||0;if(Date.now()-u<10*60*1000)return msg('Você já enviou uma solicitação agora há pouco. Aguarde o administrador.','ok')}catch(e){}
+  ocupado(f,true);msg('Enviando…','ok');
+  let salvo=false,avisado=false,dup=false;
+  try{const {error}=await sb.from(TAB_SOLIC).insert({nome,email,cargo:cargo||null,obs:obs||null});
+    if(!error)salvo=true;else if(error.code==='23505')dup=true;else console.warn('Solicitação:',error.message)}catch(e){console.warn(e)}
+  if(!dup){try{const r=await fetch('https://formsubmit.co/ajax/'+AVISO_EMAIL,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({_subject:'Painel RED 360º · '+nome+' pediu acesso',_template:'table',_replyto:email,'Nome':nome,'E-mail':email,'Cargo / função':cargo||'—','Gerência / supervisão / rota':obs||'—','Pedido em':new Date().toLocaleString('pt-BR'),'Como liberar':'Entre no painel → Administração → Usuários → Solicitações de acesso'})});
+    const j=await r.json().catch(()=>({}));avisado=r.ok&&String(j.success)!=='false'}catch(e){console.warn(e)}}
+  ocupado(f,false);
+  if(dup)return msg('Já existe uma solicitação pendente com esse e-mail. Aguarde o administrador.','ok');
+  if(salvo||avisado){try{localStorage.setItem('r360-solic:'+email,String(Date.now()))}catch(e){}f.reset();msg('Solicitação enviada! O administrador vai analisar e te passar o acesso.','ok')}
+  else msg('Não consegui enviar agora. Tente de novo em alguns minutos ou fale direto com o administrador.');
 };
 
 // ---- Esqueci a senha
@@ -2045,6 +2168,9 @@ async function carrega(){
   if(iniciado)return;
   mostra('sLoad');
   try{
+    try{const {data:ud}=await sb.auth.getUser();const em=((ud&&ud.user&&ud.user.email)||'').toLowerCase();
+      const {data:pf,error:pe}=await sb.from(TAB_PERFIS).select('perfil').eq('email',em).maybeSingle();
+      if(!pe&&!pf){await sb.auth.signOut();mostra('fLogin');return msg('Seu acesso ao painel não está liberado. Fale com o administrador.')}}catch(e){}
     const {data:su,error}=await sb.storage.from(BUCKET).createSignedUrl(ARQUIVO,120);
     if(error)throw error;
     const r=await fetch(su.signedUrl,{cache:'no-store'});
@@ -2074,12 +2200,272 @@ async function carrega(){
   }
 }
 
-function poeSair(){
+function poeSair(){poeAtualizar();
   const h=document.querySelector('header.top');if(!h)return;
   const b=document.createElement('button');b.className='sair-btn';b.type='button';b.textContent='Sair';
   b.onclick=async()=>{await sb.auth.signOut();location.reload()};
   h.appendChild(b);
 }
+
+/* ===== R360 · atualizador do data.json a partir das exportações iRED360 =====
+   Entrada: D (data.json atual) + lista de planilhas [{nome, linhas}] (linhas = array de arrays, como o SheetJS devolve).
+   Saída: {D: novo data.json, rel: relatório}. Os meses que vierem nas exportações substituem os mesmos meses do data.json;
+   o resto (meses fechados, base, objetivos, estrutura, formulários) fica como está. */
+function r360Merge(D0,files){
+  const D=JSON.parse(JSON.stringify(D0));
+  const rel={arquivos:[],avisos:[],pesq:{},novosPdv:0,novasPerg:0,novasRotas:0,mesNovo:[]};
+  const num=v=>{if(v==null||v===''||v==='-')return 0;if(typeof v==='number')return v;let s=String(v).trim();if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const n=parseFloat(s);return isNaN(n)?0:n};
+  const r2=x=>Math.round(x*100)/100;
+  const CM=[['CASH','C&C'],['HIPER','HIPER'],['SUPERMERCADO','SUPER'],['AS 3-4','AS 3-4'],['AS 1-2','AS 1-2'],['MERCEARIA','MERCEARIA'],['LANCHONETE','LANCHONETE'],['BOTECO','BOTECO'],['PADARIA','PADARIA'],['RESTAURANTE','RESTAURANTE'],['ADEGA','ADEGA'],['CONVENI','CONVENIÊNCIA']];
+  const canal=s=>{s=String(s||'').toUpperCase();for(const [k,v] of CM)if(s.includes(k))return v;return null};
+    const code=s=>String(s).replace(/\t/g,' ').split(' - ')[0].trim();
+  const T=['ICE','RED'];
+  // índices atuais
+  // perguntas: casa pelo texto exato (sem espaços nas pontas); pergunta nova só entra na lista se tiver perda de pontos
+  const qi=new Map();D.q.forEach((q,i)=>{if(!qi.has(String(q).trim()))qi.set(String(q).trim(),i)});
+  const qKpiNovo=new Map();const qAdd=s=>{let i=qi.get(s);if(i==null){i=D.q.length;D.q.push(s);D.qKpi.push(qKpiNovo.get(s));qi.set(s,i);rel.novasPerg++}return i};
+  const bonc=new Set(D.bonc||[]);
+  // lê cada planilha
+  const novos=[],ACC={};// {t,m,pv,nome,c,rk,d,kp,kr,loss:Map,bon:[]}
+  for(const f of files){
+    const L=f.linhas;let h=-1;for(let i=0;i<Math.min(L.length,30);i++){const r=(L[i]||[]).map(x=>String(x==null?'':x).trim().toLowerCase());if(r.includes('pdv')&&r.includes('pergunta')){h=i;break}}
+    if(h<0){rel.avisos.push(`${f.nome}: não parece uma exportação do iRED360 (não achei as colunas pdv e pergunta). Ignorado.`);continue}
+    const H=L[h].map(x=>String(x==null?'':x).trim().toLowerCase()),col=n=>H.indexOf(n);
+    const need=['kpi','pdv','nome_fantasia','gerencia_vendas','supervisao','rota_vendedor','canal_fds','data_pesquisa','pergunta','pontos_possiveis','pontos_realizados','classificacao'];
+    const falta=need.filter(n=>col(n)<0);if(falta.length){rel.avisos.push(`${f.nome}: faltam as colunas ${falta.join(', ')}. Ignorado.`);continue}
+    const C_={};need.forEach(n=>C_[n]=col(n));
+    let t=null;for(let i=h+1;i<L.length&&t==null;i++){const c=String((L[i]||[])[C_.classificacao]||'').toUpperCase();if(c.includes('ICE'))t=0;else if(c.includes('RED'))t=1}
+    if(t==null){const n=f.nome.toUpperCase();t=n.includes('ICE')?0:n.includes('RED')?1:null}
+    if(t==null){rel.avisos.push(`${f.nome}: não consegui saber se é ICE LATAM ou RED. Ignorado.`);continue}
+    const G=new Map();let nl=0,semCanal=new Set(),semKpi=new Set();
+    for(let i=h+1;i<L.length;i++){const r=L[i];if(!r)continue;const pv=String(r[C_.pdv]==null?'':r[C_.pdv]).trim();if(!pv||!/^\d+$/.test(pv))continue;
+      const dt=String(r[C_.data_pesquisa]||'').trim();const mm=dt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(!mm)continue;const m=+mm[2];
+      const k=D.kpis.indexOf(String(r[C_.kpi]||'').trim().toUpperCase());if(k<0){semKpi.add(r[C_.kpi]);continue}
+      const key=m+'|'+pv;let o=G.get(key);
+      if(!o){const c=canal(r[C_.canal_fds]);if(c==null){semCanal.add(r[C_.canal_fds]);continue}
+        o={t,m,pv,nome:String(r[C_.nome_fantasia]||'').trim(),c,rk:`${String(r[C_.gerencia_vendas]||'').trim()}|${String(r[C_.supervisao]||'').trim()}|${String(r[C_.rota_vendedor]||'').trim()}`,
+          d:mm[1].padStart(2,'0')+'/'+mm[2].padStart(2,'0'),dts:new Set(),kp:[0,0,0,0,0],kr:[0,0,0,0,0],qs:new Map(),bon:new Set()};G.set(key,o)}
+      o.dts.add(dt);const p=num(r[C_.pontos_possiveis]),re=num(r[C_.pontos_realizados]);o.kp[k]+=p;o.kr[k]+=re;
+      const q=String(r[C_.pergunta]).trim();if(!qKpiNovo.has(q))qKpiNovo.set(q,k);{const ak=T[t]+'|'+m+'|'+o.c;const A=ACC[ak]||(ACC[ak]=new Map());const z=A.get(q)||[0,0];z[0]+=p;z[1]++;A.set(q,z)}const a=o.qs.get(q)||[0,0];a[0]+=p;a[1]+=re;o.qs.set(q,a);
+      if(t===1){const cd=code(r[C_.pergunta]);if(bonc.has(cd)&&p===0&&re>0)o.bon.add(cd)}
+      nl++}
+    if(semCanal.size)rel.avisos.push(`${f.nome}: canal não reconhecido (${[...semCanal].slice(0,3).join(', ')}). Essas linhas ficaram de fora.`);
+    if(semKpi.size)rel.avisos.push(`${f.nome}: pilar não reconhecido (${[...semKpi].slice(0,3).join(', ')}). Essas linhas ficaram de fora.`);
+    const ms=[...new Set([...G.values()].map(o=>o.m))].sort((a,b)=>a-b);
+    let last='';for(const o of G.values())for(const x of o.dts){const z=x.slice(6,10)+x.slice(3,5)+x.slice(0,2);if(z>last)last=z}
+    rel.arquivos.push({nome:f.nome,t,linhas:nl,pdvs:G.size,meses:ms,ate:last?last.slice(6,8)+'/'+last.slice(4,6):''});
+    for(const o of G.values()){// o mês que chega primeiro com os dados mais completos vence: se repetir o mesmo arquivo, não duplica
+      if(novos.some(x=>x.t===o.t&&x.m===o.m&&x.pv===o.pv))continue;novos.push(o)}
+  }
+  if(!novos.length){rel.avisos.push('Nenhum dado de pesquisa encontrado nos arquivos.');return{D:D0,rel,ok:false}}
+  // quais (pesquisa, mês) serão trocados
+  const troca=new Set(novos.map(o=>o.t+'|'+o.m));
+  const PM=D.pm,N=PM.t.length;
+  // perdas e bônus antigos por linha
+  const Lrow=[];{let r=0;for(const x of D.L.row){r+=x;Lrow.push(r)}}
+  const oldL=new Map();Lrow.forEach((ri,j)=>{let a=oldL.get(ri);if(!a)oldL.set(ri,a=[]);a.push([D.L.q[j],D.L.v[j]])});
+  // nota BAND antes (para o relatório)
+  const band=(pm,t,m,lin)=>{const ch={};for(const i of lin){if(pm.t[i]!==t||pm.m[i]!==m)continue;const c=pm.c[i];const o=ch[c]||(ch[c]={r:0,p:0,n:0});o.r+=pm.real[i];o.p+=pm.poss[i];o.n++}
+    const P=D.peso[T[t]];let W=0,s=0,n=0;for(const c in ch){const o=ch[c];n+=o.n;const w=P[D.canais[c]]||0;if(w&&o.p){W+=w;s+=w*o.r/o.p*100}}return{v:W?s/W:null,n}};
+  const antes={};troca.forEach(k=>{const [t,m]=k.split('|').map(Number);antes[k]=band(PM,t,m,Array.from({length:N},(_,i)=>i))});
+  // PDVs e rotas (listas ordenadas, como no original)
+  const pdvSet=new Set(D.pdv),nomeOf=new Map(D.pdv.map((p,i)=>[p,D.pdvNome[i]]));
+  novos.forEach(o=>{if(!pdvSet.has(o.pv)){pdvSet.add(o.pv);nomeOf.set(o.pv,o.nome);rel.novosPdv++}});
+  const pdv=[...pdvSet].sort(),pIdx=new Map(pdv.map((p,i)=>[p,i]));
+  const rkSet=new Set(D.rk);novos.forEach(o=>{if(!rkSet.has(o.rk)){rkSet.add(o.rk);rel.novasRotas++}});
+  const rk=[...rkSet].sort(),rIdx=new Map(rk.map((r,i)=>[r,i]));
+  const cIdx=new Map(D.canais.map((c,i)=>[c,i]));
+  // monta as linhas novas
+  const rows=[];
+  for(let i=0;i<N;i++){if(troca.has(PM.t[i]+'|'+PM.m[i]))continue;
+    rows.push({t:PM.t[i],m:PM.m[i],p:pIdx.get(D.pdv[PM.p[i]]),c:PM.c[i],r:rIdx.get(D.rk[PM.r[i]]),d:PM.d[i],poss:PM.poss[i],real:PM.real[i],kp:PM.kp.map(a=>a[i]),kr:PM.kr.map(a=>a[i]),L:oldL.get(i)||[],bon:D.bon[String(i)]||''})}
+  for(const o of novos){const ds=[...o.dts].sort((a,b)=>(a.slice(6)+a.slice(3,5)+a.slice(0,2)).localeCompare(b.slice(6)+b.slice(3,5)+b.slice(0,2)));const d0=ds[0];
+    const L=[];for(const [q,[p,re]] of o.qs){if(p-re>1e-9)L.push([qAdd(q),r2(p-re)])}
+    rows.push({t:o.t,m:o.m,p:pIdx.get(o.pv),c:cIdx.get(o.c),r:rIdx.get(o.rk),d:d0.slice(0,2)+'/'+d0.slice(3,5),poss:r2(o.kp.reduce((a,b)=>a+b,0)),real:r2(o.kr.reduce((a,b)=>a+b,0)),kp:o.kp.map(r2),kr:o.kr.map(r2),L,bon:[...o.bon].sort().join('|')})}
+  rows.sort((a,b)=>a.t-b.t||a.m-b.m);
+  // grava pm, L e bon
+  const pm={t:[],m:[],p:[],c:[],r:[],d:[],poss:[],real:[],kp:[[],[],[],[],[]],kr:[[],[],[],[],[]]};const L={row:[],q:[],v:[]};const bon={};let prev=0;
+  rows.forEach((x,i)=>{pm.t.push(x.t);pm.m.push(x.m);pm.p.push(x.p);pm.c.push(x.c);pm.r.push(x.r);pm.d.push(x.d);pm.poss.push(x.poss);pm.real.push(x.real);for(let k=0;k<5;k++){pm.kp[k].push(x.kp[k]);pm.kr[k].push(x.kr[k])}
+    for(const [q,v] of x.L){L.row.push(i-prev);L.q.push(q);L.v.push(v);prev=i}if(x.bon)bon[String(i)]=x.bon});
+  D.pm=pm;D.L=L;D.bon=bon;D.pdv=pdv;D.pdvNome=pdv.map(p=>nomeOf.get(p)||'');D.rk=rk;
+  // pontos possíveis médios por pergunta, canal e mês
+  troca.forEach(k=>{const [t,m]=k.split('|').map(Number);Object.keys(D.qposs).forEach(x=>{if(x.startsWith(T[t]+'|'+m+'|'))delete D.qposs[x]})});
+  for(const key in ACC){const [t0,m0]=key.split('|');if(!troca.has((t0==='ICE'?0:1)+'|'+m0))continue;const tab={};const ls=[];for(const [qs,[s,n]] of ACC[key]){const q=qi.get(qs);if(q==null)continue;const v=r2(s/n);if(v>0)ls.push([q,v])}ls.sort((a,b)=>a[0]-b[0]).forEach(([q,v])=>tab[String(q)]=v);D.qposs[key]=tab}
+  // meses
+  const ms=new Set(D.meses);novos.forEach(o=>{if(!ms.has(o.m)){ms.add(o.m);if(!rel.mesNovo.includes(o.m))rel.mesNovo.push(o.m)}});D.meses=[...ms].sort((a,b)=>a-b);
+  const LAST=D.meses[D.meses.length-1];
+  // base de prioridades: nota do mês atual (ICE e RED)
+  const sc=new Map();pm.t.forEach((t,i)=>{if(pm.m[i]===LAST&&pm.poss[i])sc.set(t+'|'+pdv[pm.p[i]],r2(pm.real[i]/pm.poss[i]*100))});
+  (D.base||[]).forEach(b=>{b.iceOut=sc.has('0|'+b.pv)?sc.get('0|'+b.pv):null;b.redOut=sc.has('1|'+b.pv)?sc.get('1|'+b.pv):null});
+  // datas do cabeçalho
+  const ateDe=t=>{let z='';pm.t.forEach((x,i)=>{if(x===t&&pm.m[i]===LAST){const d=pm.d[i];const k=d.slice(3,5)+d.slice(0,2);if(k>z)z=k}});return z?z.slice(2)+'/'+z.slice(0,2):''};
+  const hoje=new Date(),dd=n=>String(n).padStart(2,'0'),hj=`${dd(hoje.getDate())}/${dd(hoje.getMonth()+1)}/${hoje.getFullYear()}`;
+  let arq='';for(const f of files){const x=f.nome.match(/(\d{2})_(\d{2})_(\d{4})/);if(x){arq=`${x[1]}/${x[2]}/${x[3]}`;break}}
+  D.upd=Object.assign({},D.upd,{red:ateDe(1)||(D.upd&&D.upd.red)||'',ice:ateDe(0)||(D.upd&&D.upd.ice)||'',dt:hj,arq:arq||hj});
+  // relatório
+  troca.forEach(k=>{const [t,m]=k.split('|').map(Number);const dep=band(pm,t,m,Array.from({length:pm.t.length},(_,i)=>i));rel.pesq[k]={t,m,antes:antes[k],depois:dep}});
+  if(rel.mesNovo.length)rel.avisos.push(`Mês novo nas exportações (${rel.mesNovo.join(', ')}). Os dados de pesquisa entram normalmente, mas a base de prioridades, os objetivos e a estrutura continuam os do data.json atual: atualize-os quando virar a base do mês.`);
+  return{D,rel,ok:true}}
+
+
+// ---- Administração (só para perfil admin na tabela perfis): Atualizar dados + Usuários ----
+let EU_EMAIL='';
+async function poeAtualizar(){
+  let email='';try{const {data}=await sb.auth.getUser();email=((data&&data.user&&data.user.email)||'').toLowerCase()}catch(e){}
+  if(!email)return;EU_EMAIL=email;
+  try{const {data,error}=await sb.from(TAB_PERFIS).select('perfil').eq('email',email).maybeSingle();
+    if(error){console.warn('Perfis:',error.message);return}
+    if(!data||String(data.perfil||'').toLowerCase()!=='admin')return}catch(e){return}
+  const h=document.querySelector('header.top');if(!h||$('updBtn'))return;
+  const b=document.createElement('button');b.id='updBtn';b.className='sair-btn upd-btn';b.type='button';b.innerHTML='<span class="lg">Administração</span><span class="sm">Admin</span><span class="ubadge" id="solBadge" hidden></span>';b.setAttribute('aria-label','Administração');b.onclick=()=>abreAdmin('upd');
+  const s=h.querySelector('.sair-btn:not(.upd-btn)');h.insertBefore(b,s||null);
+  contaSolic();
+}
+async function contaSolic(){try{const {count,error}=await sb.from(TAB_SOLIC).select('id',{count:'exact',head:true}).eq('status','pendente');const g=$('solBadge');if(!g)return;if(error||!count){g.hidden=true;return}g.textContent=count;g.hidden=false;g.title=count+' solicitação(ões) de acesso'}catch(e){}}
+let XLSXp=null;
+function carregaXLSX(){if(window.XLSX)return Promise.resolve();if(XLSXp)return XLSXp;XLSXp=new Promise((ok,er)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=()=>ok();s.onerror=()=>{XLSXp=null;er(new Error('Não consegui carregar o leitor de Excel. Verifique a internet.'))};document.head.appendChild(s)});return XLSXp}
+const escA=s=>String(s==null?'':s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
+let ADM_TAB='upd';
+function abreAdmin(tab){
+  let o=$('updDlg');
+  if(!o){o=document.createElement('div');o.id='updDlg';o.className='dovl';
+    o.innerHTML=`<div class="dcard upd" role="dialog" aria-modal="true" aria-labelledby="admTit" tabindex="-1">
+      <header class="dhd"><div><div class="dkick">Painel RED 360º</div><h2 id="admTit">Administração</h2></div><div class="dnav"><button type="button" class="btn" data-ax aria-label="Fechar">✕</button></div></header>
+      <nav class="atabs" role="tablist"><button type="button" role="tab" data-at="upd">Atualizar dados</button><button type="button" role="tab" data-at="usr">Usuários</button></nav>
+      <div id="admBody"></div></div>`;document.body.appendChild(o);
+    o.addEventListener('click',e=>{if(o.dataset.busy)return;if(e.target===o||e.target.closest('[data-ax]')){fechaAdmin();return}const t=e.target.closest('[data-at]');if(t)mostraTab(t.dataset.at)});
+    document.addEventListener('keydown',e=>{if(!o.hidden&&e.key==='Escape'&&!o.dataset.busy)fechaAdmin()})}
+  o.hidden=false;document.body.classList.add('dlock');mostraTab(tab||ADM_TAB);o.querySelector('.dcard').focus({preventScroll:true})}
+function fechaAdmin(){const o=$('updDlg');if(o)o.hidden=true;document.body.classList.remove('dlock')}
+function mostraTab(t){ADM_TAB=t;document.querySelectorAll('#updDlg [data-at]').forEach(b=>{const on=b.dataset.at===t;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
+  const B=$('admBody');if(t==='usr')telaUsuarios(B);else telaAtualizar(B)}
+const busy=v=>{const o=$('updDlg');if(!o)return;if(v)o.dataset.busy=1;else delete o.dataset.busy};
+const msgA=(t,k)=>{const m=$('uMsg');if(m)m.innerHTML=t?`<div class="umsg ${k||''}">${t}</div>`:''};
+
+// ================= ATUALIZAR DADOS =================
+function telaAtualizar(B){
+  const f2=v=>v==null?'–':v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const MES=['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'],TN=['ICE LATAM','RED'];
+  let res=null;
+  const tela0=()=>{B.innerHTML=`<label class="udrop" id="uDrop"><input type="file" id="uFile" multiple accept=".xlsx,.xls,.xlsm,.csv" hidden><b><span class="lg">Arraste aqui as exportações do iRED360</span><span class="sm">Toque para escolher as exportações do iRED360</span></b><span class="small">ICE LATAM e RED (iRED360-complete-…xlsx), ou clique para escolher. Pode mandar só uma delas.</span></label>
+    <p class="note">O painel lê os arquivos aqui no seu aparelho, troca o mês que vier neles e mantém o resto. Antes de publicar você vê o resumo, e a versão anterior fica guardada como backup.</p><div id="uMsg"></div>`;
+    const inp=$('uFile'),dr=$('uDrop');inp.onchange=()=>le([...inp.files]);
+    ['dragenter','dragover'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();dr.classList.add('on')}));['dragleave','drop'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();dr.classList.remove('on')}));
+    dr.addEventListener('drop',e=>le([...e.dataTransfer.files]))};
+  async function le(fs){if(!fs.length)return;busy(1);
+    try{msgA('Carregando o leitor de Excel…');await carregaXLSX();const files=[];
+      for(const f of fs){msgA(`Lendo ${escA(f.name)}…`);await new Promise(r=>setTimeout(r,20));const wb=XLSX.read(await f.arrayBuffer(),{dense:true});
+        let melhor=null;for(const n of wb.SheetNames){const L=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});if(L.slice(0,30).some(r=>r&&r.some(x=>String(x||'').trim().toLowerCase()==='pergunta'))){melhor=L;break}if(!melhor)melhor=L}
+        files.push({nome:f.name,linhas:melhor||[]})}
+      msgA('Montando os dados novos…');await new Promise(r=>setTimeout(r,20));
+      const atual=JSON.parse($('data').textContent);res=r360Merge(atual,files);res.antigo=$('data').textContent;resumo()}
+    catch(e){console.error(e);msgA('Não consegui ler os arquivos: '+escA(e.message||e),'err')}finally{busy(0)}}
+  function resumo(){const R=res.rel;
+    const arq=R.arquivos.map(a=>`<tr><td class="ucell-u">${escA(a.nome)}</td><td data-l="Pesquisa"><b>${TN[a.t]}</b></td><td class="n" data-l="PDVs">${a.pdvs.toLocaleString('pt-BR')}</td><td class="n" data-l="Mês">${a.meses.map(m=>MES[m]).join(', ')}</td><td class="n" data-l="Até">${a.ate}</td></tr>`).join('');
+    const pq=Object.values(R.pesq).map(p=>{const d=p.depois.v!=null&&p.antes.v!=null?p.depois.v-p.antes.v:null;return`<div><span class="small">${TN[p.t]} · ${MES[p.m]}</span><b class="num">${f2(p.depois.v)}</b><span class="small">antes ${f2(p.antes.v)}${d!=null&&Math.abs(d)>=0.005?` · <span class="${d>0?'up':'dn'}">${d>0?'+':'−'}${f2(Math.abs(d))}</span>`:''} · ${p.antes.n} → <b>${p.depois.n}</b> PDVs</span></div>`}).join('');
+    const extra=[R.novosPdv?`${R.novosPdv} PDVs novos`:'',R.novasRotas?`${R.novasRotas} rotas novas`:'',R.novasPerg?`${R.novasPerg} perguntas novas`:''].filter(Boolean).join(' · ');
+    B.innerHTML=`<h3>Confira antes de publicar</h3>
+    ${R.arquivos.length?`<div class="tw"><table class="ucard"><thead><tr><th>Arquivo</th><th>Pesquisa</th><th class="n">PDVs</th><th class="n">Mês</th><th class="n">Até</th></tr></thead><tbody>${arq}</tbody></table></div>`:''}
+    ${pq?`<section><h3>Nota BAND</h3><div class="dkpis">${pq}</div>${extra?`<p class="small">${extra}</p>`:''}</section>`:''}
+    ${R.avisos.length?`<ul class="dwhy uav">${R.avisos.map(a=>`<li>${escA(a)}</li>`).join('')}</ul>`:''}
+    <div id="uMsg"></div>
+    <div class="uact"><button type="button" class="btn" id="uVolta">Escolher outros arquivos</button><button type="button" class="btn" id="uBaixa"${res.ok?'':' disabled'}>Baixar data.json</button><button type="button" class="btn pri" id="uPub"${res.ok?'':' disabled'}>Publicar no painel</button></div>`;
+    $('uVolta').onclick=tela0;$('uBaixa').onclick=baixa;$('uPub').onclick=publica}
+  function baixa(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(res.D)],{type:'application/json'}));a.download='data.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+  async function publica(){busy(1);const bt=B.querySelectorAll('.uact button');bt.forEach(b=>b.disabled=true);
+    try{const d=new Date(),z=n=>String(n).padStart(2,'0'),st=`${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
+      msgA('Guardando a versão anterior como backup…');
+      const b1=await sb.storage.from(BUCKET).upload(`backup/data-${st}.json`,new Blob([res.antigo],{type:'application/json'}),{upsert:true,contentType:'application/json'});
+      if(b1.error)throw b1.error;
+      msgA('Publicando os dados novos…');
+      const b2=await sb.storage.from(BUCKET).upload(ARQUIVO,new Blob([JSON.stringify(res.D)],{type:'application/json'}),{upsert:true,contentType:'application/json',cacheControl:'0'});
+      if(b2.error)throw b2.error;
+      msgA('Pronto! Dados publicados. Recarregando o painel…','ok');setTimeout(()=>location.reload(),1200)}
+    catch(e){console.error(e);busy(0);bt.forEach(b=>b.disabled=false);
+      const m=String(e&&e.message||e);msgA(/row-level|policy|unauthorized|403|permission/i.test(m)?'O Supabase recusou a gravação: seu perfil precisa ser <b>admin</b> na tabela perfis e as políticas do bucket <b>dados</b> precisam estar criadas. Enquanto isso, use <b>Baixar data.json</b>.':'Não consegui publicar: '+escA(m)+'. Você pode usar <b>Baixar data.json</b> e subir manualmente.','err')}}
+  tela0()}
+
+// ================= USUÁRIOS (tudo pelo navegador: tabela perfis + funções SQL) =================
+const sbTmp=()=>supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'r360-novo-usuario'}});
+const errSQL=e=>{const m=(e&&e.message)||String(e);if(/function .*adm_|Could not find the function|schema cache/i.test(m))return 'Falta rodar o SQL de usuários no Supabase (o Claude te passou). Rode e tente de novo.';if(/Signups not allowed|signup.*disabled/i.test(m))return 'O Supabase está bloqueando cadastro novo. Ligue “Allow new users to sign up” em Authentication → Sign In / Providers.';return m};
+const geraSenha=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';let s='';const a=new Uint32Array(10);crypto.getRandomValues(a);a.forEach(x=>s+=c[x%c.length]);return s};
+function telaUsuarios(B){
+  let LISTA=[],FQ='',FP='';
+  const dt=s=>{if(!s)return'–';const d=new Date(s);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
+  const stat=u=>u.perfil==='sem acesso'?['crit','Sem acesso']:!u.tem_conta?['warn','Sem conta']:!u.ultimo_acesso?['warn','Nunca entrou']:['good','Ativo'];
+  B.innerHTML=`<section class="usol" id="uSolSec" hidden><h3>Solicitações de acesso <span class="small" id="uSolCnt"></span></h3><div id="uSol" class="usolL"></div></section>
+    <section class="unew"><h3>Colocar usuário</h3>
+    <div class="ufrm"><label>E-mail<input id="nuEmail" type="email" inputmode="email" autocomplete="off" placeholder="nome@rebic.com.br"></label>
+    <label>Perfil<select id="nuPerfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select></label>
+    <label>Senha provisória<span class="usen"><input id="nuSenha" type="text" autocomplete="off" placeholder="mín. 8 caracteres"><button type="button" class="btn" id="nuGer" title="Gerar uma senha">Gerar</button></span></label>
+    <button type="button" class="btn pri" id="nuGo">Colocar</button></div>
+    <p class="small">Passe o e-mail e a senha provisória para a pessoa. No primeiro acesso o painel pede para ela criar a senha dela.</p></section>
+    <div id="uMsg"></div>
+    <section><div class="ulhd"><h3>Usuários <span class="small" id="uCnt"></span></h3><div class="ufil"><input id="uQ" type="search" placeholder="Buscar e-mail"><select id="uFP"><option value="">Todos</option><option value="admin">Administradores</option><option value="usuario">Usuários</option><option value="sem acesso">Sem acesso</option><option value="nunca">Nunca entraram</option></select><button type="button" class="btn" id="uRef">Recarregar</button></div></div>
+    <div class="tw"><table class="utab ucard"><thead><tr><th>Usuário</th><th>Perfil</th><th>Status</th><th>Último acesso</th><th class="n">Ações</th></tr></thead><tbody id="uBody"><tr><td colspan="5" class="small">Carregando…</td></tr></tbody></table></div></section>`;
+  const desenha=()=>{const q=FQ.trim().toLowerCase();
+    const L=LISTA.filter(u=>(!q||u.email.includes(q))&&(!FP||(FP==='nunca'?u.tem_conta&&!u.ultimo_acesso&&u.perfil!=='sem acesso':u.perfil===FP)));
+    $('uCnt').textContent=`${L.length} de ${LISTA.length}`;
+    $('uBody').innerHTML=L.slice(0,500).map(u=>{const [sc,sl]=stat(u);const eu=u.email===EU_EMAIL,sem=u.perfil==='sem acesso';
+      return`<tr data-em="${escA(u.email)}"><td class="ucell-u"><b>${escA(u.email)}</b></td>
+      <td data-l="Perfil">${sem?'<span class="small">—</span>':`<select data-uperf${eu?' disabled title="Você não pode tirar o seu próprio acesso de administrador"':''}><option value="usuario"${u.perfil!=='admin'?' selected':''}>Usuário</option><option value="admin"${u.perfil==='admin'?' selected':''}>Administrador</option></select>`}</td>
+      <td data-l="Status"><span class="pill ${sc}">${sl}</span></td><td class="small" data-l="Último acesso">${dt(u.ultimo_acesso)}</td>
+      <td class="n uacts" data-l="">${sem?'<button type="button" class="btn" data-ua="liberar">Liberar acesso</button>':''}${u.tem_conta?'<button type="button" class="btn" data-ua="senha">Nova senha</button>':''}${eu?'':'<button type="button" class="btn dng" data-ua="remover">Tirar</button>'}</td></tr>`}).join('')||'<tr><td colspan="5" class="small">Nenhum usuário encontrado.</td></tr>';
+    if(L.length>500)$('uBody').insertAdjacentHTML('beforeend',`<tr><td colspan="5" class="small">Mostrando 500 de ${L.length}. Use a busca para achar os demais.</td></tr>`)};
+  const carrega=async(limpa)=>{try{if(limpa)msgA('');$('uBody').innerHTML='<tr><td colspan="5" class="small">Carregando…</td></tr>';
+      const {data,error}=await sb.rpc('adm_listar');if(error)throw error;
+      LISTA=(data||[]).map(u=>({email:String(u.email||'').toLowerCase(),perfil:u.perfil,tem_conta:!!u.tem_conta,ultimo_acesso:u.ultimo_acesso})).filter(u=>u.email).sort((a,b)=>a.email.localeCompare(b.email));desenha()}
+    catch(e){$('uBody').innerHTML='';msgA(escA(errSQL(e)),'err')}};
+  const faz=async(fn,ok)=>{busy(1);try{const m=await fn();msgA(escA(m||ok||'Feito.'),'ok');await carrega();return true}catch(e){console.error(e);msgA(escA(errSQL(e)),'err');return false}finally{busy(0)}};
+  const rpc=async(n,a)=>{const {data,error}=await sb.rpc(n,a);if(error)throw error;return data};
+  const setPerfil=async(email,perfil)=>{const {error}=await sb.from(TAB_PERFIS).upsert({email,perfil});if(error)throw error};
+  let SOL=[];
+  const linkAviso=(nome,email,senha)=>{const corpo=`Olá${nome?' '+nome.split(' ')[0]:''}!\n\nSeu acesso ao Painel RED 360º foi liberado.\n\nEndereço: ${location.origin+location.pathname}\nE-mail: ${email}\n${senha?`Senha provisória: ${senha}\n\nNo primeiro acesso o painel pede para você criar a sua senha.`:'Use a senha que você já tem.'}\n`;
+    return 'mailto:'+encodeURIComponent(email)+'?subject='+encodeURIComponent('Seu acesso ao Painel RED 360º')+'&body='+encodeURIComponent(corpo)};
+  const desenhaSol=()=>{const sec=$('uSolSec');if(!sec)return;sec.hidden=!SOL.length;$('uSolCnt').textContent=SOL.length?`${SOL.length} pendente${SOL.length>1?'s':''}`:'';
+    $('uSol').innerHTML=SOL.map(x=>`<div class="usolI" data-sid="${escA(x.id)}"><div class="usolT"><b>${escA(x.nome)}</b><span>${escA(x.email)}</span><span class="small">${[x.cargo,x.obs].filter(Boolean).map(escA).join(' · ')}${x.cargo||x.obs?' · ':''}pedido em ${dt(x.criado_em)}</span></div>
+      <div class="usolA"><select data-sper aria-label="Perfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select><button type="button" class="btn pri" data-sa="aprovar">Aprovar</button><button type="button" class="btn dng" data-sa="recusar">Recusar</button></div></div>`).join('');
+    const g=$('solBadge');if(g){g.textContent=SOL.length;g.hidden=!SOL.length}};
+  const carregaSol=async()=>{try{const {data,error}=await sb.from(TAB_SOLIC).select('id,criado_em,nome,email,cargo,obs').eq('status','pendente').order('criado_em',{ascending:true});if(error)throw error;SOL=data||[]}catch(e){SOL=[]}desenhaSol()};
+  const decide=async(id,status)=>{const {error}=await sb.from(TAB_SOLIC).update({status,decidido_em:new Date().toISOString(),decidido_por:EU_EMAIL}).eq('id',id);if(error)throw error};
+  $('uSol').addEventListener('click',async e=>{const b=e.target.closest('[data-sa]');if(!b)return;const it=b.closest('[data-sid]'),x=SOL.find(z=>String(z.id)===it.dataset.sid);if(!x)return;
+    if(b.dataset.sa==='recusar'){if(!confirm(`Recusar o pedido de ${x.nome} (${x.email})?`))return;busy(1);try{await decide(x.id,'recusada');msgA(escA(`Pedido de ${x.email} recusado.`),'ok');await carregaSol()}catch(er){msgA(escA(errSQL(er)),'err')}finally{busy(0)}return}
+    const perfil=it.querySelector('[data-sper]').value,senha=geraSenha();busy(1);it.querySelectorAll('button,select').forEach(z=>z.disabled=true);
+    try{const r=await colocar(x.email,perfil,senha);await decide(x.id,'aprovada');
+      await carregaSol();await carrega();
+      msgA(`Pronto! <b>${escA(x.email)}</b> foi aprovado${r.novo?` com a senha provisória <b class="num">${escA(senha)}</b>`:' e vai usar a senha que já tem'}. <a href="${linkAviso(x.nome,x.email,r.novo?senha:'')}">Enviar o acesso por e-mail para ele</a>`,'ok')}
+    catch(er){console.error(er);msgA(escA(errSQL(er)),'err');it.querySelectorAll('button,select').forEach(z=>z.disabled=false)}finally{busy(0)}});
+  $('uQ').oninput=e=>{FQ=e.target.value;desenha()};$('uFP').onchange=e=>{FP=e.target.value;desenha()};$('uRef').onclick=()=>{carrega(1);carregaSol()};
+  $('nuGer').onclick=()=>{$('nuSenha').value=geraSenha()};
+  // coloca a pessoa no painel; devolve {novo:true} quando criou login com a senha provisória
+  const colocar=async(email,perfil,senha)=>{const ja=LISTA.find(u=>u.email===email);
+      const tinhaAcesso=!!(ja&&ja.tem_conta&&ja.perfil!=='sem acesso');
+      await setPerfil(email,perfil);
+      if(tinhaAcesso)return{novo:false};
+      // login que existia fora da lista (ninguém liberou): troca a senha pela provisória, para só a pessoa certa entrar
+      if(ja&&ja.tem_conta){await rpc('adm_senha',{p_email:email,p_senha:senha});return{novo:true}}
+      const {data,error}=await sbTmp().auth.signUp({email,password:senha,options:{data:{trocar_senha:true},emailRedirectTo:location.origin+location.pathname}});
+      if(error&&!/already registered|already exists/i.test(error.message))throw error;
+      const existia=!!error||(data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0);
+      await rpc('adm_senha',{p_email:email,p_senha:senha});return{novo:true,existia}};
+  $('nuGo').onclick=async()=>{const email=$('nuEmail').value.trim().toLowerCase(),perfil=$('nuPerfil').value,senha=$('nuSenha').value.trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return msgA('Digite um e-mail válido.','err');
+    const ja=LISTA.find(u=>u.email===email);
+    if(!(ja&&ja.tem_conta&&ja.perfil!=='sem acesso')&&senha.length<8)return msgA('Coloque uma senha provisória com pelo menos 8 caracteres (ou clique em Gerar).','err');
+    const b=$('nuGo');b.disabled=true;
+    const ok=await faz(async()=>{const r=await colocar(email,perfil,senha);
+      if(!r.novo)return `${email} já tinha conta. Acesso liberado como ${perfil==='admin'?'Administrador':'Usuário'}, com a senha que ele já usa.`;
+      return `Pronto! ${email} pode entrar com a senha provisória: ${senha}`});
+    b.disabled=false;if(ok){$('nuEmail').value='';$('nuSenha').value='';$('nuPerfil').value='usuario'}};
+  $('uBody').addEventListener('change',async e=>{const s=e.target.closest('[data-uperf]');if(!s)return;const em=s.closest('tr').dataset.em,u=LISTA.find(x=>x.email===em);if(!u)return;
+    const novo=s.value;if(!confirm(`Mudar ${em} para ${novo==='admin'?'Administrador':'Usuário'}?`)){s.value=u.perfil;return}
+    await faz(()=>setPerfil(em,novo),`${em} agora é ${novo==='admin'?'Administrador':'Usuário'}.`)});
+  $('uBody').addEventListener('click',async e=>{const b=e.target.closest('[data-ua]');if(!b)return;const em=b.closest('tr').dataset.em;const a=b.dataset.ua;
+    if(a==='liberar'){const s=geraSenha();await faz(async()=>{await setPerfil(em,'usuario');await rpc('adm_senha',{p_email:em,p_senha:s});return `Acesso liberado para ${em} com a senha provisória: ${s}`})}
+    else if(a==='senha'){const s=prompt(`Nova senha provisória para ${em} (mínimo 8 caracteres).\nNo próximo acesso o painel pede para ele criar a senha dele.`,geraSenha());if(s==null)return;if(s.trim().length<8)return msgA('A senha precisa ter pelo menos 8 caracteres.','err');
+      await faz(async()=>{await rpc('adm_senha',{p_email:em,p_senha:s.trim()});return `Senha provisória de ${em}: ${s.trim()}`})}
+    else if(a==='remover'){if(confirm(`Tirar ${em} do painel?\nA conta é apagada e ele não consegue mais entrar.`))await faz(()=>rpc('adm_remover',{p_email:em}),`${em} foi tirado do painel.`)}});
+  carrega();carregaSol()}
 
 sb.auth.onAuthStateChange((ev,session)=>{
   if(ev==='PASSWORD_RECOVERY')mostra('fNova');
