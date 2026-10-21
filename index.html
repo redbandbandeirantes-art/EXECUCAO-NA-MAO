@@ -876,12 +876,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <script type="text/plain" id="app-code">
 (function(){
 const D=JSON.parse(document.getElementById('data').textContent);
-const MESN=['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+// meses em sequência: jan/2026 = 1 … dez/2026 = 12, jan/2027 = 13 …
+const mesProxy=a=>new Proxy(a,{get:(t,k)=>{if(typeof k==='string'&&/^\d+$/.test(k)){const n=+k;return t[n>12?((n-1)%12)+1:n]}return t[k]}});
+const ANO=m=>2026+Math.floor((m-1)/12);
+const MESN=mesProxy(['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']);
 const T=['ICE','RED'],TN=['ICE LATAM','RED'],TC=['ice','red'];
 const C=D.canais,K=D.kpis,KN={ATIVACAO:'Ativação',DISPONIBILIDADE:'Disponib.',GDM:'Geladeira',PRECO:'Preço',SOVI:'SOVI'};
 const PM=D.pm,N=PM.t.length,LASTM=D.meses[D.meses.length-1],REF=D.meses[D.meses.length-2],PARC=LASTM;
-const MESL=m=>MESN[m]+(m===PARC?'*':'');
-const MESF=['','janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const MESL=m=>MESN[m]+(m===PARC?'*':'');const PARCL=()=>D.upd&&D.upd.red?'parcial até '+D.upd.red:'sem pesquisas ainda';
+const MESF=mesProxy(['','janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']);
 const RK=D.rk.map(s=>{const a=s.split('|');return{ger:a[0],sup:a[1],rota:a[2]}});
 // códigos de rota repetidos em gerências diferentes (ex.: 113 na GC. G1 e na GC. G2) recebem a supervisão no nome
 const DUPR=(()=>{const m={};D.rk.forEach(k=>{const a=k.split('|');(m[a[2]]=m[a[2]]||new Set()).add(a[1])});return new Set(Object.keys(m).filter(r=>m[r].size>1))})();
@@ -959,7 +962,7 @@ const $=id=>document.getElementById(id);
 function opts(el,list,val,all){el.innerHTML=`<option value="">${all}</option>`+list.map(([v,l])=>`<option value="${esc(v)}"${v===val?' selected':''}>${esc(l)}</option>`).join('')}
 const uniq=a=>[...new Set(a)].sort((x,y)=>String(x).localeCompare(String(y),'pt-BR',{numeric:true}));
 function buildFilters(){
-  $('fMes').innerHTML=D.meses.slice().reverse().map(m=>`<option value="${m}"${m===S.mes?' selected':''}>${MESN[m]}/2026${m===PARC?' (parcial até '+D.upd.red+')':''}</option>`).join('');
+  $('fMes').innerHTML=D.meses.slice().reverse().map(m=>`<option value="${m}"${m===S.mes?' selected':''}>${MESN[m]}/${ANO(m)}${m===PARC?' ('+PARCL()+')':''}</option>`).join('');
   opts($('fGer'),uniq(RK.map(r=>r.ger)).map(g=>[g,g]),S.ger,'Todas (BAND)');
   opts($('fSup'),uniq(RK.filter(r=>!S.ger||r.ger===S.ger).map(r=>r.sup)).map(g=>[g,g]),S.sup,'Todas');
   opts($('fRota'),uniq(RK.filter(r=>(!S.ger||r.ger===S.ger)&&(!S.sup||r.sup===S.sup)).map(rotaLab)).map(g=>[g,g]),S.rota?(DUPR.has(S.rota)&&!S.ger?`${S.rota} · ${S.sup}`:(DUPR.has(S.rota)&&!S.sup?`${S.rota} · ${S.sup}`:S.rota)):'','Todas');
@@ -1022,7 +1025,7 @@ function dailySVG(t,m,cls,obj,prevScore){
   const w=640,h=240,ml=34,mr=78,mt=14,mb=26;const vals=pts.map(p=>p.v).filter(v=>v!=null).concat([obj,prevScore].filter(v=>v!=null));
   let lo=Math.floor(Math.min(...vals)/5)*5-5,hi=Math.min(100,Math.ceil(Math.max(...vals)/5)*5);if(hi-lo<10)lo=hi-10;
   const nx=pts.length,bw=Math.max(4,Math.min(22,(w-ml-mr)/nx*0.6));const x=k=>nx===1?(ml+w-mr)/2:ml+k*(w-ml-mr)/(nx-1);const y=v=>mt+(hi-v)*(h-mt-mb)/(hi-lo);
-  DAYCTX={t,m,cls,obj,days};const mxN=Math.max(...pts.map(p=>p.n)),bh=(h-mt-mb)*0.32;const mm=String(m).padStart(2,'0');const MC=`var(--${cls})`;
+  DAYCTX={t,m,cls,obj,days};const mxN=Math.max(...pts.map(p=>p.n)),bh=(h-mt-mb)*0.32;const mm=String(((m-1)%12)+1).padStart(2,'0');const MC=`var(--${cls})`;
   let g='';for(let v=lo;v<=hi;v+=5)g+=`<line x1="${ml}" x2="${w-mr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width=".6"/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end" style="fill:var(--fg-3);font-size:10px">${v}</text>`;
   pts.forEach((p,k)=>{const hh=Math.max(2,p.n/mxN*bh);g+=`<rect x="${x(k)-bw/2}" y="${h-mb-hh}" width="${bw}" height="${hh}" rx="2" fill="${MC}" opacity=".16"/>`;if(nx<=16)g+=`<text x="${x(k)}" y="${h-mb-hh-3}" text-anchor="middle" style="fill:${MC};font-size:9.5px;font-weight:600;opacity:.8">${p.n}</text>`});
   const step=Math.ceil(nx/12);pts.forEach((p,k)=>{if(k%step===0||k===nx-1)g+=`<text x="${x(k)}" y="${h-8}" text-anchor="middle" style="fill:var(--fg-3);font-size:10px">${String(p.d).padStart(2,'0')}/${mm}</text>`});
@@ -1042,7 +1045,7 @@ const WD=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 let DAYCTX=null;
 function kpiPct(a){const r=[0,0,0,0,0],p=[0,0,0,0,0];for(const c in a.ch){const o=a.ch[c];if(!o.w)continue;for(let k=0;k<5;k++){r[k]+=o.kr[k];p[k]+=o.kp[k]}}return K.map((_,k)=>p[k]?r[k]/p[k]*100:null)}
 function dayInsightHTML(d){
-  const {t,m,cls,obj,days}=DAYCTX;const k=days.indexOf(d),pd=k>0?days[k-1]:null,mm=String(m).padStart(2,'0'),dd=x=>String(x).padStart(2,'0')+'/'+mm;
+  const {t,m,cls,obj,days}=DAYCTX;const k=days.indexOf(d),pd=k>0?days[k-1]:null,mm=String(((m-1)%12)+1).padStart(2,'0'),dd=x=>String(x).padStart(2,'0')+'/'+mm;
   const A1=agg(t,m,i=>inScope(i)&&dayN(i)<=d),A0=pd?agg(t,m,i=>inScope(i)&&dayN(i)<d):null;
   const Dd=agg(t,m,i=>inScope(i)&&dayN(i)===d),Dp=pd?agg(t,m,i=>inScope(i)&&dayN(i)===pd):null;
   const MC=`var(--${cls})`,sg=(v,dc=2)=>v==null?'–':(v>=0?'+':'−')+fmt(Math.abs(v),dc),cl=v=>v==null||Math.abs(v)<0.05?'':v>0?'up':'dn';
@@ -1338,7 +1341,7 @@ const ICEsep={};{const a=agg(0,REF,()=>true);for(const c in a.ch)ICEsep[c]=a.ch[
 const inBase=b=>(!S.ger||b.ger===S.ger)&&(!S.sup||b.sup===S.sup)&&(!S.rota||b.rota===S.rota)&&(S.canal===''||b.c==+S.canal);
 function oList(){return D.base.filter(b=>(b.prio===1||(S.oP2&&b.prio===2)||b.iceOut!=null)&&inBase(b))}
 function oHistV(b){
-  if(b.ice!=null)return{v:S.oHist==='media'?b.iceAvg:b.ice,lab:S.oHist==='media'?`média ICE abr–set (${b.iceN}x)`:`ICE ${MESN[b.iceMes]}`};
+  if(b.ice!=null)return{v:S.oHist==='media'?b.iceAvg:b.ice,lab:S.oHist==='media'?`média ICE ${MESN[D.meses[0]]}–${MESN[REF]} (${b.iceN}x)`:`ICE ${MESN[b.iceMes]}`};
   if(S.o1T&&b.ice1T!=null)return{v:b.ice1T,lab:`ICE ${MESN[b.ice1TMes]}/26`};
   if(S.o25&&b.ice25!=null)return{v:b.ice25,lab:`ICE ${MESN[b.ice25Mes]}/25`};
   return null}
@@ -1352,7 +1355,7 @@ function oProj(b){
   if(S.oSem==='red'&&rv!=null){const g=D.gap[C[b.c]]||0;return{v:Math.min(100,rv+g),src:`RED ${fmt(rv)} + ${fmt(g)} (gap do canal)`}}
   return{v:ICEsep[b.c]??null,src:'média ICE do canal em '+MESN[REF]}}
 function oCompute(list){const ch={};for(const b of list){const p=oProj(b).v;if(p==null)continue;const o=ch[b.c]||(ch[b.c]={s:0,n:0,nn:0,no:0});o.s+=p;o.n++;if(!b.set)o.nn++;if(b.iceOut!=null)o.no++}
-  let W=0,s=0,ow=0,os=0;for(const c in ch){const o=ch[c];o.pct=o.s/o.n;o.w=D.peso.ICE[C[c]]||0;if(o.w){W+=o.w;s+=o.w*o.pct;const ob=D.obj[C[c]];if(ob&&ob['10']!=null){ow+=o.w;os+=o.w*ob['10']}}}
+  let W=0,s=0,ow=0,os=0;for(const c in ch){const o=ch[c];o.pct=o.s/o.n;o.w=D.peso.ICE[C[c]]||0;if(o.w){W+=o.w;s+=o.w*o.pct;const ob=D.obj[C[c]];if(ob&&ob[PARC]!=null){ow+=o.w;os+=o.w*ob[PARC]}}}
   return{ch,score:W?s/W:null,W,obj:ow?os/ow:null}}
 function oSummaryHTML(list){
   const sim=oCompute(list),real=scope(0,REF),cur=scope(0,PARC);const mx=Math.max(1e-9,...Object.values(sim.ch).map(o=>o.w/sim.W*(100-o.pct)));
@@ -1365,7 +1368,7 @@ function oSummaryHTML(list){
     <div class="tile"><div class="k">Amostra de ${MESF[PARC]}</div><div class="v num">${list.length}</div><div class="meta">${feitos} já pesquisados · ${nn} não pesquisados em ${MESN[REF]} · ${sem} sem histórico</div></div>
   </div>
   <div class="grid2"><div class="panel"><header><h3>Simulação por canal</h3></header><div class="tw"><table><thead><tr><th>Canal</th><th class="n">Peso</th><th class="n">PDVs</th><th class="n">Novos</th><th class="n">Já pesq.</th><th class="n">Real ${MESN[REF]}</th><th class="n">Simulado</th><th class="n">Objetivo</th><th>Pts na nota</th></tr></thead><tbody>
-    ${Object.entries(sim.ch).filter(([c,o])=>o.w).sort((a,b)=>b[1].w/sim.W*(100-b[1].pct)-a[1].w/sim.W*(100-a[1].pct)).map(([c,o])=>{const r=real.ch[c];const pp=o.w/sim.W*(100-o.pct);const ob=D.obj[C[c]]?D.obj[C[c]]['10']:null;return`<tr><td><b>${C[c]}</b></td><td class="n">${fmt(o.w,2)}</td><td class="n">${o.n}</td><td class="n">${o.nn}</td><td class="n">${o.no}</td><td class="n">${r?fmt(r.pct):'–'}</td><td class="n"><span class="pill ${scoreClsI(o.pct)}">${fmt(o.pct)}</span></td><td class="n">${ob!=null?fmt(ob,0)+(o.pct>=ob?' <span class="up">✓</span>':''):'–'}</td><td style="min-width:120px">${bar(pp,mx,'ice')}</td></tr>`}).join('')}
+    ${Object.entries(sim.ch).filter(([c,o])=>o.w).sort((a,b)=>b[1].w/sim.W*(100-b[1].pct)-a[1].w/sim.W*(100-a[1].pct)).map(([c,o])=>{const r=real.ch[c];const pp=o.w/sim.W*(100-o.pct);const ob=D.obj[C[c]]?D.obj[C[c]][PARC]:null;return`<tr><td><b>${C[c]}</b></td><td class="n">${fmt(o.w,2)}</td><td class="n">${o.n}</td><td class="n">${o.nn}</td><td class="n">${o.no}</td><td class="n">${r?fmt(r.pct):'–'}</td><td class="n"><span class="pill ${scoreClsI(o.pct)}">${fmt(o.pct)}</span></td><td class="n">${ob!=null?fmt(ob,0)+(o.pct>=ob?' <span class="up">✓</span>':''):'–'}</td><td style="min-width:120px">${bar(pp,mx,'ice')}</td></tr>`}).join('')}
     </tbody></table></div></div>
     <div class="panel"><header><h3>${S.ger?'Leitura':'Simulação por gerência'}</h3></header>${gerT||'<p class="note">Use os filtros de supervisão, rota e canal para ver a simulação de cada equipe. Digite uma nota na coluna Simular para testar uma reversão; o resumo recalcula na hora.</p>'}</div></div>`}
 // ----- semanas da pesquisa: S1 é a semana (seg a dom) que contém o dia 1; a semana atual é calculada pela data de hoje -----
@@ -1389,7 +1392,7 @@ function renderOutubro(){
     <div class="panel"><header><h3>Pesquisa ICE de ${MESF[PARC]} · ${esc(scopeName())}</h3></header>
       <p class="note">Amostra = PDVs Prioridade 1 da base do mês (Estudos GC) mais quem já foi pesquisado pela Dimensiva no mês. Para cada PDV o simulador usa, nesta ordem: a nota ICE real do mês, a nota digitada por você, o histórico ICE e, para quem nunca teve ICE, a regra escolhida abaixo. A nota sai da média dos PDVs de cada canal ponderada pelo peso ICE. Sempre ICE, independente da chave no topo.</p>
       <div class="inline">
-        <div class="f"><label for="oHist">PDVs com histórico ICE</label><select id="oHist"><option value="ultima"${S.oHist==='ultima'?' selected':''}>Última nota ICE</option><option value="media"${S.oHist==='media'?' selected':''}>Média das notas ICE abr–set</option></select></div>
+        <div class="f"><label for="oHist">PDVs com histórico ICE</label><select id="oHist"><option value="ultima"${S.oHist==='ultima'?' selected':''}>Última nota ICE</option><option value="media"${S.oHist==='media'?' selected':''}>Média das notas ICE ${MESN[D.meses[0]]}–${MESN[REF]}</option></select></div>
         <div class="f"><label for="oSem">PDVs sem histórico ICE</label><select id="oSem"><option value="red"${S.oSem==='red'?' selected':''}>RED + gap médio ICE×RED do canal</option><option value="canal"${S.oSem==='canal'?' selected':''}>Média ICE do canal em set</option><option value="fixo"${S.oSem==='fixo'?' selected':''}>Valor fixo</option></select></div>
         ${S.oSem==='fixo'?`<div class="f"><label for="oFixo">Valor fixo</label><input type="number" id="oFixo" min="0" max="110" step="1" value="${S.oFixo}"></div>`:''}
         <label class="chk"><input type="checkbox" id="oP2"${S.oP2?' checked':''}> Incluir prioridade 2</label>
@@ -1479,7 +1482,7 @@ function renderResumo(){
       </tbody></table></div><p class="note">Clique numa rota para abrir o CV do consultor.</p></div></div>`}
   else rotaHTML=`<p class="note">Escolha uma gerência no filtro para ver o ranking e a abertura por rota.</p>`;
   $('tab-resumo').innerHTML=`
-  <div class="rhead"><span class="rfocus">${esc(scopeName())}</span>${leaderName()?`<span class="small">${esc(leaderName())}</span>`:''}<span class="rmes">${MESN[m]}/2026 · ${TN[t]}${S.canal!==''?' · '+C[+S.canal]:''}</span><span class="rnota"><span class="small">Nota</span> <b>${fmt(A.score,2)}</b></span></div>
+  <div class="rhead"><span class="rfocus">${esc(scopeName())}</span>${leaderName()?`<span class="small">${esc(leaderName())}</span>`:''}<span class="rmes">${MESN[m]}/${ANO(m)} · ${TN[t]}${S.canal!==''?' · '+C[+S.canal]:''}</span><span class="rnota"><span class="small">Nota</span> <b>${fmt(A.score,2)}</b></span></div>
   <div class="resumo-grid">
     <div class="panel rk"><header><h3>Ranking gerência</h3></header><div class="tw"><table class="xl"><thead><tr><th>Gerência</th><th class="n">Nota</th><th class="n">Nº</th></tr></thead><tbody>${rankList(gItems,S.ger,'BAND',band.score,band.n)}</tbody></table></div></div>
     <div class="stack">
@@ -1508,7 +1511,7 @@ function renderCV(){
   $('tab-cv').innerHTML=`<div class="panel cv">
     <div class="cvhead"><div class="cvtitle">${TN[t]} · Consultor</div>
       <div class="cvrow"><div><span class="small">Rota</span><span class="cvrota">${esc(S.rota)}</span><div class="small">${cs?'<b>'+esc(cs[0])+'</b>'+(cs[1]?' · '+esc(cs[1]):'')+'<br>':''}${esc(rk?rk.sup+(D.supN[rk.sup]?' ('+D.supN[rk.sup]+')':'')+' · '+rk.ger:'')}</div></div>
-      <div class="cvmes">${MESN[m]}/2026${m===PARC?'<div class="small">parcial até '+D.upd.red+'</div>':''}</div>
+      <div class="cvmes">${MESN[m]}/${ANO(m)}${m===PARC?'<div class="small">'+PARCL()+'</div>':''}</div>
       <div class="cvnota"><span class="small">Nota</span><b class="${pc(A.score)}">${fmt(A.score,2)}</b><div class="small">${P&&P.score!=null?delta(A.score,P.score,2)+' vs '+MESN[pm]:''}</div><div class="small">BAND ${fmt(bandA(t,m).score,2)}${(()=>{const g=agg(t,m,i=>RK[PM.r[i]].ger===(rk?rk.ger:'')&&(S.canal===''||PM.c[i]==+S.canal));return rk?' · '+esc(rk.ger)+' '+fmt(g.score,2):''})()}</div></div></div></div>
     <div class="tw"><table class="xl"><thead><tr><th></th><th></th><th></th><th></th><th class="grp" colspan="4">Execução</th><th class="grp">Portfólio</th><th></th><th></th><th></th></tr>
       <tr><th>#</th><th>PV</th><th>Fantasia</th><th>Canal</th>${PLAB.map(l=>`<th class="n">${l}</th>`).join('')}<th class="n">Data</th><th class="n nine">Nota ${T[t]}</th><th class="noprint">GPS · A&amp;D</th></tr></thead><tbody>
@@ -1659,7 +1662,7 @@ function adTot2(f,items,st){const pil=f.pil.map(()=>({p:0,a:0,d:0,pr:0}));let P=
 function renderADForm(el){
   let pv=S.adPv,f0,sh,info=null;
   if(pv.startsWith('blank:')){sh=pv.slice(6);f0=ADF.forms[sh];if(!f0){S.adPv='';renderAD();return}}
-  else{info=adInfo(pv);if(!info||info.c==null){el.innerHTML=`<div class="panel"><p class="note">Cliente ${esc(pv)} não encontrado nas pesquisas nem na base de outubro.</p><button class="btn" id="adBack" type="button">Escolher outro cliente</button></div>`;$('adBack').onclick=()=>{pushH();S.adPv='';render()};return}
+  else{info=adInfo(pv);if(!info||info.c==null){el.innerHTML=`<div class="panel"><p class="note">Cliente ${esc(pv)} não encontrado nas pesquisas nem na base de ${MESF[PARC]}.</p><button class="btn" id="adBack" type="button">Escolher outro cliente</button></div>`;$('adBack').onclick=()=>{pushH();S.adPv='';render()};return}
     sh=S.adSh&&ADF.forms[S.adSh]?S.adSh:(ADF.map[C[info.c]]||'');f0=ADF.forms[sh];
     if(!f0){el.innerHTML=`<div class="panel"><p class="note">Não há formulário oficial para o canal ${C[info.c]}. Escolha um formulário:</p><div class="chips">${Object.keys(ADF.forms).map(k=>`<button class="chip" data-adsh="${esc(k)}">${esc(k)}</button>`).join('')}</div></div>`;document.querySelectorAll('[data-adsh]').forEach(b=>b.onclick=()=>{S.adSh=b.dataset.adsh;renderAD()});return}}
   const f=f0,items=adFlat(f),key=adKey2(info?pv:'blank',sh);
@@ -1844,7 +1847,7 @@ function render(nav){
   document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===S.tab));{const at=document.querySelector('.tab[aria-selected=true]');if(at&&innerWidth<=640)at.parentElement.scrollLeft=at.offsetLeft-60}
   ['geral','top','metricas','ranking','clientes','resumo','cv','outubro','final','ad','visitas'].forEach(t=>$('tab-'+t).hidden=t!==S.tab);
   const lab=S.tab==='visitas'?'Visitas de '+MESF[+VMES.slice(5)]:S.tab==='final'?'ICE + RED (média)':S.tab==='outubro'?'ICE · pesquisas do mês atual ('+MESF[PARC]+')':S.tab==='ad'?'Antes e Depois':TN[S.t];
-  $('subtitle').textContent=`${lab} · ${scopeName()}${S.canal!==''?' · '+C[+S.canal]:''} · ${S.tab==='outubro'?'base de '+MESF[PARC]:MESN[S.mes]+'/2026'+(S.mes===PARC?' (parcial até '+D.upd.red+')':'')}`;
+  $('subtitle').textContent=`${lab} · ${scopeName()}${S.canal!==''?' · '+C[+S.canal]:''} · ${S.tab==='outubro'?'base de '+MESF[PARC]:MESN[S.mes]+'/'+ANO(S.mes)+(S.mes===PARC?' ('+PARCL()+')':'')}`;
   ({geral:renderGeral,top:renderTop,metricas:renderMetricas,ranking:renderRanking,clientes:renderClientes,outubro:renderOutubro,final:renderFinal,resumo:renderResumo,cv:renderCV,ad:renderAD,visitas:renderVisitas})[S.tab]();
 }
 window.addEventListener('afterprint',()=>{delete document.body.dataset.print});
@@ -1933,6 +1936,12 @@ html.authed #auth{display:none}
 .uact{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .uact .pri{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .dcard.adm .dkpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.vsec{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.vsel{font:inherit;font-size:15px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;max-width:420px}
+.vlist{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.vlist li{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border-radius:8px;padding:10px 12px;word-break:break-word}
+.vlist li.ok{background:var(--good-bg)}.vlist .vck{font-weight:700;width:18px;flex:none;color:var(--fg-3)}.vlist li.ok .vck{color:var(--good)}
+@media (max-width:700px){.vsel{font-size:16px;max-width:none}}
 /* solicitações de acesso */
 .upd-btn{position:relative}
 .ubadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;line-height:1}
@@ -2212,6 +2221,8 @@ function poeSair(){poeAtualizar();
   h.appendChild(b);
 }
 
+const mesProxyG=a=>new Proxy(a,{get:(t,k)=>{if(typeof k==='string'&&/^\d+$/.test(k)){const n=+k;return t[n>12?((n-1)%12)+1:n]}return t[k]}});
+const anoM=m=>2026+Math.floor((m-1)/12);
 /* ===== R360 · atualizador do data.json a partir das exportações iRED360 =====
    Entrada: D (data.json atual) + lista de planilhas [{nome, linhas}] (linhas = array de arrays, como o SheetJS devolve).
    Saída: {D: novo data.json, rel: relatório}. Os meses que vierem nas exportações substituem os mesmos meses do data.json;
@@ -2239,21 +2250,23 @@ function r360Merge(D0,files){
     const need=['kpi','pdv','nome_fantasia','gerencia_vendas','supervisao','rota_vendedor','canal_fds','data_pesquisa','pergunta','pontos_possiveis','pontos_realizados','classificacao'];
     const falta=need.filter(n=>col(n)<0);if(falta.length){rel.avisos.push(`${f.nome}: faltam as colunas ${falta.join(', ')}. Ignorado.`);continue}
     const C_={};need.forEach(n=>C_[n]=col(n));
-    let t=null;for(let i=h+1;i<L.length&&t==null;i++){const c=String((L[i]||[])[C_.classificacao]||'').toUpperCase();if(c.includes('ICE'))t=0;else if(c.includes('RED'))t=1}
+    let t=null,cheio=0;for(let i=h+1;i<L.length&&t==null;i++){const c=String((L[i]||[])[C_.classificacao]||'').trim().toUpperCase();if(c&&c!=='-')cheio++;if(c.includes('ICE'))t=0;else if(c.includes('RED'))t=1;if(cheio>200&&t==null)break}
+    if(t==null&&cheio){rel.avisos.push(`${f.nome}: o conteúdo não parece uma exportação ICE LATAM ou RED (a coluna classificação veio estranha). O arquivo pode estar corrompido: baixe de novo do iRED360. Ignorado.`);continue}
     if(t==null){const n=f.nome.toUpperCase();t=n.includes('ICE')?0:n.includes('RED')?1:null}
     if(t==null){rel.avisos.push(`${f.nome}: não consegui saber se é ICE LATAM ou RED. Ignorado.`);continue}
-    const G=new Map();let nl=0,semCanal=new Set(),semKpi=new Set();
+    const G=new Map();let nl=0,nSemCanal=0,semCanal=new Set(),semKpi=new Set();
     for(let i=h+1;i<L.length;i++){const r=L[i];if(!r)continue;const pv=String(r[C_.pdv]==null?'':r[C_.pdv]).trim();if(!pv||!/^\d+$/.test(pv))continue;
-      const dt=String(r[C_.data_pesquisa]||'').trim();const mm=dt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(!mm)continue;const m=+mm[2];
+      const dt=String(r[C_.data_pesquisa]||'').trim();const mm=dt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(!mm)continue;const ano=mm[3].length===2?2000+(+mm[3]):+mm[3];const m=(ano-2026)*12+(+mm[2]);
       const k=D.kpis.indexOf(String(r[C_.kpi]||'').trim().toUpperCase());if(k<0){semKpi.add(r[C_.kpi]);continue}
       const key=m+'|'+pv;let o=G.get(key);
-      if(!o){const c=canal(r[C_.canal_fds]);if(c==null){semCanal.add(r[C_.canal_fds]);continue}
+      if(!o){const c=canal(r[C_.canal_fds]);if(c==null){semCanal.add(r[C_.canal_fds]);nSemCanal++;continue}
         o={t,m,pv,nome:String(r[C_.nome_fantasia]||'').trim(),c,rk:`${String(r[C_.gerencia_vendas]||'').trim()}|${String(r[C_.supervisao]||'').trim()}|${String(r[C_.rota_vendedor]||'').trim()}`,
           d:mm[1].padStart(2,'0')+'/'+mm[2].padStart(2,'0'),dts:new Set(),kp:[0,0,0,0,0],kr:[0,0,0,0,0],qs:new Map(),bon:new Set()};G.set(key,o)}
       o.dts.add(dt);const p=num(r[C_.pontos_possiveis]),re=num(r[C_.pontos_realizados]);o.kp[k]+=p;o.kr[k]+=re;
       const q=String(r[C_.pergunta]).trim();if(!qKpiNovo.has(q))qKpiNovo.set(q,k);{const ak=T[t]+'|'+m+'|'+o.c;const A=ACC[ak]||(ACC[ak]=new Map());const z=A.get(q)||[0,0];z[0]+=p;z[1]++;A.set(q,z)}const a=o.qs.get(q)||[0,0];a[0]+=p;a[1]+=re;o.qs.set(q,a);
       if(t===1){const cd=code(r[C_.pergunta]);if(bonc.has(cd)&&p===0&&re>0)o.bon.add(cd)}
       nl++}
+    if(semCanal.size&&nSemCanal>nl*0.2){rel.avisos.push(`${f.nome}: a maior parte das linhas veio com canal desconhecido (${[...semCanal].slice(0,2).join(', ')}…). O arquivo parece corrompido: baixe de novo do iRED360. Ignorado.`);continue}
     if(semCanal.size)rel.avisos.push(`${f.nome}: canal não reconhecido (${[...semCanal].slice(0,3).join(', ')}). Essas linhas ficaram de fora.`);
     if(semKpi.size)rel.avisos.push(`${f.nome}: pilar não reconhecido (${[...semKpi].slice(0,3).join(', ')}). Essas linhas ficaram de fora.`);
     const ms=[...new Set([...G.values()].map(o=>o.m))].sort((a,b)=>a-b);
@@ -2309,7 +2322,7 @@ function r360Merge(D0,files){
   D.upd=Object.assign({},D.upd,{red:ateDe(1)||(D.upd&&D.upd.red)||'',ice:ateDe(0)||(D.upd&&D.upd.ice)||'',dt:hj,arq:arq||hj});
   // relatório
   troca.forEach(k=>{const [t,m]=k.split('|').map(Number);const dep=band(pm,t,m,Array.from({length:pm.t.length},(_,i)=>i));rel.pesq[k]={t,m,antes:antes[k],depois:dep}});
-  if(rel.mesNovo.length)rel.avisos.push(`Mês novo nas exportações (${rel.mesNovo.join(', ')}). Os dados de pesquisa entram normalmente, mas a base de prioridades, os objetivos e a estrutura continuam os do data.json atual: atualize-os quando virar a base do mês.`);
+  if(rel.mesNovo.length)rel.avisos.push(`Mês novo nas exportações (${rel.mesNovo.join(', ')}) e a virada de mês ainda não foi feita. As pesquisas entram, mas a base de prioridades, os objetivos e a estrutura continuam os do mês anterior. Faça a virada em Gestão → Virada de mês.`);
   return{D,rel,ok:true}}
 
 
@@ -2333,8 +2346,14 @@ let FFp=null;
 function carregaFflate(){if(window.fflate)return Promise.resolve();if(FFp)return FFp;FFp=new Promise((ok,er)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js';s.onload=()=>ok();s.onerror=()=>{FFp=null;er(new Error('fflate'))};document.head.appendChild(s)});return FFp}
 // Lê a planilha. Arquivos .xlsx/.xlsm são reempacotados antes (algumas exportações do iRED360 saem com o ZIP
 // fora do padrão e o leitor de Excel recusa com "Bad compressed size"); se algo falhar, tenta ler direto.
-async function lePlanilha(f){const raw=new Uint8Array(await f.arrayBuffer());
-  if(raw[0]===0x50&&raw[1]===0x4b){try{await carregaFflate();const re=fflate.zipSync(fflate.unzipSync(raw),{level:0});return XLSX.read(re,{dense:true})}catch(e){console.warn('Reempacotar falhou, lendo direto:',e)}}
+// Se o arquivo tiver "sobra" de outro arquivo no final (download salvo por cima de um arquivo maior),
+// fica só com o primeiro pacote completo: o fim do índice que aponta para ele mesmo.
+function cortaZip(raw){for(let i=0;i+22<=raw.length;i++){if(raw[i]!==0x50||raw[i+1]!==0x4b||raw[i+2]!==5||raw[i+3]!==6)continue;
+    const dv=new DataView(raw.buffer,raw.byteOffset+i,22),tam=dv.getUint32(12,true),ini=dv.getUint32(16,true),com=dv.getUint16(20,true);
+    if(ini+tam===i){const fim=i+22+com;if(fim<raw.length)console.warn('Arquivo com sobra no final: usando os primeiros',fim,'de',raw.length,'bytes');return fim<raw.length?raw.subarray(0,fim):raw}}
+  return raw}
+async function lePlanilha(f){let raw=new Uint8Array(await f.arrayBuffer());
+  if(raw[0]===0x50&&raw[1]===0x4b){raw=cortaZip(raw);try{await carregaFflate();const re=fflate.zipSync(fflate.unzipSync(raw),{level:0});return XLSX.read(re,{dense:true})}catch(e){console.warn('Reempacotar falhou, lendo direto:',e)}}
   return XLSX.read(raw,{dense:true})}
 const escA=s=>String(s==null?'':s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 let ADM_TAB='upd';
@@ -2343,21 +2362,21 @@ function abreAdmin(tab){
   if(!o){o=document.createElement('div');o.id='updDlg';o.className='dovl';
     o.innerHTML=`<div class="dcard adm" role="dialog" aria-modal="true" aria-labelledby="admTit" tabindex="-1">
       <header class="dhd"><div><div class="dkick">Painel RED 360º</div><h2 id="admTit">Gestão</h2></div><div class="dnav"><button type="button" class="btn" data-ax aria-label="Fechar">✕</button></div></header>
-      <nav class="atabs" role="tablist"><button type="button" role="tab" data-at="upd">Atualizar dados</button><button type="button" role="tab" data-at="usr">Usuários</button></nav>
+      <nav class="atabs" role="tablist"><button type="button" role="tab" data-at="upd">Atualizar dados</button><button type="button" role="tab" data-at="vir">Virada de mês</button><button type="button" role="tab" data-at="usr">Usuários</button></nav>
       <div id="admBody"></div></div>`;document.body.appendChild(o);
     o.addEventListener('click',e=>{if(o.dataset.busy)return;if(e.target===o||e.target.closest('[data-ax]')){fechaAdmin();return}const t=e.target.closest('[data-at]');if(t)mostraTab(t.dataset.at)});
     document.addEventListener('keydown',e=>{if(!o.hidden&&e.key==='Escape'&&!o.dataset.busy)fechaAdmin()})}
   o.hidden=false;document.body.classList.add('dlock');mostraTab(tab||ADM_TAB);o.querySelector('.dcard').focus({preventScroll:true})}
 function fechaAdmin(){const o=$('updDlg');if(o)o.hidden=true;document.body.classList.remove('dlock')}
 function mostraTab(t){ADM_TAB=t;document.querySelectorAll('#updDlg [data-at]').forEach(b=>{const on=b.dataset.at===t;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
-  const B=$('admBody');if(t==='usr')telaUsuarios(B);else telaAtualizar(B)}
+  const B=$('admBody');if(t==='usr')telaUsuarios(B);else if(t==='vir')telaVirada(B);else telaAtualizar(B)}
 const busy=v=>{const o=$('updDlg');if(!o)return;if(v)o.dataset.busy=1;else delete o.dataset.busy};
 const msgA=(t,k)=>{const m=$('uMsg');if(m)m.innerHTML=t?`<div class="umsg ${k||''}">${t}</div>`:''};
 
 // ================= ATUALIZAR DADOS =================
 function telaAtualizar(B){
   const f2=v=>v==null?'–':v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const MES=['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'],TN=['ICE LATAM','RED'];
+  const MES=mesProxyG(['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']),TN=['ICE LATAM','RED'];
   let res=null;
   const tela0=()=>{B.innerHTML=`<label class="udrop" id="uDrop"><input type="file" id="uFile" multiple accept=".xlsx,.xls,.xlsm,.csv" hidden><b><span class="lg">Arraste aqui as exportações do iRED360</span><span class="sm">Toque para escolher as exportações do iRED360</span></b><span class="small">ICE LATAM e RED (iRED360-complete-…xlsx), ou clique para escolher. Pode mandar só uma delas.</span></label>
     <p class="note">O painel lê os arquivos aqui no seu aparelho, troca o mês que vier neles e mantém o resto. Antes de publicar você vê o resumo, e a versão anterior fica guardada como backup.</p><div id="uMsg"></div>`;
@@ -2375,7 +2394,7 @@ function telaAtualizar(B){
   function resumo(){const R=res.rel;
     const arq=R.arquivos.map(a=>`<tr><td class="ucell-u">${escA(a.nome)}</td><td data-l="Pesquisa"><b>${TN[a.t]}</b></td><td class="n" data-l="PDVs">${a.pdvs.toLocaleString('pt-BR')}</td><td class="n" data-l="Mês">${a.meses.map(m=>MES[m]).join(', ')}</td><td class="n" data-l="Até">${a.ate}</td></tr>`).join('');
     const pq=Object.values(R.pesq).map(p=>{const d=p.depois.v!=null&&p.antes.v!=null?p.depois.v-p.antes.v:null;return`<div><span class="small">${TN[p.t]} · ${MES[p.m]}</span><b class="num">${f2(p.depois.v)}</b><span class="small">antes ${f2(p.antes.v)}${d!=null&&Math.abs(d)>=0.005?` · <span class="${d>0?'up':'dn'}">${d>0?'+':'−'}${f2(Math.abs(d))}</span>`:''} · ${p.antes.n} → <b>${p.depois.n}</b> PDVs</span></div>`}).join('');
-    const extra=[R.novosPdv?`${R.novosPdv} PDVs novos`:'',R.novasRotas?`${R.novasRotas} rotas novas`:'',R.novasPerg?`${R.novasPerg} perguntas novas`:''].filter(Boolean).join(' · ');
+    const pl=(n,a,b)=>n+' '+(n>1?b:a);const extra=[R.novosPdv?pl(R.novosPdv,'PDV novo','PDVs novos'):'',R.novasRotas?pl(R.novasRotas,'rota nova','rotas novas'):'',R.novasPerg?pl(R.novasPerg,'pergunta nova','perguntas novas'):''].filter(Boolean).join(' · ');
     B.innerHTML=`<h3>Confira antes de publicar</h3>
     ${R.arquivos.length?`<div class="tw"><table class="ucard"><thead><tr><th>Arquivo</th><th>Pesquisa</th><th class="n">PDVs</th><th class="n">Mês</th><th class="n">Até</th></tr></thead><tbody>${arq}</tbody></table></div>`:''}
     ${pq?`<section><h3>Nota BAND</h3><div class="dkpis">${pq}</div>${extra?`<p class="small">${extra}</p>`:''}</section>`:''}
@@ -2478,6 +2497,218 @@ function telaUsuarios(B){
       await faz(async()=>{await rpc('adm_senha',{p_email:em,p_senha:s.trim()});return `Senha provisória de ${em}: ${s.trim()}`})}
     else if(a==='remover'){if(confirm(`Tirar ${em} do painel?\nA conta é apagada e ele não consegue mais entrar.`))await faz(()=>rpc('adm_remover',{p_email:em}),`${em} foi tirado do painel.`)}});
   carrega();carregaSol()}
+
+/* ===== R360 · virada de mês =====
+   Lê só as abas necessárias das planilhas mensais (xlsm grandes) e monta a base do mês no data.json. */
+const VIR_ABAS={
+  est:{nome:'Estudos GC ICE LATAM',chave:['OBJETIVO','BASE'],abas:['BASE','OBJETIVO','DEPARA PRIORIDADE']},
+  band:{nome:'BASE BAND CLIENTES',chave:['Estrutura Comercial_Infocom','BASE'],abas:['BASE','Estrutura Comercial_Infocom','Base Repositores']},
+  dim:{nome:'BASE BAND DIMENSIVA',chave:['NOTA INE_DIMENSIVA'],abas:['NOTA INE_DIMENSIVA','Base de Clientes Ativos']}
+};
+const vNorm=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+const xmlDec=s=>String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');
+// Abre só as abas pedidas: as outras viram abas vazias (evita ler abas gigantes como AUDITADAS)
+async function leAbas(raw){
+  const td=new TextDecoder();
+  const meta=fflate.unzipSync(raw,{filter:x=>x.name==='xl/workbook.xml'||x.name==='xl/_rels/workbook.xml.rels'});
+  if(!meta['xl/workbook.xml'])throw new Error('não é uma planilha do Excel (.xlsx/.xlsm)');
+  const wbx=td.decode(meta['xl/workbook.xml']),rel=td.decode(meta['xl/_rels/workbook.xml.rels']||new Uint8Array());
+  const rid={};for(const m of rel.matchAll(/<Relationship\b[^>]*>/g)){const t=m[0];const id=(t.match(/\bId="([^"]+)"/)||[])[1],tg=(t.match(/\bTarget="([^"]+)"/)||[])[1];if(id&&tg)rid[id]=tg}
+  const sheets=[];for(const m of wbx.matchAll(/<sheet\b[^>]*>/g)){const t=m[0];const nm=xmlDec((t.match(/\bname="([^"]*)"/)||[])[1]||'');const id=(t.match(/\br:id="([^"]+)"/)||[])[1];let tg=(rid[id]||'').replace(/^\//,'');if(!tg.startsWith('xl/'))tg='xl/'+tg;sheets.push({nm,path:tg})}
+  const tipo=viradaTipo(sheets.map(s=>s.nm));if(!tipo)return{tipo:null,nomes:sheets.map(s=>s.nm),abas:{}};
+  const Q=new Set(VIR_ABAS[tipo].abas.map(vNorm));const want=sheets.filter(s=>Q.has(vNorm(s.nm)));const wp=new Set(want.map(s=>s.path));
+  const keep=new Set(['[Content_Types].xml','_rels/.rels','xl/workbook.xml','xl/_rels/workbook.xml.rels','xl/sharedStrings.xml','xl/styles.xml']);
+  const files=fflate.unzipSync(raw,{filter:x=>keep.has(x.name)||wp.has(x.name)||/^xl\/theme\//.test(x.name)});
+  const enc=t=>new Uint8Array(new TextEncoder().encode(t));
+  const stub=enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>');
+  for(const s of sheets)if(!files[s.path])files[s.path]=stub;
+  // tira do [Content_Types].xml as partes que não vieram (senão o leitor procura por elas)
+  if(files['[Content_Types].xml']){const ct=td.decode(files['[Content_Types].xml']).replace(/<Override\b[^>]*PartName="\/([^"]+)"[^>]*\/>/g,(m,pn)=>files[xmlDec(pn)]?m:'');files['[Content_Types].xml']=enc(ct)}
+  const wb=XLSX.read(fflate.zipSync(files,{level:0}),{dense:true,sheets:want.map(s=>s.nm)});
+  const abas={};for(const s of want){const ws=wb.Sheets[s.nm];if(ws)abas[s.nm]=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null})}
+  return{tipo,nomes:sheets.map(s=>s.nm),abas};
+}
+function viradaTipo(nomes){const N=new Set(nomes.map(vNorm));for(const k in VIR_ABAS)if(VIR_ABAS[k].chave.every(a=>N.has(vNorm(a))))return k;return null}
+
+function r360Virada(D0,P,M){
+  const D=JSON.parse(JSON.stringify(D0));const rel={avisos:[],M};
+  const C=D.canais,cIdx=new Map(C.map((c,i)=>[c,i]));
+  const st=v=>v==null?'':String(v).trim();
+  const num=v=>{if(v==null||v===''||v==='-')return null;if(typeof v==='number')return isFinite(v)?v:null;let s=String(v).trim().replace(/\s/g,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const n=parseFloat(s);return isNaN(n)?null:n};
+  // arredonda como o Python (empate exato vai para o par), olhando a expansão exata do número
+  const pyR=(x,d)=>{const e=Math.abs(x).toFixed(d+30),k=e.indexOf('.')+1+d;if(/^50*$/.test(e.slice(k))){const dig=+e[k-1];const v=Number(e.slice(0,k));const r=dig%2===0?v:v+Math.sign(1)*10**-d;return Number((x<0?-r:r).toFixed(d))}return Number(x.toFixed(d))};
+  const r2=x=>pyR(x,2),r1=x=>pyR(x,1),r6=x=>Math.round(x*1e6)/1e6;
+  const tc=s=>st(s).replace(/\s+/g,' ').split(' ').map(w=>w?w[0].toUpperCase()+w.slice(1).toLowerCase():w).join(' ');
+  const tel=v=>{if(v==null)return'';if(typeof v==='number')return String(Math.round(v));return st(v).replace(/\.0$/,'')};
+  const SEG=[['CASH','C&C'],['C&C','C&C'],['HIPER','HIPER'],['AS 3-4','AS 3-4'],['AS3','AS 3-4'],['AS 1-2','AS 1-2'],['AS1','AS 1-2'],['SUPER','SUPER'],['MERCEARIA','MERCEARIA'],['LANCHONETE','LANCHONETE'],['BOTECO','BOTECO'],['PADARIA','PADARIA'],['RESTAURANTE','RESTAURANTE'],['ADEGA','ADEGA'],['CONVENI','CONVENIENCIA']];
+  const segC=s=>{s=vNorm(s);for(const [k,v] of SEG)if(s.includes(k))return v==='CONVENIENCIA'?'CONVENIÊNCIA':v;return null};
+  const tab=(rows,must,nome)=>{if(!rows)return null;for(let i=0;i<Math.min(rows.length,12);i++){const H=(rows[i]||[]).map(vNorm);if(must.every(m=>H.includes(vNorm(m)))){const col=n=>{const k=vNorm(n);let j=H.indexOf(k);if(j<0)j=H.findIndex(h=>h.startsWith(k));return j};return{H,col,rows:rows.slice(i+1).filter(r=>r&&r.some(x=>x!=null&&x!==''))}}}rel.avisos.push(`${nome}: não achei o cabeçalho (${must.join(', ')}).`);return null};
+  const MESA={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
+  // ---------- histórico das pesquisas que já estão no painel (meses fechados = antes de M) ----------
+  const PM=D.pm,N=PM.t.length;const hist=[new Map(),new Map()],noMes=[new Map(),new Map()];
+  for(let i=0;i<N;i++){if(!PM.poss[i])continue;const pv=D.pdv[PM.p[i]],t=PM.t[i],m=PM.m[i];const s=PM.real[i]/PM.poss[i]*100;
+    if(m<M){let h=hist[t].get(pv);if(!h)hist[t].set(pv,h={});h[m]={s,i}}else if(m===M)noMes[t].set(pv,r2(s))}
+  // ---------- planilha de Estudos (base de prioridades) ----------
+  const E=P.est||{},B=P.band||{},Dm=P.dim||null;
+  const TB=tab(E['BASE'],['PV','FANTASIA','SEGMENTO','PESQUISAR'],'Estudos · BASE');
+  if(!TB)return{D:D0,rel,ok:false};
+  const old=new Map((D0.base||[]).map(b=>[b.pv,b]));
+  // programação (DEPARA PRIORIDADE)
+  const prog=new Map();{const T=tab(E['DEPARA PRIORIDADE'],['PV','PROGRAMADO'],'Estudos · DEPARA PRIORIDADE');if(T){const a=T.col('PV'),b=T.col('PROGRAMADO');T.rows.forEach(r=>{const pv=st(r[a]);if(pv&&!prog.has(pv))prog.set(pv,st(r[b]))})}}
+  // ICE do 1º trimestre (Dimensiva)
+  const q1=new Map();
+  if(Dm){const T=tab(Dm['NOTA INE_DIMENSIVA'],['Cliente','Pontos Real.','MÊS'],'Dimensiva · NOTA INE_DIMENSIVA');
+    if(T){const a=T.col('Cliente'),b=T.col('Pontos Real.'),c=T.col('MÊS');const MF={JANEIRO:1,FEVEREIRO:2,MARCO:3};
+      T.rows.forEach(r=>{const pv=st(r[a]);const x=vNorm(r[c]).split('/');const m=MF[x[0]],y=+x[1];const v=num(r[b]);if(!pv||!m||y!==2026||v==null)return;const o=q1.get(pv);if(!o||m>o.m)q1.set(pv,{v:r2(v),m})})}}
+  const cb=k=>TB.col(k);const iPV=cb('PV'),iNo=cb('FANTASIA'),iG=cb('GERENCIA'),iS=cb('SUPERVISÃO'),iR=cb('ROTA'),iSeg=cb('SEGMENTO'),iBa=cb('BAIRRO'),iCi=cb('CIDADE'),iPe=cb('PESQUISAR'),iFo=cb('BASE FOCO'),iOb=cb('OBJETIVO'),iSem=cb('ROTEIRIZAÇÃO'),iDia=cb('DIA PREVISTO'),iPq=cb('PESQUISADO');
+  const base=[];let semCanal=0;const vistos=new Set();
+  for(const r of TB.rows){const pv=st(r[iPV]);if(!/^\d+$/.test(pv)||vistos.has(pv))continue;vistos.add(pv);
+    const cn=segC(r[iSeg]);if(cn==null||!cIdx.has(cn)){semCanal++;continue}
+    const o=old.get(pv)||{};const hI=hist[0].get(pv),hR=hist[1].get(pv);
+    let ice=null,iceMes=null,iceAvg=null,iceN=0;if(hI){const ms=Object.keys(hI).map(Number);iceMes=Math.max(...ms);ice=r2(hI[iceMes].s);iceN=ms.length;iceAvg=r2(ms.reduce((a,m)=>a+r2(hI[m].s),0)/ms.length)}
+    let red=null,redMes=null,redK=null;if(hR){redMes=Math.max(...Object.keys(hR).map(Number));const i=hR[redMes].i;red=r2(hR[redMes].s);redK=PM.kp.map((kp,k)=>kp[i]?r1(PM.kr[k][i]/kp[i]*100):null)}
+    const q=q1.get(pv);const pq=vNorm(r[iPq]);
+    base.push({pv,nome:st(r[iNo]),ger:st(r[iG]),sup:st(r[iS]),rota:st(r[iR]),c:cIdx.get(cn),cid:st(r[iCi]),bairro:st(r[iBa]),
+      prio:parseInt(String(r[iPe]||'').replace(/\D/g,''),10)||3,foco:st(r[iFo])||'NÃO',set:hI&&hI[M-1]?1:0,
+      ice,iceMes,iceAvg,iceN,iceOut:noMes[0].has(pv)?noMes[0].get(pv):null,
+      ice1T:q?q.v:(Dm?null:(o.ice1T??null)),ice1TMes:q?q.m:(Dm?null:(o.ice1TMes??null)),ice25:o.ice25??null,ice25Mes:o.ice25Mes??null,
+      red,redMes,redK,redOut:noMes[1].has(pv)?noMes[1].get(pv):null,
+      pesq:pq==='PESQ'?'PESQ':pq==='MOT'?'MOT':'NPES',prog:prog.get(pv)||o.prog||'NÃO',sem:st(r[iSem])||'-',dia:st(r[iDia])||'-',obj:iOb>=0?num(r[iOb]):null,status:o.status||'-'})}
+  if(semCanal)rel.avisos.push(`Estudos · BASE: ${semCanal} PDVs com segmento desconhecido ficaram de fora.`);
+  if(!base.length){rel.avisos.push('Estudos · BASE: nenhum PDV encontrado.');return{D:D0,rel,ok:false}}
+  D.base=base;
+  // objetivos e pesos (aba OBJETIVO)
+  {const T=tab(E['OBJETIVO'],['SEGMENTO','PESO'],'Estudos · OBJETIVO');
+    if(T){const obj={},peso={};const cols=[];const yb=Math.floor((M-1)/12)*12;T.H.forEach((h,j)=>{const m=h.match(/^OBJETIVO\s+([A-Z]{3})/);if(m&&MESA[m[1]])cols.push([String(yb+MESA[m[1]]),j]);else if(/^OBJETIVO\s+20\d\d/.test(h))cols.push(['ano',j])});
+      const iSg=T.col('SEGMENTO'),iP=T.col('PESO');
+      T.rows.forEach(r=>{const cn=segC(r[iSg]);if(!cn||!cIdx.has(cn))return;const o={};cols.forEach(([k,j])=>{const v=num(r[j]);if(v!=null)o[k]=r2(v)});obj[cn]=Object.assign({},(D0.obj||{})[cn],o);const p=num(r[iP]);if(p!=null)peso[cn]=r2(p)});
+      if(Object.keys(obj).length){D.obj=obj;const P2={};C.forEach(c=>P2[c]=peso[c]??0);D.peso=Object.assign({},D.peso,{ICE:P2})}
+      const bandRow=T.rows.find(r=>vNorm(r[iSg])==='BAND');const jm=cols.find(x=>x[0]===String(M));rel.objBand=bandRow&&jm?num(bandRow[jm[1]]):null}}
+  // gap ICE − RED por canal (meses fechados)
+  {const g={};for(const [pv,h] of hist[0]){const hr=hist[1].get(pv);if(!hr)continue;for(const m in h){if(!hr[m])continue;const c=C[PM.c[h[m].i]];const o=g[c]||(g[c]={s:0,n:0});o.s+=h[m].s-hr[m].s;o.n++}}
+    const gap={};for(const c in g)gap[c]=r2(g[c].s/g[c].n);if(Object.keys(gap).length)D.gap=gap}
+  // ---------- planilha BAND Clientes: base RED, endereços, estrutura, repositores ----------
+  const geo={},bandGeo=new Map();
+  {const T=tab(B['BASE'],['PV','FANTASIA','SEGMENTO','ROTA'],'BAND Clientes · BASE');
+    if(T){const a=T.col('PV'),no=T.col('FANTASIA'),g=T.col('GERENCIA'),s=T.col('SUPERVISÃO'),ro=T.col('ROTA'),sg=T.col('SEGMENTO'),en=T.col('ENDEREÇO'),ba=T.col('BAIRRO'),ci=T.col('CIDADE'),la=T.col('LATITUDE'),lo=T.col('LONGITUDE');
+      const redb=[],vis=new Set();let sc=0;
+      T.rows.forEach(r=>{const pv=st(r[a]);if(!/^\d+$/.test(pv)||vis.has(pv))return;vis.add(pv);const cn=segC(r[sg]);if(!cn||!cIdx.has(cn)){sc++;return}
+        redb.push([pv,st(r[no]),cIdx.get(cn),st(r[g]),st(r[s]),st(r[ro]),st(r[ba]),st(r[ci])]);
+        const y=num(r[la]),x=num(r[lo]);bandGeo.set(pv,[y!=null?r6(y):null,x!=null?r6(x):null,st(r[en]),st(r[ba]),st(r[ci])])});
+      if(sc)rel.avisos.push(`BAND Clientes · BASE: ${sc} PDVs com segmento desconhecido ficaram de fora da base RED.`);
+      if(redb.length)D.redb=redb}}
+  // coordenadas da base ICE (caso falte na BAND)
+  {const a=iPV,la=TB.col('LATITUDE'),lo=TB.col('LONGITUDE'),en=TB.col('ENDEREÇO');if(la>=0&&lo>=0)TB.rows.forEach(r=>{const pv=st(r[a]);if(!pv||bandGeo.has(pv))return;const y=num(r[la]),x=num(r[lo]);bandGeo.set(pv,[y!=null?r6(y):null,x!=null?r6(x):null,st(r[en]),st(r[iBa]),st(r[iCi])])})}
+  // Dimensiva: clientes ativos (endereço dos PDVs fora da base e telefone dos consultores)
+  const telNome=new Map();
+  if(Dm){const T=tab(Dm['Base de Clientes Ativos'],['Cod. Cliente','Latitude'],'Dimensiva · Base de Clientes Ativos');
+    if(T){const a=T.col('Cod. Cliente'),la=T.col('Latitude'),lo=T.col('Longitude'),en=T.col('Endereço'),co=T.col('Complemento'),ba=T.col('Bairro'),ci=T.col('Cidade'),nc=T.col('Nome Consultor'),tcn=T.col('Tel. Consultor');
+      const precisa=new Set([...D.pdv,...base.map(b=>b.pv)]);const cont=new Map();
+      T.rows.forEach(r=>{const pv=st(r[a]);if(nc>=0&&tcn>=0){const n=vNorm(r[nc]),t=tel(r[tcn]);if(n&&t){let m=cont.get(n);if(!m)cont.set(n,m=new Map());m.set(t,(m.get(t)||0)+1)}}
+        if(!pv||(!bandGeo.has(pv)&&!precisa.has(pv)))return;const b=bandGeo.get(pv);const y=num(r[la]),x=num(r[lo]);
+        const lat=b&&b[0]!=null&&b[1]!=null?b[0]:(y!=null?r6(y):null),lon=b&&b[0]!=null&&b[1]!=null?b[1]:(x!=null?r6(x):null);if(lat==null||lon==null)return;
+        const end=[st(r[en]),co>=0?st(r[co]):''].filter(Boolean).join(' ').slice(0,60);
+        geo[pv]=[lat,lon,end||(b?b[2]:''),st(r[ba])||(b?b[3]:''),st(r[ci])||(b?b[4]:'')]});
+      for(const [n,m] of cont){let best='',bn=0;for(const [t,k] of m)if(k>bn){best=t;bn=k}telNome.set(n,best)}}}
+  for(const [pv,b] of bandGeo)if(!geo[pv]&&b[0]!=null&&b[1]!=null)geo[pv]=b;   // sem Dimensiva: endereço da BAND
+  for(const pv in (D0.geo||{}))if(!geo[pv])geo[pv]=D0.geo[pv];   // mantém o que já existia
+  D.geo=geo;
+  {const T=tab(B['Estrutura Comercial_Infocom'],['Rota','Vendedor','Supervisao'],'BAND Clientes · Estrutura Comercial_Infocom');
+    if(T){const am=T.col('Ano/Mês'),ro=T.col('Rota'),ve=T.col('Vendedor'),sv=T.col('Supervisao'),ns=T.col('Nome Supervisor'),ge=T.col('Gerencia Comercial'),ng=T.col('Nome Ger. Comercial');
+      let ult=null;if(am>=0)T.rows.forEach(r=>{const v=num(r[am]);if(v!=null&&(ult==null||v>ult))ult=v});
+      const ruim=s=>!s||s==='-'||/SEM VENDEDOR/i.test(s);const antigo=new Map(Object.values(D0.cons||{}).map(x=>[vNorm(x[0]),x[1]]));
+      const cons={},supN={},gerN={};
+      T.rows.forEach(r=>{if(ult!=null&&num(r[am])!==ult)return;const rr=st(r[ro]);if(!rr)return;const v=st(r[ve]),s=st(r[sv]),n=st(r[ns]),g=st(r[ge]),h=st(r[ng]);
+        if(!ruim(v))cons[rr]=[tc(v),telNome.has(vNorm(v))?telNome.get(vNorm(v)):(antigo.get(vNorm(v))||'')];if(!ruim(s)&&!ruim(n))supN[s]=tc(n);if(!ruim(g)&&!ruim(h))gerN[g]=tc(h)});
+      if(Object.keys(cons).length){D.cons=cons;D.supN=supN;D.gerN=gerN}}}
+  {const T=tab(B['Base Repositores'],['PV','Nome Repositor'],'BAND Clientes · Base Repositores');
+    if(T){const a=T.col('PV'),nr=T.col('Nome Repositor'),tr=T.col('Telefone Repositor'),nl=T.col('Nome Lider'),tl=T.col('Telefone Lider');const rep={};
+      T.rows.forEach(r=>{const pv=st(r[a]);if(!/^\d+$/.test(pv))return;rep[pv]=[tc(r[nr]),tel(r[tr]),nl>=0?tc(r[nl]):'',tl>=0?tel(r[tl]):'']});
+      if(Object.keys(rep).length)D.rep=rep}}
+  // meses e carimbo
+  if(!D.meses.includes(M)){D.meses=[...D.meses,M].sort((a,b)=>a-b);rel.mesNovo=true}
+  if(rel.mesNovo)D.upd=Object.assign({},D.upd,{red:'',ice:''});   // mês novo ainda sem pesquisas
+  const hj=new Date(),z=n=>String(n).padStart(2,'0');D.upd=Object.assign({},D.upd,{base:M,virada:`${z(hj.getDate())}/${z(hj.getMonth()+1)}/${hj.getFullYear()}`});
+  // relatório
+  const pr={1:0,2:0,3:0};base.forEach(b=>pr[b.prio]=(pr[b.prio]||0)+1);
+  const antes=new Set(old.keys()),depois=new Set(base.map(b=>b.pv));
+  rel.base=base.length;rel.prio=pr;rel.entraram=[...depois].filter(p=>!antes.has(p)).length;rel.sairam=[...antes].filter(p=>!depois.has(p)).length;
+  rel.redb=(D.redb||[]).length;rel.geo=Object.keys(geo).length;rel.cons=Object.keys(D.cons||{}).length;rel.rep=Object.keys(D.rep||{}).length;rel.dim=!!Dm;
+  return{D,rel,ok:true}}
+
+
+// ================= VIRADA DE MÊS =================
+const MESV=mesProxyG(['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']);
+const MESVF=mesProxyG(['','janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']);
+function baixaArquivo(nome,txt){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=nome;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+function carimbo(){const d=new Date(),z=n=>String(n).padStart(2,'0');return`${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`}
+function telaVirada(B){
+  let Datual=null;try{Datual=JSON.parse($('data').textContent)}catch(e){}
+  if(!Datual||!Datual.meses){B.innerHTML='<div class="umsg err">Não consegui ler os dados atuais do painel. Recarregue a página e tente de novo.</div>';return}
+  const LAST=Datual.meses[Datual.meses.length-1],PROX=LAST+1,baseAtual=(Datual.upd&&Datual.upd.base)||LAST;
+  const P={},ARQ={};let bkOk=false,res=null;
+  const linha=(k,obr)=>{const a=ARQ[k];return`<li class="${a?'ok':''}"><span class="vck">${a?'✓':(obr?'•':'○')}</span><div><b>${VIR_ABAS[k].nome}</b>${obr?'':' <span class="small">(opcional)</span>'}<div class="small">${a?escA(a):'ainda não enviada'}</div></div></li>`};
+  const tela0=()=>{
+    B.innerHTML=`<p class="note">Hoje o painel está em <b>${MESV[LAST]}/${anoM(LAST)}</b> e a base de prioridades é de <b>${MESVF[baseAtual]}</b>.</p>
+    <section class="vsec"><h3>1 · Backup</h3><p class="small">Baixe uma cópia de tudo o que o painel tem hoje antes de virar. Para voltar atrás, é só subir esse arquivo no Supabase com o nome data.json.</p>
+      <div class="uact" style="justify-content:flex-start"><button type="button" class="btn" id="vBk">Baixar backup do painel</button><span class="small" id="vBkOk">${bkOk?'✓ backup baixado':''}</span></div></section>
+    <section class="vsec"><h3>2 · Mês da base</h3>
+      <select id="vMes" class="vsel"><option value="${PROX}">${MESVF[PROX]} de ${anoM(PROX)} · virar o mês</option><option value="${LAST}">${MESVF[LAST]} de ${anoM(LAST)} · atualizar a base do mês atual</option></select></section>
+    <section class="vsec"><h3>3 · Planilhas do mês</h3>
+      <label class="udrop" id="vDrop"><input type="file" id="vFile" multiple accept=".xlsm,.xlsx" hidden><b><span class="lg">Arraste aqui as planilhas do mês</span><span class="sm">Toque para escolher as planilhas do mês</span></b><span class="small">Estudos GC ICE LATAM, BASE BAND CLIENTES e BASE BAND DIMENSIVA (.xlsm). Pode mandar uma de cada vez.</span></label>
+      <ul class="vlist">${linha('est',1)}${linha('band',1)}${linha('dim',0)}</ul></section>
+    <div id="uMsg"></div>
+    <div class="uact"><button type="button" class="btn pri" id="vGo"${P.est&&P.band?'':' disabled'}>Conferir a virada</button></div>`;
+    const sel=$('vMes');if(sel.dataset)sel.value=String(B.dataset.vmes||sel.value);sel.onchange=()=>{B.dataset.vmes=sel.value};
+    $('vBk').onclick=()=>{baixaArquivo(`backup-painel-${MESV[LAST]}${anoM(LAST)}-${carimbo()}.json`,$('data').textContent);bkOk=true;$('vBkOk').textContent='✓ backup baixado'};
+    const inp=$('vFile'),dr=$('vDrop');inp.onchange=()=>le([...inp.files]);
+    ['dragenter','dragover'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();dr.classList.add('on')}));['dragleave','drop'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();dr.classList.remove('on')}));
+    dr.addEventListener('drop',e=>le([...e.dataTransfer.files]));
+    $('vGo').onclick=confere};
+  async function le(fs){if(!fs.length)return;busy(1);
+    try{msgA('Carregando o leitor de Excel…');await carregaXLSX();await carregaFflate();
+      for(const f of fs){msgA(`Lendo ${escA(f.name)}… (planilhas grandes levam até 30 segundos)`);await new Promise(r=>setTimeout(r,30));
+        let raw=new Uint8Array(await f.arrayBuffer());if(raw[0]===0x50&&raw[1]===0x4b)raw=cortaZip(raw);
+        const r=await leAbas(raw);
+        if(!r.tipo){msgA(`${escA(f.name)} não parece nenhuma das 3 planilhas do mês (não achei as abas esperadas).`,'err');continue}
+        P[r.tipo]=r.abas;ARQ[r.tipo]=f.name;
+        const m=f.name.match(/^(\d{1,2})[\s_-]/);if(m){const fm=+m[1];const sel=$('vMes');const op=sel&&[...sel.options].find(o=>((+o.value-1)%12)+1===fm);if(op){sel.value=op.value;B.dataset.vmes=op.value}}}
+      const faltam=['est','band'].filter(k=>!P[k]).map(k=>VIR_ABAS[k].nome);
+      tela0();msgA(faltam.length?`Falta: ${faltam.join(' e ')}.`:'Planilhas prontas. Clique em <b>Conferir a virada</b>.',faltam.length?'':'ok')}
+    catch(e){console.error(e);tela0();msgA('Não consegui ler a planilha: '+escA(e.message||e)+'. Se continuar, abra no Excel, salve de novo e tente outra vez.','err')}
+    finally{busy(0)}}
+  async function confere(){const M=+$('vMes').value;busy(1);msgA('Montando a base do mês…');await new Promise(r=>setTimeout(r,30));
+    try{res=r360Virada(Datual,P,M);res.antigo=$('data').textContent;resumo(M)}catch(e){console.error(e);msgA('Não consegui montar a base: '+escA(e.message||e),'err')}finally{busy(0)}}
+  function resumo(M){const R=res.rel;const ant=Datual.base||[];const pr=R.prio||{};
+    const f=v=>v==null?'–':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
+    B.innerHTML=`<h3>Confira a virada para ${MESVF[M]}</h3>
+    <div class="dkpis">
+      <div><span class="small">Base de prioridades</span><b class="num">${f(R.base)}</b><span class="small">antes ${f(ant.length)} · entraram ${f(R.entraram)} · saíram ${f(R.sairam)}</span></div>
+      <div><span class="small">Prioridade 1</span><b class="num">${f(pr[1])}</b><span class="small">P2 ${f(pr[2])} · P3 ${f(pr[3])}</span></div>
+      <div><span class="small">Objetivo ICE BAND de ${MESV[M]}</span><b class="num">${f(R.objBand)}</b><span class="small">aba OBJETIVO dos Estudos</span></div>
+    </div>
+    <div class="tw"><table class="ucard"><tbody>
+      <tr><td class="ucell-u">Base RED (BAND Clientes)</td><td class="n" data-l="PDVs">${f(R.redb)}</td></tr>
+      <tr><td class="ucell-u">Consultores com nome</td><td class="n" data-l="Rotas">${f(R.cons)}</td></tr>
+      <tr><td class="ucell-u">Repositores</td><td class="n" data-l="PDVs">${f(R.rep)}</td></tr>
+      <tr><td class="ucell-u">Endereços e GPS</td><td class="n" data-l="PDVs">${f(R.geo)}</td></tr>
+    </tbody></table></div>
+    ${R.mesNovo?`<p class="note">O painel passa a mostrar <b>${MESV[M]}/${anoM(M)}</b> como mês atual. As pesquisas de ${MESVF[M-1]} ficam guardadas como mês fechado. As notas de ${MESV[M]} começam a aparecer quando você publicar as primeiras exportações do iRED360 do mês, em <b>Atualizar dados</b>.</p>`:`<p class="note">A base de <b>${MESVF[M]}</b> é substituída pela das planilhas. As pesquisas do mês continuam como estão.</p>`}
+    ${R.dim?'':'<p class="small">Sem a planilha da Dimensiva, os endereços, os telefones dos consultores e as notas do 1º trimestre continuam os que já estavam no painel.</p>'}
+    ${R.avisos.length?`<ul class="dwhy uav">${R.avisos.map(a=>`<li>${escA(a)}</li>`).join('')}</ul>`:''}
+    <div id="uMsg"></div>
+    <div class="uact"><button type="button" class="btn" id="vVolta">Voltar</button><button type="button" class="btn" id="vBaixa"${res.ok?'':' disabled'}>Baixar data.json novo</button><button type="button" class="btn pri" id="vPub"${res.ok?'':' disabled'}>${R.mesNovo?'Publicar a virada':'Publicar a base nova'}</button></div>`;
+    $('vVolta').onclick=tela0;$('vBaixa').onclick=()=>baixaArquivo('data.json',JSON.stringify(res.D));$('vPub').onclick=()=>publicaV(M)}
+  async function publicaV(M){if(!confirm(res.rel.mesNovo?`Virar o painel para ${MESVF[M]}? A versão atual fica guardada como backup.`:`Trocar a base de ${MESVF[M]}? A versão atual fica guardada como backup.`))return;
+    busy(1);const bt=B.querySelectorAll('.uact button');bt.forEach(b=>b.disabled=true);
+    try{msgA('Guardando a versão atual como backup…');
+      const b1=await sb.storage.from(BUCKET).upload(`backup/data-${carimbo()}-antes-virada.json`,new Blob([res.antigo],{type:'application/json'}),{upsert:true,contentType:'application/json'});if(b1.error)throw b1.error;
+      msgA('Publicando a base nova…');
+      const b2=await sb.storage.from(BUCKET).upload(ARQUIVO,new Blob([JSON.stringify(res.D)],{type:'application/json'}),{upsert:true,contentType:'application/json',cacheControl:'0'});if(b2.error)throw b2.error;
+      msgA('Pronto! Base publicada. Recarregando o painel…','ok');setTimeout(()=>location.reload(),1300)}
+    catch(e){console.error(e);busy(0);bt.forEach(b=>b.disabled=false);const m=String(e&&e.message||e);
+      msgA(/row-level|policy|unauthorized|403|permission/i.test(m)?'O Supabase recusou a gravação: confira se o seu perfil é <b>admin</b>. Enquanto isso, use <b>Baixar data.json novo</b> e suba pelo Supabase.':'Não consegui publicar: '+escA(m)+'. Use <b>Baixar data.json novo</b> e suba pelo Supabase.','err')}}
+  tela0()}
 
 sb.auth.onAuthStateChange((ev,session)=>{
   if(ev==='PASSWORD_RECOVERY')mostra('fNova');
