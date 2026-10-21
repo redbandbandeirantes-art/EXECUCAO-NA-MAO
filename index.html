@@ -1942,6 +1942,9 @@ html.authed #auth{display:none}
 .vlist li{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border-radius:8px;padding:10px 12px;word-break:break-word}
 .vlist li.ok{background:var(--good-bg)}.vlist .vck{font-weight:700;width:18px;flex:none;color:var(--fg-3)}.vlist li.ok .vck{color:var(--good)}
 @media (max-width:700px){.vsel{font-size:16px;max-width:none}}
+.unp{display:flex;gap:4px;justify-content:flex-end;align-items:center;margin-top:6px;flex-wrap:wrap}
+.unp-in{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:150px}
+@media (max-width:700px){.unp{width:100%}.unp-in{flex:1 1 100%;font-size:16px;width:auto}.unp .btn{flex:1;justify-content:center}}
 /* solicitações de acesso */
 .upd-btn{position:relative}
 .ubadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;line-height:1}
@@ -2074,6 +2077,8 @@ const BUCKET  = 'dados';      // nome do bucket privado no Storage
 const ARQUIVO = 'data.json';  // arquivo com os dados do painel
 // Quem é administrador fica na tabela "perfis" do Supabase (perfil = 'admin'). Só admin vê e usa "Atualizar dados".
 const TAB_PERFIS = 'perfis';
+// Senha provisória padrão para quem é colocado no painel (no 1º acesso a pessoa cria a senha dela)
+const SENHA_PADRAO = 'band20red10';
 // Pedidos de acesso feitos na tela de login: ficam na tabela abaixo e chegam neste e-mail
 const TAB_SOLIC  = 'solicitacoes';
 const AVISO_EMAIL = 'daniel.moura@rebic.com.br';
@@ -2161,6 +2166,7 @@ $('fNova').onsubmit=async ev=>{
   const a=$('nSenha').value,b=$('nSenha2').value;
   if(a.length<8)return msg('A senha precisa ter pelo menos 8 caracteres.');
   if(a!==b)return msg('As duas senhas não são iguais.');
+  if(typeof SENHA_PADRAO!=='undefined'&&a===SENHA_PADRAO)return msg('Escolha uma senha sua, diferente da senha provisória.');
   ocupado(f,true);
   const {data,error}=await sb.auth.updateUser({password:a,data:{trocar_senha:false}});
   ocupado(f,false);
@@ -2419,7 +2425,8 @@ function telaAtualizar(B){
 // ================= USUÁRIOS (tudo pelo navegador: tabela perfis + funções SQL) =================
 const sbTmp=()=>supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'r360-novo-usuario'}});
 const errSQL=e=>{const m=(e&&e.message)||String(e);if(/function .*adm_|Could not find the function|schema cache/i.test(m))return 'Falta rodar o SQL de usuários no Supabase (o Claude te passou). Rode e tente de novo.';if(/Signups not allowed|signup.*disabled/i.test(m))return 'O Supabase está bloqueando cadastro novo. Ligue “Allow new users to sign up” em Authentication → Sign In / Providers.';return m};
-const geraSenha=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';let s='';const a=new Uint32Array(10);crypto.getRandomValues(a);a.forEach(x=>s+=c[x%c.length]);return s};
+const geraSenha=()=>SENHA_PADRAO;
+const geraSenhaAleatoria=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';let s='';const a=new Uint32Array(10);crypto.getRandomValues(a);a.forEach(x=>s+=c[x%c.length]);return s};
 function telaUsuarios(B){
   let LISTA=[],FQ='',FP='';
   const dt=s=>{if(!s)return'–';const d=new Date(s);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
@@ -2428,7 +2435,7 @@ function telaUsuarios(B){
     <section class="unew"><h3>Colocar usuário</h3>
     <div class="ufrm"><label>E-mail<input id="nuEmail" type="email" inputmode="email" autocomplete="off" placeholder="nome@rebic.com.br"></label>
     <label>Perfil<select id="nuPerfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select></label>
-    <label>Senha provisória<span class="usen"><input id="nuSenha" type="text" autocomplete="off" placeholder="mín. 8 caracteres"><button type="button" class="btn" id="nuGer" title="Gerar uma senha">Gerar</button></span></label>
+    <label>Senha provisória<span class="usen"><input id="nuSenha" type="text" autocomplete="off" placeholder="mín. 8 caracteres" value="${escA(SENHA_PADRAO)}"><button type="button" class="btn" id="nuGer" title="Usar a senha padrão">Padrão</button></span></label>
     <button type="button" class="btn pri" id="nuGo">Colocar</button></div>
     <p class="small">Passe o e-mail e a senha provisória para a pessoa. No primeiro acesso o painel pede para ela criar a senha dela.</p></section>
     <div id="uMsg"></div>
@@ -2487,14 +2494,26 @@ function telaUsuarios(B){
     const ok=await faz(async()=>{const r=await colocar(email,perfil,senha);
       if(!r.novo)return `${email} já tinha conta. Acesso liberado como ${perfil==='admin'?'Administrador':'Usuário'}, com a senha que ele já usa.`;
       return `Pronto! ${email} pode entrar com a senha provisória: ${senha}`});
-    b.disabled=false;if(ok){$('nuEmail').value='';$('nuSenha').value='';$('nuPerfil').value='usuario'}};
+    b.disabled=false;if(ok){$('nuEmail').value='';$('nuSenha').value=SENHA_PADRAO;$('nuPerfil').value='usuario'}};
   $('uBody').addEventListener('change',async e=>{const s=e.target.closest('[data-uperf]');if(!s)return;const em=s.closest('tr').dataset.em,u=LISTA.find(x=>x.email===em);if(!u)return;
     const novo=s.value;if(!confirm(`Mudar ${em} para ${novo==='admin'?'Administrador':'Usuário'}?`)){s.value=u.perfil;return}
     await faz(()=>setPerfil(em,novo),`${em} agora é ${novo==='admin'?'Administrador':'Usuário'}.`)});
-  $('uBody').addEventListener('click',async e=>{const b=e.target.closest('[data-ua]');if(!b)return;const em=b.closest('tr').dataset.em;const a=b.dataset.ua;
+  const salvaSenha=async(box,em)=>{const s=box.querySelector('input').value.trim();
+    if(s.length<8)return msgA('A senha precisa ter pelo menos 8 caracteres.','err');
+    box.querySelectorAll('button,input').forEach(z=>z.disabled=true);
+    const ok=await faz(async()=>{const r=await rpc('adm_senha',{p_email:em,p_senha:s});
+      if(r&&r.verificado===false)throw new Error('O Supabase não gravou a senha nova. Rode o supabase_senha.sql e tente de novo.');
+      return r&&r.ok?`Senha de ${em} trocada para ${s}. Ela foi desconectada dos aparelhos e entra agora com essa senha; no primeiro acesso o painel pede para criar a senha dela.`
+        :`Senha de ${em} trocada para ${s}. Se a pessoa já estava com o painel aberto, peça para clicar em Sair e entrar de novo. (Para desconectar automaticamente, rode o supabase_senha.sql.)`});
+    if(!ok)box.querySelectorAll('button,input').forEach(z=>z.disabled=false)};
+  $('uBody').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('unp-in')){e.preventDefault();const k=e.target.closest('.unp').querySelector('[data-unp="ok"]');if(k)k.click()}else if(e.key==='Escape'&&e.target.classList.contains('unp-in')){e.stopPropagation();e.target.closest('.unp').remove()}});
+  $('uBody').addEventListener('click',async e=>{const u=e.target.closest('[data-unp]');if(u){const box=u.closest('.unp');if(u.dataset.unp==='x'){box.remove();return}await salvaSenha(box,u.closest('tr').dataset.em);return}
+    const b=e.target.closest('[data-ua]');if(!b)return;const em=b.closest('tr').dataset.em;const a=b.dataset.ua;
     if(a==='liberar'){const s=geraSenha();await faz(async()=>{await setPerfil(em,'usuario');await rpc('adm_senha',{p_email:em,p_senha:s});return `Acesso liberado para ${em} com a senha provisória: ${s}`})}
-    else if(a==='senha'){const s=prompt(`Nova senha provisória para ${em} (mínimo 8 caracteres).\nNo próximo acesso o painel pede para ele criar a senha dele.`,geraSenha());if(s==null)return;if(s.trim().length<8)return msgA('A senha precisa ter pelo menos 8 caracteres.','err');
-      await faz(async()=>{await rpc('adm_senha',{p_email:em,p_senha:s.trim()});return `Senha provisória de ${em}: ${s.trim()}`})}
+    else if(a==='senha'){const td=b.closest('td');const aberto=td.querySelector('.unp');if(aberto){aberto.remove();return}
+      const box=document.createElement('div');box.className='unp';
+      box.innerHTML=`<input type="text" class="unp-in" autocomplete="off" value="${escA(geraSenha())}" aria-label="Nova senha para ${escA(em)}"><button type="button" class="btn pri" data-unp="ok">Salvar senha</button><button type="button" class="btn" data-unp="x">Cancelar</button>`;
+      td.appendChild(box);const ip=box.querySelector('input');ip.focus();ip.select()}
     else if(a==='remover'){if(confirm(`Tirar ${em} do painel?\nA conta é apagada e ele não consegue mais entrar.`))await faz(()=>rpc('adm_remover',{p_email:em}),`${em} foi tirado do painel.`)}});
   carrega();carregaSol()}
 
