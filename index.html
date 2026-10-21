@@ -2329,6 +2329,13 @@ async function poeAtualizar(){
 async function contaSolic(){try{const {count,error}=await sb.from(TAB_SOLIC).select('id',{count:'exact',head:true}).eq('status','pendente');const g=$('solBadge');if(!g)return;if(error||!count){g.hidden=true;return}g.textContent=count;g.hidden=false;g.title=count+' solicitação(ões) de acesso'}catch(e){}}
 let XLSXp=null;
 function carregaXLSX(){if(window.XLSX)return Promise.resolve();if(XLSXp)return XLSXp;XLSXp=new Promise((ok,er)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=()=>ok();s.onerror=()=>{XLSXp=null;er(new Error('Não consegui carregar o leitor de Excel. Verifique a internet.'))};document.head.appendChild(s)});return XLSXp}
+let FFp=null;
+function carregaFflate(){if(window.fflate)return Promise.resolve();if(FFp)return FFp;FFp=new Promise((ok,er)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js';s.onload=()=>ok();s.onerror=()=>{FFp=null;er(new Error('fflate'))};document.head.appendChild(s)});return FFp}
+// Lê a planilha. Arquivos .xlsx/.xlsm são reempacotados antes (algumas exportações do iRED360 saem com o ZIP
+// fora do padrão e o leitor de Excel recusa com "Bad compressed size"); se algo falhar, tenta ler direto.
+async function lePlanilha(f){const raw=new Uint8Array(await f.arrayBuffer());
+  if(raw[0]===0x50&&raw[1]===0x4b){try{await carregaFflate();const re=fflate.zipSync(fflate.unzipSync(raw),{level:0});return XLSX.read(re,{dense:true})}catch(e){console.warn('Reempacotar falhou, lendo direto:',e)}}
+  return XLSX.read(raw,{dense:true})}
 const escA=s=>String(s==null?'':s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 let ADM_TAB='upd';
 function abreAdmin(tab){
@@ -2359,12 +2366,12 @@ function telaAtualizar(B){
     dr.addEventListener('drop',e=>le([...e.dataTransfer.files]))};
   async function le(fs){if(!fs.length)return;busy(1);
     try{msgA('Carregando o leitor de Excel…');await carregaXLSX();const files=[];
-      for(const f of fs){msgA(`Lendo ${escA(f.name)}…`);await new Promise(r=>setTimeout(r,20));const wb=XLSX.read(await f.arrayBuffer(),{dense:true});
+      for(const f of fs){msgA(`Lendo ${escA(f.name)}…`);await new Promise(r=>setTimeout(r,20));const wb=await lePlanilha(f);
         let melhor=null;for(const n of wb.SheetNames){const L=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});if(L.slice(0,30).some(r=>r&&r.some(x=>String(x||'').trim().toLowerCase()==='pergunta'))){melhor=L;break}if(!melhor)melhor=L}
         files.push({nome:f.name,linhas:melhor||[]})}
       msgA('Montando os dados novos…');await new Promise(r=>setTimeout(r,20));
       const atual=JSON.parse($('data').textContent);res=r360Merge(atual,files);res.antigo=$('data').textContent;resumo()}
-    catch(e){console.error(e);msgA('Não consegui ler os arquivos: '+escA(e.message||e),'err')}finally{busy(0)}}
+    catch(e){console.error(e);msgA('Não consegui ler os arquivos: '+escA(e.message||e)+'. Se continuar, abra o arquivo no Excel, use <b>Salvar como → Pasta de Trabalho do Excel (.xlsx)</b> e tente de novo.','err')}finally{busy(0)}}
   function resumo(){const R=res.rel;
     const arq=R.arquivos.map(a=>`<tr><td class="ucell-u">${escA(a.nome)}</td><td data-l="Pesquisa"><b>${TN[a.t]}</b></td><td class="n" data-l="PDVs">${a.pdvs.toLocaleString('pt-BR')}</td><td class="n" data-l="Mês">${a.meses.map(m=>MES[m]).join(', ')}</td><td class="n" data-l="Até">${a.ate}</td></tr>`).join('');
     const pq=Object.values(R.pesq).map(p=>{const d=p.depois.v!=null&&p.antes.v!=null?p.depois.v-p.antes.v:null;return`<div><span class="small">${TN[p.t]} · ${MES[p.m]}</span><b class="num">${f2(p.depois.v)}</b><span class="small">antes ${f2(p.antes.v)}${d!=null&&Math.abs(d)>=0.005?` · <span class="${d>0?'up':'dn'}">${d>0?'+':'−'}${f2(Math.abs(d))}</span>`:''} · ${p.antes.n} → <b>${p.depois.n}</b> PDVs</span></div>`}).join('');
