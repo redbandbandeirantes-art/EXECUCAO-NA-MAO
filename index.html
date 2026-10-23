@@ -1960,6 +1960,13 @@ html.authed #auth{display:none}
 .usolav{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;font:inherit;font-size:14px;text-align:left;border:1px solid var(--warn-bg);background:var(--warn-bg);color:var(--fg);border-radius:8px;padding:10px 14px;cursor:pointer}
 .usolav[hidden]{display:none}.usolav span{font-weight:600;color:var(--ice);white-space:nowrap}
 .atabs .ubadge{margin-left:6px;vertical-align:middle}
+.uhist{border-top:1px solid var(--line);padding-top:12px}
+.uhist summary{cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;list-style:none}
+.uhist summary::-webkit-details-marker{display:none}
+.uhist summary::before{content:"▸";color:var(--fg-3);transition:transform .15s}
+.uhist details[open] summary::before{transform:rotate(90deg)}
+.uhist-t{font-family:var(--display);font-size:17px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--fg-2)}
+.uhist-f{margin:10px 0 8px;justify-content:flex-start}
 /* solicitações de acesso */
 .upd-btn{position:relative}
 .ubadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;line-height:1}
@@ -2481,7 +2488,11 @@ function telaUsuarios(B){
     <p class="small">Passe o e-mail e a senha provisória para a pessoa. No primeiro acesso o painel pede para ela criar a senha dela.</p></section>
     <div id="uMsg"></div>
     <section><div class="ulhd"><h3>Usuários <span class="small" id="uCnt"></span></h3><div class="ufil"><input id="uQ" type="search" placeholder="Buscar e-mail"><select id="uFP"><option value="">Todos</option><option value="admin">Administradores</option><option value="usuario">Usuários</option><option value="sem acesso">Sem acesso</option><option value="nunca">Nunca entraram</option></select><button type="button" class="btn" id="uRef">Recarregar</button></div></div>
-    <div class="tw"><table class="utab ucard"><thead><tr><th>Usuário</th><th>Perfil</th><th>Status</th><th>Último acesso</th><th class="n">Ações</th></tr></thead><tbody id="uBody"><tr><td colspan="5" class="small">Carregando…</td></tr></tbody></table></div></section>`;
+    <div class="tw"><table class="utab ucard"><thead><tr><th>Usuário</th><th>Perfil</th><th>Status</th><th>Último acesso</th><th class="n">Ações</th></tr></thead><tbody id="uBody"><tr><td colspan="5" class="small">Carregando…</td></tr></tbody></table></div></section>
+    <section class="uhist"><details id="uHistD"><summary><span class="uhist-t">Histórico de pedidos de acesso</span> <span class="small" id="uHistCnt">quem aprovou e quem recusou</span></summary>
+      <div class="ufil uhist-f"><input id="uHq" type="search" placeholder="Buscar nome ou e-mail"><select id="uHf"><option value="">Todos</option><option value="aprovada">Aprovados</option><option value="recusada">Recusados</option></select></div>
+      <div class="tw"><table class="utab ucard"><thead><tr><th>Pedido</th><th>Decisão</th><th>Por quem</th><th>Quando</th></tr></thead><tbody id="uHist"><tr><td colspan="4" class="small">Carregando…</td></tr></tbody></table></div>
+    </details></section>`;
   const desenha=()=>{const q=FQ.trim().toLowerCase();
     const L=LISTA.filter(u=>(!q||u.email.includes(q))&&(!FP||(FP==='nunca'?u.tem_conta&&!u.ultimo_acesso&&u.perfil!=='sem acesso':u.perfil===FP)));
     $('uCnt').textContent=`${L.length} de ${LISTA.length}`;
@@ -2506,7 +2517,16 @@ function telaUsuarios(B){
       <div class="usolA"><select data-sper aria-label="Perfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select><button type="button" class="btn pri" data-sa="aprovar">Aprovar</button><button type="button" class="btn dng" data-sa="recusar">Recusar</button></div></div>`).join('');
     marcaSolic(SOL.length)};
   const carregaSol=async()=>{try{const {data,error}=await sb.from(TAB_SOLIC).select('id,criado_em,nome,email,cargo,obs').eq('status','pendente').order('criado_em',{ascending:true});if(error)throw error;SOL=data||[]}catch(e){SOL=[]}desenhaSol()};
-  const decide=async(id,status)=>{const {error}=await sb.from(TAB_SOLIC).update({status,decidido_em:new Date().toISOString(),decidido_por:EU_EMAIL}).eq('id',id);if(error)throw error};
+  let HIST=[],HQ='',HF='',histOk=false;
+  const porQuem=v=>{v=String(v||'');if(!v)return'–';if(v.startsWith('telegram: '))return escA(v.slice(10))+' <span class="small">(Telegram)</span>';return escA(v)+(v===EU_EMAIL?' <span class="small">(você)</span>':'')};
+  const desenhaHist=()=>{const q=HQ.trim().toLowerCase();const L=HIST.filter(x=>(!HF||x.status===HF)&&(!q||String(x.nome||'').toLowerCase().includes(q)||String(x.email||'').includes(q)));
+    const na=HIST.filter(x=>x.status==='aprovada').length,nr=HIST.filter(x=>x.status==='recusada').length;
+    $('uHistCnt').textContent=histOk?`${na} aprovado${na===1?'':'s'} · ${nr} recusado${nr===1?'':'s'}`:'quem aprovou e quem recusou';
+    $('uHist').innerHTML=L.slice(0,300).map(x=>`<tr><td class="ucell-u"><b>${escA(x.nome)}</b><div class="small">${escA(x.email)}${x.cargo?' · '+escA(x.cargo):''} · pedido em ${dt(x.criado_em)}</div></td><td data-l="Decisão"><span class="pill ${x.status==='aprovada'?'good':'crit'}">${x.status==='aprovada'?'Aprovado':'Recusado'}</span></td><td data-l="Por quem">${porQuem(x.decidido_por)}</td><td class="small" data-l="Quando">${dt(x.decidido_em)}</td></tr>`).join('')||'<tr><td colspan="4" class="small">Nenhum pedido decidido ainda.</td></tr>'};
+  const carregaHist=async()=>{histOk=true;try{const {data,error}=await sb.from(TAB_SOLIC).select('id,criado_em,nome,email,cargo,status,decidido_em,decidido_por').neq('status','pendente').order('decidido_em',{ascending:false,nullsFirst:false}).limit(300);if(error)throw error;HIST=data||[]}catch(e){HIST=[]}desenhaHist()};
+  $('uHistD').addEventListener('toggle',()=>{if($('uHistD').open&&!histOk)carregaHist()});
+  $('uHq').oninput=e=>{HQ=e.target.value;desenhaHist()};$('uHf').onchange=e=>{HF=e.target.value;desenhaHist()};
+  const decide=async(id,status)=>{const {error}=await sb.from(TAB_SOLIC).update({status,decidido_em:new Date().toISOString(),decidido_por:EU_EMAIL}).eq('id',id);if(error)throw error;if(histOk)carregaHist()};
   $('uSol').addEventListener('click',async e=>{const b=e.target.closest('[data-sa]');if(!b)return;const it=b.closest('[data-sid]'),x=SOL.find(z=>String(z.id)===it.dataset.sid);if(!x)return;
     if(b.dataset.sa==='recusar'){if(!confirm(`Recusar o pedido de ${x.nome} (${x.email})?`))return;busy(1);try{await decide(x.id,'recusada');msgA(escA(`Pedido de ${x.email} recusado.`),'ok');await carregaSol()}catch(er){msgA(escA(errSQL(er)),'err')}finally{busy(0)}return}
     const perfil=it.querySelector('[data-sper]').value,senha=geraSenha();busy(1);it.querySelectorAll('button,select').forEach(z=>z.disabled=true);
@@ -2514,7 +2534,7 @@ function telaUsuarios(B){
       await carregaSol();await carrega();
       msgA(`Pronto! <b>${escA(x.email)}</b> foi aprovado${r.novo?` com a senha provisória <b class="num">${escA(senha)}</b>`:' e vai usar a senha que já tem'}. <a href="${linkAviso(x.nome,x.email,r.novo?senha:'')}">Enviar o acesso por e-mail para ele</a>`,'ok')}
     catch(er){console.error(er);msgA(escA(errSQL(er)),'err');it.querySelectorAll('button,select').forEach(z=>z.disabled=false)}finally{busy(0)}});
-  $('uQ').oninput=e=>{FQ=e.target.value;desenha()};$('uFP').onchange=e=>{FP=e.target.value;desenha()};$('uRef').onclick=()=>{carrega(1);carregaSol()};
+  $('uQ').oninput=e=>{FQ=e.target.value;desenha()};$('uFP').onchange=e=>{FP=e.target.value;desenha()};$('uRef').onclick=()=>{carrega(1);carregaSol();if(histOk)carregaHist()};
   $('nuGer').onclick=()=>{$('nuSenha').value=geraSenha()};
   // coloca a pessoa no painel; devolve {novo:true} quando criou login com a senha provisória
   const colocar=async(email,perfil,senha)=>{const ja=LISTA.find(u=>u.email===email);
