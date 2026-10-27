@@ -1181,6 +1181,284 @@ function renderGeral(){
   const ga=$('gAll');if(ga)ga.onclick=()=>{pushH();S.canal='';buildFilters();render()};
 }
 
+// ---------------- SIMULADOR DE NOTA (card da Visão geral) ----------------
+// Mesma conta do SIMULADOR_NOTA.xlsm: nota de cada canal = realizados ÷ possíveis; nota final = média dos canais
+// pelo peso da pesquisa (ICE ou RED), só com os canais que têm PDV. Dá para incluir PDVs, tirar PDVs e projetar os que faltam.
+S.sim={0:{inc:{},exc:'',proj:true,regra:'hist',fixo:80,cob:100},1:{inc:{},exc:'',proj:true,regra:'hist',fixo:70,cob:100}};S.simOpen=false;S.simFonte='online';S.simAjOpen=false;
+// "Nota online": arquivo iRED360 pesquisa completa (uma linha por PDV). Fica só no simulador, salvo neste aparelho;
+// não entra no data.json nem nas outras abas.
+const SIMON_K='r360-nota-online-v1';let SIMON=null;try{const x=JSON.parse(localStorage.getItem(SIMON_K)||'null');if(x&&x.v===1)SIMON=x}catch(e){}
+const canalIdx=s=>{s=String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();for(const [k,v] of [['CASH','C&C'],['HIPER','HIPER'],['AS 3-4','AS 3-4'],['AS 1-2','AS 1-2'],['SUPER','SUPER'],['MERCEARIA','MERCEARIA'],['LANCHONETE','LANCHONETE'],['BOTECO','BOTECO'],['PADARIA','PADARIA'],['RESTAURANTE','RESTAURANTE'],['ADEGA','ADEGA'],['CONVENI','CONVENIÊNCIA']])if(s.includes(k)){const i=C.indexOf(v);return i<0?null:i}return null};
+const SIM_ADM=()=>['master','admin'].includes(window.R360_PERFIL);
+let SIMNUV={carregado:false,meu:null,pend:null};
+// ao abrir o simulador, busca a nota online publicada para todos
+async function simSincroniza(){const N=window.r360Nuvem;if(!N)return;
+  const x=await N.baixar();if(x&&x.v===1){if(!x.t||(!x.t[0]&&!x.t[1])){SIMON=null;try{localStorage.removeItem(SIMON_K)}catch(e){}}
+    else if(!SIMON||!SIMON.em||x.em>=SIMON.em){SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}}}
+  SIMNUV.carregado=true;if(SIM_ADM())SIMNUV.pend=await N.pendentes();else SIMNUV.meu=await N.meuPedido();
+  if(S.simOpen)simRedraw()}
+function simOnline(t){return SIMON&&SIMON.m===PARC&&SIMON.t&&SIMON.t[t]&&SIMON.t[t].rows.length?SIMON.t[t]:null}
+async function simImporta(file){
+  if(!window.r360LeArquivo)throw new Error('o leitor de planilhas ainda não carregou; recarregue o painel');
+  const L=await window.r360LeArquivo(file);
+  let h=-1;for(let i=0;i<Math.min(L.length,20);i++){const r=(L[i]||[]).map(x=>String(x==null?'':x).trim().toLowerCase());if(r.includes('pdv')&&r.includes('total_realizados')&&r.includes('total_possiveis')){h=i;break}}
+  if(h<0)throw new Error('não parece o arquivo "pesquisa completa" do iRED360 (faltam as colunas pdv, total_realizados e total_possiveis)');
+  const H=L[h].map(x=>String(x==null?'':x).trim().toLowerCase()),col=n=>H.indexOf(n);
+  const ix={pv:col('pdv'),cn:col('canal_fds'),ger:col('gerencia'),sup:col('supervisao'),rota:col('rota_vendedor'),dt:col('data_pesquisa'),re:col('total_realizados'),po:col('total_possiveis'),cl:col('classificacao'),mes:col('mes'),ano:col('ano')};
+  const num=v=>{if(v==null||v==='')return null;if(typeof v==='number')return v;const s=String(v).trim();const n=parseFloat(s.includes(',')?s.replace(/\./g,'').replace(',','.'):s);return isNaN(n)?null:n};
+  const quando=v=>{if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime()))return new Date(v.getTime());const s=String(v||'');let m=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);if(m)return new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0));m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);return null};
+  // cada pesquisa vem em várias versões de cálculo (RED_2024, RED_2025, RED_2026…):
+  // vale só a classificação do ano da própria pesquisa (pesquisa de 2026 → RED_2026 / ICE_LATAM_2026)
+  const tipo=cl=>{cl=String(cl||'').toUpperCase();return cl.startsWith('ICE')?0:cl.startsWith('RED')?1:null},ano=cl=>+((String(cl||'').match(/(20\d\d)/)||[])[1]||0);
+  const out={v:1,arq:file.name,em:Date.now(),m:null,t:{},classes:[]};const meses={},usadas=new Set();let semCanal=0;
+  for(let i=h+1;i<L.length;i++){const r=L[i];if(!r||r[ix.pv]==null)continue;const tt=tipo(r[ix.cl]);if(tt==null)continue;
+    const d=quando(r[ix.dt]);const anoPesq=(ix.ano>=0&&num(r[ix.ano]))||(d?d.getFullYear():ANO(PARC));
+    if(ano(r[ix.cl])!==anoPesq)continue;usadas.add(String(r[ix.cl]).trim());
+    const pv=String(r[ix.pv]).trim();if(!/^\d+$/.test(pv))continue;const c=canalIdx(r[ix.cn]);if(c==null){semCanal++;continue}
+    const re=num(r[ix.re]),po=num(r[ix.po]);if(re==null||!po)continue;
+    let m=null;if(ix.mes>=0&&ix.ano>=0&&num(r[ix.mes])&&num(r[ix.ano]))m=(num(r[ix.ano])-2026)*12+num(r[ix.mes]);else if(d)m=(d.getFullYear()-2026)*12+d.getMonth()+1;
+    if(m!=null)meses[m]=(meses[m]||0)+1;
+    const T0=out.t[tt]||(out.t[tt]={map:{},ate:0});const ant=T0.map[pv],dv=d?d.getTime():0;
+    if(!ant||dv>=ant.d)T0.map[pv]={pv,c,ger:String(r[ix.ger]||'').trim(),sup:String(r[ix.sup]||'').trim(),rota:String(r[ix.rota]||'').trim(),real:re,poss:po,d:dv,m};
+    if(dv>T0.ate)T0.ate=dv}
+  const mm=Object.entries(meses).sort((a,b)=>b[1]-a[1])[0];out.m=mm?+mm[0]:null;
+  for(const k in out.t){const T0=out.t[k];T0.rows=Object.values(T0.map).filter(x=>x.m===out.m).map(({d,m,...x})=>x);T0.n=T0.rows.length;delete T0.map}
+  out.classes=[...usadas].sort();
+  if(!out.t[0]&&!out.t[1])throw new Error('não achei pesquisas ICE LATAM nem RED com a classificação do ano da pesquisa (ex.: ICE_LATAM_2026, RED_2026)');
+  SIMON=out;try{localStorage.setItem(SIMON_K,JSON.stringify(out))}catch(e){}
+  S.simFonte='online';return{out,semCanal}}
+function simRemoveOnline(){SIMON=null;try{localStorage.removeItem(SIMON_K)}catch(e){}S.simFonte='painel'}
+const dmH=ms=>{if(!ms)return'–';const d=new Date(ms),z=n=>String(n).padStart(2,'0');return`${z(d.getDate())}/${z(d.getMonth()+1)} ${z(d.getHours())}:${z(d.getMinutes())}`};
+// base da simulação: linhas {pv,c,real,poss} do painel (oficial) ou da nota online
+function simBase(t,m){const on=simOnline(t);
+  if(on&&S.simFonte==='online'&&m===PARC)return{fonte:'online',rows:on.rows.filter(r=>(!S.ger||r.ger===S.ger)&&(!S.sup||r.sup===S.sup)&&(!S.rota||r.rota===S.rota)&&(S.canal===''||r.c==+S.canal)),ate:dmH(on.ate)};
+  const A=scope(t,m);return{fonte:'painel',rows:A.rows.map(i=>({pv:D.pdv[PM.p[i]],c:PM.c[i],real:PM.real[i],poss:PM.poss[i]})),ate:m===PARC?(t===0?D.upd.ice:D.upd.red)||'':''}}
+function aggRows(t,rows){const P=D.peso[T[t]],ch={};for(const r of rows){const o=ch[r.c]||(ch[r.c]={real:0,poss:0,n:0});o.real+=r.real;o.poss+=r.poss;o.n++}
+  let W=0,s=0;for(const c in ch){const o=ch[c];o.pct=o.poss?o.real/o.poss*100:null;o.w=P[C[c]]||0;if(o.w>0&&o.poss>0){W+=o.w;s+=o.w*o.pct}}return{ch,score:W?s/W:null,n:rows.length}}
+const FAIXA=v=>v==null||isNaN(v)?null:v>=75?{p:100,c:'good'}:v>=70?{p:70,c:'warn'}:v>=60?{p:50,c:'serious'}:{p:0,c:'crit'};
+let RED_ULT=null;
+function redUlt(m){if(RED_ULT&&RED_ULT.m===m)return RED_ULT.map;const map=new Map();
+  for(let i=0;i<PM.t.length;i++){if(PM.t[i]!==1||PM.m[i]>=m||!PM.poss[i])continue;const pv=D.pdv[PM.p[i]],o=map.get(pv);if(!o||PM.m[i]>o.m)map.set(pv,{m:PM.m[i],v:PM.real[i]/PM.poss[i]*100})}
+  RED_ULT={m,map};return map}
+const inRedb=r=>(!S.ger||r[3]===S.ger)&&(!S.sup||r[4]===S.sup)&&(!S.rota||r[5]===S.rota)&&(S.canal===''||r[2]==+S.canal);
+// PDVs que ainda faltam pesquisar no mês aberto, com a nota esperada de cada um
+function simFaltam(t,m,A,B){if(m!==PARC)return[];
+  const cfg=S.sim[t],feitos=new Set(B.rows.map(r=>r.pv));
+  const notaCanal=c=>{const o=A.ch[c];return o&&o.pct!=null?o.pct:A.score};
+  const exp=(c,h)=>cfg.regra==='fixo'?+cfg.fixo:cfg.regra==='canal'?notaCanal(c):(h!=null?h:notaCanal(c));
+  let L;
+  if(t===0)L=oList().filter(b=>b.iceOut==null&&!feitos.has(b.pv)).map(b=>({pv:b.pv,c:b.c,v:exp(b.c,cfg.regra==='hist'?oProj(b).v:null)}));
+  else{const U=redUlt(m);L=(D.redb||[]).filter(r=>inRedb(r)&&!feitos.has(r[0])).map(r=>{const u=U.get(r[0]);return{pv:r[0],c:r[2],v:exp(r[2],u?u.v:null)}})}
+  return L.filter(x=>x.v!=null&&!isNaN(x.v))}
+function simCalc(t,m){
+  const B=simBase(t,m),A=aggRows(t,B.rows),cfg=S.sim[t],P=D.peso[T[t]];
+  const exc=new Set(String(cfg.exc||'').split(/[^0-9]+/).filter(Boolean));
+  const ch={};const get=c=>ch[c]||(ch[c]={c:+c,w:P[C[c]]||0,n0:0,r0:0,p0:0,nx:0,nf:0,rf:0,pf:0,ni:0,ri:0,pi:0,nfTot:0,mf:null,notaI:null});
+  for(const c in A.ch){const o=A.ch[c],x=get(c);x.n0=o.n;x.r0=o.real;x.p0=o.poss}
+  let nexc=0;for(const r of B.rows){if(!exc.has(r.pv))continue;const x=get(r.c);x.nx++;x.r0-=r.real;x.p0-=r.poss;nexc++}
+  const avgP=x=>{const o=A.ch[x.c];return o&&o.n?o.poss/o.n:100};
+  let F=[];
+  if(cfg.proj&&m===PARC){F=simFaltam(t,m,A,B).filter(f=>!exc.has(f.pv));const k=Math.max(0,Math.min(100,+cfg.cob||0))/100;const porC={};
+    F.forEach(f=>{(porC[f.c]||(porC[f.c]=[])).push(f)});
+    for(const c in porC){const arr=porC[c],x=get(c),q=Math.round(arr.length*k),ap=avgP(x);const media=arr.reduce((s,f)=>s+f.v,0)/arr.length;
+      x.nfTot=arr.length;x.nf=q;x.pf=q*ap;x.rf=q*ap*media/100;x.mf=media}}
+  for(const c in cfg.inc){const v=cfg.inc[c];if(!v||!(+v.n>0))continue;const x=get(c),ap=avgP(x);
+    const nota=v.nota!==''&&v.nota!=null&&!isNaN(+v.nota)?+v.nota:(x.p0>0?x.r0/x.p0*100:(A.score||0));x.ni=+v.n;x.pi=x.ni*ap;x.ri=x.pi*nota/100;x.notaI=nota}
+  const rows=Object.values(ch);let W=0,s=0;
+  for(const x of rows){x.n=x.n0-x.nx+x.nf+x.ni;x.p=x.p0+x.pf+x.pi;x.r=x.r0+x.rf+x.ri;x.pct=x.p>0?x.r/x.p*100:null;x.pctA=A.ch[x.c]?A.ch[x.c].pct:null;if(x.w>0&&x.p>0&&x.n>0){W+=x.w;s+=x.w*x.pct}}
+  rows.forEach(x=>{x.perda=W&&x.w>0&&x.p>0&&x.n>0?x.w/W*(100-x.pct):0});
+  const sc=W?s/W:null;
+  // nota que os faltantes precisam tirar, em média, para chegar num alvo (a conta é linear na nota deles)
+  const nF=rows.reduce((a,x)=>a+x.nf,0);
+  const comNota=v=>{let W2=0,s2=0;for(const x of rows){const p=x.p0+x.pf+x.pi,r=x.r0+x.pf*v/100+x.ri,n=x.n0-x.nx+x.nf+x.ni;if(x.w>0&&p>0&&n>0){W2+=x.w;s2+=x.w*r/p*100}}return W2?s2/W2:null};
+  const precisa=alvo=>{if(!nF||alvo==null)return null;const a=comNota(0),b=comNota(100);if(a==null||b==null||Math.abs(b-a)<1e-9)return null;return(alvo-a)/(b-a)*100};
+  let obj=null;if(t===0){let w=0,o=0;for(const x of rows){const ob=D.obj[C[x.c]];if(ob&&ob[m]!=null&&x.w>0&&x.n>0){w+=x.w;o+=x.w*ob[m]}}obj=w?o/w:null}
+  const outro=aggRows(1-t,simBase(1-t,m).rows).score;
+  return{A,B,rows:rows.filter(x=>x.w>0||x.n>0).sort((a,b)=>b.w-a.w),score:sc,obj,nF,nFTot:F.length,nexc,excN:exc.size,precisa,outro,final:sc!=null&&outro!=null?(sc+outro)/2:sc}}
+// ---- desenho do simulador em formato de dashboard ----
+const SIM_ABREV={'RESTAURANTE':'REST.','LANCHONETE':'LANCH.','MERCEARIA':'MERC.','PADARIA':'PAD.','CONVENIÊNCIA':'CONV.'};
+const simAb=c=>SIM_ABREV[c]||c;
+const SIM_ICO={
+  nota:'<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/>',sim:'<path d="M4 12a8 8 0 1 1 16 0"/><path d="M12 12l4-3"/><circle cx="12" cy="12" r="1.5"/>',
+  alvo:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/>',pdv:'<path d="M3 10l9-6 9 6v10H3z"/><path d="M9 20v-6h6v6"/>',
+  pct:'<path d="M5 19L19 5"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>'};
+const simIco=k=>`<svg class="simk-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${SIM_ICO[k]}</svg>`;
+// velocímetro: zonas = [[até, rótulo, cor 1..4], ...]
+function simGauge(v,o){const min=o.min,max=o.max,cx=100,cy=96,r=80,rw=28;
+  const cl=x=>Math.max(min,Math.min(max,x)),ang=x=>Math.PI*(1-(cl(x)-min)/(max-min)),pt=(a,rr)=>[cx+rr*Math.cos(a),cy-rr*Math.sin(a)],f=n=>n.toFixed(1);
+  let g='',ini=min;
+  for(const [ate,rot,cor] of o.zonas){const a0=ang(ini),a1=ang(ate);if(a0-a1<1e-6){ini=ate;continue}const [x0,y0]=pt(a0,r),[x1,y1]=pt(a1,r),[x2,y2]=pt(a1,r-rw),[x3,y3]=pt(a0,r-rw);
+    g+=`<path d="M${f(x0)},${f(y0)} A${r},${r} 0 0 1 ${f(x1)},${f(y1)} L${f(x2)},${f(y2)} A${r-rw},${r-rw} 0 0 0 ${f(x3)},${f(y3)} Z" fill="var(--sim-z${cor})" stroke="var(--surface)" stroke-width="2"/>`;
+    if(a0-a1>0.42){const [tx,ty]=pt((a0+a1)/2,r-rw/2);g+=`<text x="${f(tx)}" y="${f(ty+3)}" text-anchor="middle" class="g-z${cor>2?' cl':''}">${rot}</text>`}ini=ate}
+  const a=ang(v==null?min:v),[nx,ny]=pt(a,r-6);
+  return`<svg viewBox="0 0 200 104" class="g-svg" role="img" aria-label="${esc(o.lab)}: ${v==null?'sem dado':fmt(v,2)}">${g}<line x1="${cx}" y1="${cy}" x2="${f(nx)}" y2="${f(ny)}" class="g-ag"/><circle cx="${cx}" cy="${cy}" r="8" class="g-cen"/></svg>`}
+function simGaugeCard(tit,v,txt,o){return`<div class="simg"><div class="simg-t">${tit}</div>${simGauge(v,o)}<div class="simg-v num">${txt}</div></div>`}
+// termômetro da meta
+function simTermo(v,meta,rot){const H=150,top=8,b=top+H,mx=Math.max(meta||100,v||0,1)*1.05,y=x=>b-H*Math.max(0,Math.min(mx,x))/mx;let tk='';
+  for(const p of[0,.25,.5,.75,1]){const val=mx*p,yy=y(val);tk+=`<line x1="34" x2="40" y1="${yy}" y2="${yy}" class="t-tk"/><text x="30" y="${yy+3}" text-anchor="end" class="t-tx">${fmt(val,0)}</text>`}
+  return`<svg viewBox="0 0 120 ${b+10}" class="t-svg" role="img" aria-label="${esc(rot)}"><rect x="46" y="${top}" width="34" height="${H}" rx="17" class="t-fundo"/><rect x="46" y="${v!=null?y(v):b}" width="34" height="${v!=null?b-y(v):0}" rx="${v!=null&&b-y(v)>34?17:4}" class="t-cheio"/>${meta!=null?`<line x1="42" x2="84" y1="${y(meta)}" y2="${y(meta)}" class="t-meta"/><text x="88" y="${y(meta)+3}" class="t-tx">${fmt(meta,1)}</text>`:''}${tk}</svg>`}
+// barras verticais (1 ou 2 séries) com rótulos
+function simBarras(cats,s1,s2,o){const W=380,H=190,ml=6,mr=6,mt=18,mb=26,n=cats.length||1,bw=(W-ml-mr)/n,mx=Math.max(1e-9,...s1.concat(s2||[]).filter(x=>x!=null))*1.12,y=v=>mt+(H-mt-mb)*(1-Math.max(0,v)/mx);let g='';
+  cats.forEach((c,i)=>{const x0=ml+i*bw,w2=s2?bw*.34:bw*.56;
+    if(s2&&s2[i]!=null)g+=`<rect x="${x0+bw*.12}" y="${y(s2[i])}" width="${w2}" height="${H-mb-y(s2[i])}" class="b-2"/>`;
+    if(s1[i]!=null){const xx=s2?x0+bw*.12+w2+2:x0+(bw-w2)/2;g+=`<rect x="${xx}" y="${y(s1[i])}" width="${w2}" height="${H-mb-y(s1[i])}" class="b-1"/><text x="${xx+w2/2}" y="${y(s1[i])-4}" text-anchor="middle" class="b-v">${fmt(s1[i],o.d??1)}</text>`}
+    g+=`<text x="${x0+bw/2}" y="${H-10}" text-anchor="middle" class="b-c">${esc(c)}</text>`});
+  return`<svg viewBox="0 0 ${W} ${H}" class="c-svg" role="img" aria-label="${esc(o.lab)}"><line x1="${ml}" x2="${W-mr}" y1="${H-mb}" y2="${H-mb}" class="b-eixo"/>${g}</svg>`}
+// rosca
+function simRosca(itens,centro,sub){const R=58,r=36,cx=80,cy=74,tot=itens.reduce((a,x)=>a+x.v,0)||1;let a=-Math.PI/2,g='';const pt=(an,rr)=>[cx+rr*Math.cos(an),cy+rr*Math.sin(an)];
+  itens.forEach((x,i)=>{const da=Math.max(0.0001,x.v/tot*Math.PI*2),a1=a+da,big=da>Math.PI?1:0,[x0,y0]=pt(a,R),[x1,y1]=pt(a1,R),[x2,y2]=pt(a1,r),[x3,y3]=pt(a,r);
+    g+=`<path d="M${x0},${y0} A${R},${R} 0 ${big} 1 ${x1},${y1} L${x2},${y2} A${r},${r} 0 ${big} 0 ${x3},${y3} Z" class="r-${i%5}"/>`;
+    if(da>0.35){const [tx,ty]=pt(a+da/2,(R+r)/2);g+=`<text x="${tx}" y="${ty+3}" text-anchor="middle" class="r-p${i%5>2?' cl':''}">${Math.round(x.v/tot*100)}%</text>`}a=a1});
+  const leg=itens.map((x,i)=>`<li><i class="r-${i%5}"></i>${esc(x.n)} <b>${fmt(x.v,2)}</b></li>`).join('');
+  return`<div class="sim-rosca"><svg viewBox="0 0 160 148" class="r-svg" role="img" aria-label="Pontos perdidos por canal">${g}<text x="${cx}" y="${cy}" text-anchor="middle" class="r-c num">${centro}</text><text x="${cx}" y="${cy+14}" text-anchor="middle" class="r-s">${sub}</text></svg><ul class="r-leg">${leg}</ul></div>`}
+// evolução: barras = PDVs, linha = nota
+function simEvol(meses,ns,vs,simV){const W=380,H=190,ml=26,mr=30,mt=14,mb=24,n=meses.length||1,bw=(W-ml-mr)/n,mxN=Math.max(1,...ns)*1.15,lo=Math.floor(Math.min(...vs.filter(x=>x!=null).concat(simV!=null?[simV]:[]),100)/5)*5-5,hi=Math.ceil(Math.max(...vs.filter(x=>x!=null).concat(simV!=null?[simV]:[]),0)/5)*5+5;
+  const yb=v=>mt+(H-mt-mb)*(1-v/mxN),yl=v=>mt+(H-mt-mb)*(1-(v-lo)/(hi-lo||1)),xc=i=>ml+i*bw+bw/2;let g='',p='';
+  meses.forEach((m,i)=>{g+=`<rect x="${xc(i)-bw*.3}" y="${yb(ns[i])}" width="${bw*.6}" height="${H-mb-yb(ns[i])}" class="e-b"/><text x="${xc(i)}" y="${H-8}" text-anchor="middle" class="b-c">${MESN[m]}</text>`;
+    if(vs[i]!=null){p+=(p?' L':'M')+xc(i)+','+yl(vs[i]);g+=`<text x="${xc(i)}" y="${yl(vs[i])-7}" text-anchor="middle" class="e-v">${fmt(vs[i],1)}</text>`}});
+  for(const v of[lo,(lo+hi)/2,hi])g+=`<text x="${W-mr+4}" y="${yl(v)+3}" class="t-tx">${fmt(v,0)}</text>`;
+  const li=meses.length-1;const sim=simV!=null?`<circle cx="${xc(li)}" cy="${yl(simV)}" r="6" class="e-sim"/><text x="${xc(li)-8}" y="${yl(simV)+16}" text-anchor="end" class="e-sv">simulada ${fmt(simV,1)}</text>`:'';
+  return`<svg viewBox="0 0 ${W} ${H}" class="c-svg" role="img" aria-label="Evolução mês a mês"><line x1="${ml}" x2="${W-mr}" y1="${H-mb}" y2="${H-mb}" class="b-eixo"/>${g}<path d="${p}" class="e-l"/>${vs.map((v,i)=>v!=null?`<circle cx="${xc(i)}" cy="${yl(v)}" r="3.5" class="e-p"/>`:'').join('')}${sim}</svg>`}
+// pódio
+function simPodio(top){const pos=[[1,'p2',58],[0,'p1',80],[2,'p3',44]],cor=['#d4a72c','#a7adb5','#c07a43'];
+  return`<div class="sim-podio">${pos.map(([i,k,h])=>{const x=top[i];if(!x)return`<div class="pd ${k}"></div>`;
+    return`<div class="pd ${k}"><svg viewBox="0 0 40 40" class="pd-med" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="${cor[i]}"/><circle cx="20" cy="20" r="12" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/><text x="20" y="26" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">${i+1}</text></svg>
+      <div class="pd-n">${esc(x.k)}</div><div class="pd-v num">${fmt(x.v,2)}</div><div class="pd-b" style="height:${h}px"></div></div>`}).join('')}</div>`}
+// barras horizontais
+function simHBar(itens){const mx=Math.max(110,...itens.map(x=>x.v||0));
+  return`<div class="sim-hb">${itens.map(x=>`<div class="hb"><span class="hb-n">${x.n}</span><span class="hb-t"><i style="width:${x.v!=null?Math.max(2,Math.min(100,x.v/mx*100)):0}%"${x.k?` class="${x.k}"`:''}></i></span><b class="hb-v num">${x.txt}</b></div>`).join('')}</div>`}
+// ranking do nível de baixo (gerências → supervisões → rotas)
+function simRank(t,m){const nivel=S.rota?null:S.sup?'rota':S.ger?'sup':'ger';if(!nivel)return{nivel:null,top:[]};
+  const on=simOnline(t),usaOn=on&&S.simFonte==='online'&&m===PARC;let rows;
+  if(usaOn)rows=on.rows.map(r=>({k:r[nivel],ger:r.ger,sup:r.sup,c:r.c,real:r.real,poss:r.poss,pv:r.pv}));
+  else rows=rowsOf(t,m).map(i=>{const k=RK[PM.r[i]];return{k:k[nivel],ger:k.ger,sup:k.sup,c:PM.c[i],real:PM.real[i],poss:PM.poss[i],pv:''}});
+  rows=rows.filter(r=>(!S.ger||r.ger===S.ger)&&(!S.sup||r.sup===S.sup)&&(S.canal===''||r.c==+S.canal)&&r.k);
+  const gr={};rows.forEach(r=>{(gr[r.k]||(gr[r.k]=[])).push(r)});
+  const L=Object.entries(gr).filter(([k,a])=>a.length>=3).map(([k,a])=>({k:nivel==='rota'?'Rota '+k:k,v:aggRows(t,a).score,n:a.length})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v);
+  return{nivel,top:L.slice(0,3),tot:L.length}}
+function simPanel(){
+  const t=S.t,m=S.mes,cfg=S.sim[t],R=simCalc(t,m),pr=m===PARC,fx=FAIXA(R.score),ff=FAIXA(R.final);
+  const mudou=Math.abs((R.score||0)-(R.A.score||0))>=0.005,ant=prevM(m),antS=ant?scope(t,ant).score:null;
+  const alvo=[];if(t===0&&R.obj!=null)alvo.push(['Objetivo '+fmt(R.obj,1),R.obj]);alvo.push(['Nota 75 · 100%',75],['Nota 70 · 70%',70]);
+  const hb=alvo.map(([n,a])=>{const v=R.nF?R.precisa(a):null;return{n,v:v==null?null:Math.max(0,v),txt:!R.nF?'–':v==null?'–':v<=0?'garantido':v>110?'não dá':fmt(v,1),k:v!=null&&v>110?'ruim':v!=null&&v<=0?'ok':''}});
+  const inp=(c,k,ph)=>{const v=(cfg.inc[c]||{})[k];return`<input class="simin" type="number" inputmode="decimal" min="0" ${k==='n'?'step="1"':'max="110" step="0.1"'} data-sim${k}="${c}" value="${v!=null&&v!==''?esc(String(v)):''}" placeholder="${ph}">`};
+  const cs=R.rows.filter(x=>x.w>0&&x.n>0);
+  const perdas=cs.map(x=>({n:C[x.c],v:x.perda})).sort((a,b)=>b.v-a.v),ros=perdas.slice(0,4);if(perdas.length>4)ros.push({n:'Outros',v:perdas.slice(4).reduce((a,x)=>a+x.v,0)});
+  const ev=D.meses.map(mm=>{if(mm===m&&R.B.fonte==='online')return[R.A.n,R.A.score];const a=scope(t,mm);return[a.n,a.score]});
+  const rk=simRank(t,m),RKN={ger:'Gerências',sup:'Supervisões',rota:'Rotas'};
+  const cob=R.A.n+R.nFTot?R.A.n/(R.A.n+R.nFTot)*100:null,ating=t===0&&R.obj?R.score/R.obj*100:null;
+  const ZN=[[60,'Péssimo',1],[70,'Ruim',2],[75,'Regular',3],[110,'Ótimo',4]];
+  const fonte=(()=>{const on=simOnline(t),outroM=SIMON&&SIMON.m!==PARC;
+    return`<div class="sim-fonte"><span class="small">Base</span>
+      <div class="seg" role="group" aria-label="Base da simulação"><button type="button" class="btn${R.B.fonte==='painel'?' on':''}" data-simf="painel">Painel (oficial)</button><button type="button" class="btn${R.B.fonte==='online'?' on':''}${on&&pr?'':' vazio'}" data-simf="online" title="${on&&pr?'Usar a nota online':'Clique para importar o arquivo da nota online'}">Nota online</button></div>
+      ${SIM_ADM()?`<label class="btn sim-imp">${SIMON?'Trocar arquivo da nota online':'Importar nota online'}<input type="file" id="simArq" accept=".xlsx,.xls" hidden></label>`:''}
+      ${SIMON?`<span class="small">Nota online de <b>${dmH(SIMON.em)}</b>${SIMON.classes&&SIMON.classes.length?' · '+esc(SIMON.classes.join(', ')):''}${outroM?` · <span class="dn">é de outro mês (${MESN[SIMON.m]||'?'}), não entra na simulação</span>`:''}${SIM_ADM()?` · ${esc(SIMON.arq)} · <button type="button" class="linkb" id="simRem">remover para todos</button>`:''}</span>`
+        :`<span class="small">${SIMNUV.carregado?'Ainda não há nota online publicada.':'Buscando a nota online…'}</span>`}
+      ${SIM_ADM()?(SIMNUV.pend?`<span class="sim-pend">${SIMNUV.pend} pedido${SIMNUV.pend>1?'s':''} de atualização esperando</span>`:'')
+        :`<div class="sim-pedir"><input id="simObs" type="text" maxlength="200" placeholder="Recado (opcional): ex.: estou na rota 131"><button type="button" class="btn pri" id="simPedir">Pedir atualização da nota</button>
+          ${SIMNUV.meu?`<span class="small">Seu último pedido: ${dmH(new Date(SIMNUV.meu.criado_em).getTime())} · ${SIMNUV.meu.atendido?'<span class="up">atendido</span>':'aguardando o administrador'}</span>`:''}</div>`}
+      <span id="simMsg" class="small"></span></div>`})();
+  const kpi=(ico,rot,v,sub,cls)=>`<div class="simk${cls?' '+cls:''}"><div class="simk-r"><span>${rot}</span>${simIco(ico)}</div><b class="num">${v}</b><div class="simk-s">${sub}</div></div>`;
+  return`<div class="panel sim simdash" id="simBox">
+  <header class="sim-top">
+    <div class="sim-tit"><h3>Simulador de nota</h3><span>${TN[t]} · ${esc(scopeName())} · ${MESN[m]}/${ANO(m)}${pr?'':' (fechado)'}</span></div>
+    <div class="sim-hd">
+      <div class="seg" role="group" aria-label="Pesquisa"><button type="button" class="btn${t===0?' on':''}" data-simt="0" aria-pressed="${t===0}">ICE LATAM</button><button type="button" class="btn${t===1?' on':''}" data-simt="1" aria-pressed="${t===1}">RED</button></div>
+      <select id="simFGer" data-pg="fGer" aria-label="Gerência"></select><select id="simFSup" data-pg="fSup" aria-label="Supervisão"></select><select id="simFRota" data-pg="fRota" aria-label="Rota"></select><select id="simFCanal" data-pg="fCanal" aria-label="Canal"></select>
+      <button type="button" class="btn" id="simFLimpa"${S.ger||S.sup||S.rota||S.canal!==''?'':' disabled'} title="Limpar filtros">Limpar</button>
+      <button type="button" class="btn sim-x" id="simFecha" aria-label="Fechar">✕</button>
+    </div>
+  </header>
+  ${fonte}
+  <div class="simk-row">
+    ${kpi('nota',`Nota ${T[t]} ${R.B.fonte==='online'?'online':'hoje'}`,fmt(R.A.score,2),`${antS!=null?delta(R.A.score,antS,2)+' vs '+MESN[ant]:''} · ${R.A.n.toLocaleString('pt-BR')} PDVs${R.B.ate?' · até '+esc(R.B.ate):''}`)}
+    ${kpi('sim','Nota simulada',fmt(R.score,2),mudou?delta(R.score,R.A.score,2)+' vs hoje':'sem alteração','destaque')}
+    ${t===0?kpi('alvo',`Objetivo ${MESN[m]}`,fmt(R.obj,1),R.obj!=null&&R.score!=null?(R.score>=R.obj?'<span class="up">bate o objetivo</span>':`<span class="dn">faltam ${fmt(R.obj-R.score,2)} pts</span>`):'–')
+      :kpi('alvo','Meta da variável','75,0',R.score!=null?(R.score>=75?'<span class="up">acima de 75</span>':`<span class="dn">faltam ${fmt(75-R.score,2)} pts</span>`):'–')}
+    ${kpi('pdv','PDVs que faltam',pr?R.nFTot.toLocaleString('pt-BR'):'–',pr?`${cfg.proj?'na projeção':'projeção desligada'} · ${R.nF.toLocaleString('pt-BR')} contados`:'mês fechado')}
+    ${kpi('pct','Faixa da variável',fx?fx.p+'%':'–',`nota final ${fmt(R.final,2)} → ${ff?ff.p+'%':'–'}`)}
+  </div>
+  <div class="simg-row">
+    <div class="simc simg-box"><div class="simg-4">
+      ${simGaugeCard('Nota simulada',R.score,fmt(R.score,2),{min:40,max:110,zonas:ZN,lab:'Nota simulada'})}
+      ${t===0?simGaugeCard('Atingimento do objetivo',ating,ating!=null?fmt(ating,1)+'%':'–',{min:80,max:110,zonas:[[95,'Ruim',2],[100,'Regular',3],[110,'Ótimo',4]],lab:'Atingimento do objetivo'})
+        :simGaugeCard('Nota final (ICE e RED)',R.final,fmt(R.final,2),{min:40,max:110,zonas:ZN,lab:'Nota final'})}
+      ${simGaugeCard('Cobertura da amostra',cob,cob!=null?fmt(cob,1)+'%':'–',{min:0,max:100,zonas:[[50,'Ruim',2],[80,'Regular',3],[100,'Ótimo',4]],lab:'Cobertura da amostra'})}
+      ${simGaugeCard('Pts perdidos',R.score!=null?100-R.score:null,R.score!=null?fmt(100-R.score,2):'–',{min:0,max:40,zonas:[[10,'Ótimo',4],[15,'Regular',3],[25,'Ruim',2],[40,'Péssimo',1]],lab:'Pontos perdidos'})}
+    </div></div>
+    <div class="simc simt-box"><div class="simc-t">${t===0?'Meta · objetivo':'Meta · 100% da variável'}</div>${simTermo(R.score,t===0?R.obj:75,'Nota simulada contra a meta')}</div>
+    <div class="simc simreal"><div class="simc-t">Nota final</div>${simIco('pct')}<b class="num">${fmt(R.final,2)}</b><span class="pill ${ff?ff.c:'mute'}">${ff?ff.p+'% da variável':'–'}</span><span class="small">média ICE e RED</span></div>
+  </div>
+  <div class="simgr">
+    <div class="simc"><div class="simc-t">Nota por canal · hoje × simulada</div>${simBarras(cs.map(x=>simAb(C[x.c])),cs.map(x=>x.pct),cs.map(x=>x.pctA),{lab:'Nota por canal'})}<div class="simc-leg"><span><i class="b-2"></i>hoje</span><span><i class="b-1"></i>simulada</span></div></div>
+    <div class="simc"><div class="simc-t">Onde a nota se perde</div>${perdas.length?simRosca(ros,fmt(perdas.reduce((a,x)=>a+x.v,0),1),'pts perdidos'):'<p class="small">–</p>'}</div>
+    <div class="simc"><div class="simc-t">Evolução ${T[t]} · ${esc(scopeName())}</div>${simEvol(D.meses,ev.map(x=>x[0]),ev.map(x=>x[1]),pr?R.score:null)}<div class="simc-leg"><span><i class="e-b"></i>PDVs</span><span><i class="e-l2"></i>nota</span><span><i class="e-s2"></i>simulada</span></div></div>
+  </div>
+  <div class="simgr">
+    <div class="simc"><div class="simc-t">Pts perdidos por canal</div>${simBarras(perdas.map(x=>simAb(x.n)),perdas.map(x=>x.v),null,{lab:'Pontos perdidos por canal',d:2})}</div>
+    <div class="simc"><div class="simc-t">Ranking · ${rk.nivel?RKN[rk.nivel]:'–'}</div>${rk.top.length?simPodio(rk.top)+`<p class="small" style="text-align:center">${rk.tot} ${rk.nivel?RKN[rk.nivel].toLowerCase():''} com 3 PDVs ou mais</p>`:'<p class="small">Escolha um nível acima (sem rota) para ver o ranking.</p>'}</div>
+    <div class="simc"><div class="simc-t">Quanto os ${R.nF?R.nF.toLocaleString('pt-BR')+' ':''}que faltam precisam tirar</div>${R.nF?simHBar(hb):'<p class="small">Sem PDVs na projeção.</p>'}<p class="small">Nota média necessária nos que faltam para cada alvo.</p></div>
+  </div>
+  <details class="sim-aj"${S.simAjOpen?' open':''}><summary>Ajustes da simulação · projeção, incluir e tirar PDVs por canal</summary>
+  <div class="sim-ctl">
+    ${pr?`<label class="chk"><input type="checkbox" id="simProj"${cfg.proj?' checked':''}> Projetar os <b>${R.nFTot.toLocaleString('pt-BR')}</b> PDVs que ainda faltam pesquisar em ${MESN[m]}${t===0?' (Prioridade 1 da base)':' (base RED)'}</label>
+    <label>Nota esperada dos que faltam<select id="simRegra"><option value="hist"${cfg.regra==='hist'?' selected':''}>${t===0?'Histórico de cada PDV (regra da aba Pesquisas mês atual)':'Último RED de cada PDV'}</option><option value="canal"${cfg.regra==='canal'?' selected':''}>Média atual do canal</option><option value="fixo"${cfg.regra==='fixo'?' selected':''}>Nota fixa</option></select></label>
+    ${cfg.regra==='fixo'?`<label>Nota fixa<input id="simFixo" class="simin" type="number" min="0" max="110" step="0.1" value="${esc(String(cfg.fixo))}"></label>`:''}
+    <label>Quantos vão ser pesquisados<span class="simpct"><input id="simCob" class="simin" type="number" min="0" max="100" step="5" value="${esc(String(cfg.cob))}">%</span></label>`
+    :`<span class="small">A projeção dos que faltam só vale para o mês aberto (${MESN[PARC]}). Aqui dá para incluir ou tirar PDVs.</span>`}
+    <label class="simexc">Tirar PDVs (códigos)<input id="simExc" type="text" inputmode="numeric" placeholder="ex.: 1154327, 1207976" value="${esc(cfg.exc||'')}"></label>
+    <button type="button" class="btn" id="simLimpa">Limpar</button>
+  </div>
+  ${R.excN?`<p class="small">${R.nexc} de ${R.excN} código(s) encontrados entre os pesquisados ${R.excN>R.nexc?'(os outros saem só da projeção, se estiverem nela)':''}.</p>`:''}
+  <div class="tw"><table class="simt"><thead><tr><th>Canal</th><th class="n">Peso</th><th class="n">PDVs hoje</th><th class="n">Nota hoje</th>${pr&&cfg.proj?'<th class="n">Faltam</th><th class="n">Nota esperada</th>':''}<th class="n">+ Incluir PDVs</th><th class="n">Nota dos incluídos</th><th class="n">PDVs simul.</th><th class="n">Nota simulada</th><th class="n">Pts perdidos</th></tr></thead><tbody>
+  ${R.rows.map(x=>`<tr><td class="simc-nome"><b>${C[x.c]}</b>${x.nx?` <span class="small">(−${x.nx})</span>`:''}<span class="simc-peso small">peso ${fmt(x.w,2)}</span></td><td class="n simc-pc" data-l="Peso">${fmt(x.w,2)}</td><td class="n" data-l="PDVs hoje">${x.n0}</td><td class="n" data-l="Nota hoje">${x.pctA!=null?`<span class="pill ${scoreCls(x.pctA)}">${fmt(x.pctA)}</span>`:'–'}</td>
+    ${pr&&cfg.proj?`<td class="n" data-l="Faltam">${x.nfTot?(x.nf<x.nfTot?`${x.nf} de ${x.nfTot}`:x.nf):'–'}</td><td class="n" data-l="Nota esperada">${x.mf!=null?fmt(x.mf):'–'}</td>`:''}
+    <td class="n" data-l="+ Incluir PDVs">${inp(x.c,'n','0')}</td><td class="n" data-l="Nota dos incluídos">${inp(x.c,'nota',x.pctA!=null?fmt(x.pctA):'')}</td>
+    <td class="n" data-l="PDVs simulados">${x.n}</td><td class="n simc-res" data-l="Nota simulada">${x.pct!=null&&x.n>0?`<span class="pill ${scoreCls(x.pct)}">${fmt(x.pct)}</span>`:'–'}</td><td class="n" data-l="Pts perdidos">${x.w>0&&x.n>0?fmt(x.perda,2):'–'}</td></tr>`).join('')}
+  </tbody></table></div>
+  <p class="small">A conta é a do simulador em Excel: nota do canal = realizados ÷ possíveis; nota ${T[t]} = média dos canais pelo peso ${T[t]}, só com canais que têm PDV. Cada PDV incluído entra com a média de pontos possíveis do canal. Faixas: abaixo de 60 = 0%; 60 a 69,99 = 50%; 70 a 74,99 = 70%; 75 ou mais = 100%.</p>
+  </details>
+  </div>`}
+
+function simAbreDlg(){S.simOpen=true;let o=$('simDlg');
+  if(!o){o=document.createElement('div');o.id='simDlg';o.className='dovl';o.innerHTML='<div class="dcard simc" role="dialog" aria-modal="true" aria-label="Simulador de nota" tabindex="-1"><div id="simBody"></div></div>';document.body.appendChild(o);
+    o.addEventListener('click',e=>{if(e.target===o)simFechaDlg()});document.addEventListener('keydown',e=>{if(!o.hidden&&e.key==='Escape')simFechaDlg()})}
+  o.hidden=false;document.body.classList.add('dlock');simRedraw();simSincroniza();const c=o.querySelector('.dcard');c.scrollTop=0;c.focus({preventScroll:true})}
+function simFechaDlg(){const o=$('simDlg');if(o)o.hidden=true;document.body.classList.remove('dlock');S.simOpen=false}
+function simRedraw(){const b=$('simBody');if(!b)return;const c=b.parentNode,y=c.scrollTop;b.innerHTML=simPanel();simBind();c.scrollTop=y}
+function simBind(){const c=S.sim[S.t];
+  const on=(id,ev,fn)=>{const e=$(id);if(e)e.addEventListener(ev,fn)};
+  on('simFecha','click',simFechaDlg);
+  on('simProj','change',e=>{c.proj=e.target.checked;simRedraw()});on('simRegra','change',e=>{c.regra=e.target.value;simRedraw()});
+  on('simFixo','change',e=>{c.fixo=e.target.value;simRedraw()});on('simCob','change',e=>{c.cob=e.target.value;simRedraw()});
+  on('simExc','change',e=>{c.exc=e.target.value;simRedraw()});
+  on('simLimpa','click',()=>{c.inc={};c.exc='';c.proj=true;c.regra='hist';c.cob=100;simRedraw()});
+  const box=$('simBox');if(!box)return;
+  {const aj=box.querySelector('.sim-aj');if(aj)aj.addEventListener('toggle',()=>{S.simAjOpen=aj.open})}
+  // filtros: copiam as opções do topo da página e mudam o mesmo filtro (o painel por trás acompanha)
+  box.querySelectorAll('[data-pg]').forEach(sel=>{const pg=$(sel.dataset.pg);if(!pg)return;sel.innerHTML=pg.innerHTML;sel.value=pg.value;
+    sel.addEventListener('change',()=>{pg.value=sel.value;pg.dispatchEvent(new Event('change'));simRedraw()})});
+  on('simFLimpa','click',()=>{goTotal();simRedraw()});
+  box.querySelectorAll('[data-simf]').forEach(b=>b.addEventListener('click',()=>{const f=b.dataset.simf;
+    if(f==='online'&&!(simOnline(S.t)&&S.mes===PARC)){const m=$('simMsg');
+      if(S.mes!==PARC){if(m)m.innerHTML='<span class="dn">A nota online vale só para o mês aberto ('+MESN[PARC]+'). Troque o mês no topo.</span>';return}
+      if(SIMON&&SIMON.m===PARC&&!(SIMON.t&&SIMON.t[S.t])){if(m)m.innerHTML='<span class="dn">O arquivo importado não tem '+TN[S.t]+'. Importe um arquivo com essa pesquisa.</span>';return}
+      const a=$('simArq');if(a)a.click();return}
+    S.simFonte=f;simRedraw()}));
+  on('simRem','click',async()=>{if(!confirm('Remover a nota online para todos?'))return;simRemoveOnline();try{await window.r360Nuvem.publicar({v:1,em:Date.now(),m:null,t:{}})}catch(e){console.warn(e)}simRedraw()});
+  on('simPedir','click',async()=>{const b=$('simPedir'),m=$('simMsg');b.disabled=true;if(m)m.textContent='Enviando…';
+    try{await window.r360Nuvem.pedir(($('simObs')||{}).value||'');SIMNUV.meu=await window.r360Nuvem.meuPedido();simRedraw();const mm=$('simMsg');if(mm)mm.innerHTML='<span class="up">Pedido enviado! O administrador recebe o aviso no Telegram.</span>'}
+    catch(er){b.disabled=false;const t=String(er&&er.message||er);if(m)m.innerHTML='<span class="dn">'+esc(/ja pediu|já pediu/i.test(t)?'Você já pediu há pouco. Aguarde o administrador atualizar.':/relation|does not exist|not found/i.test(t)?'O pedido ainda não está ativado no Supabase. Avise o administrador.':'Não consegui enviar: '+t)+'</span>'}});
+  on('simArq','change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const m=$('simMsg');if(m)m.textContent='Lendo o arquivo…';
+    try{const r=await simImporta(f);let pub='';try{if(m)m.textContent='Publicando para todos…';await window.r360Nuvem.publicar(r.out);pub=' · publicada para todos ✓';SIMNUV.pend=0}catch(e2){console.warn(e2);pub=' · ficou só neste aparelho (não consegui publicar: '+esc(e2.message||e2)+')'}
+      simRedraw();const mm=$('simMsg');const T0=r.out.t;if(mm)mm.innerHTML=`<span class="up">Nota online carregada${pub}: ${T0[0]?`ICE ${T0[0].n} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${T0[1].n} PDVs até ${dmH(T0[1].ate)}`:''}${r.out.classes.length?` · classificação: ${esc(r.out.classes.join(', '))}`:''}${r.semCanal?` · ${r.semCanal} linhas sem canal ficaram de fora`:''}</span>`}
+    catch(er){console.error(er);const mm=$('simMsg');if(mm)mm.innerHTML='<span class="dn">Não consegui ler: '+esc(er.message||er)+'</span>'}});
+  box.querySelectorAll('[data-simt]').forEach(b=>b.addEventListener('click',()=>{const v=+b.dataset.simt;if(S.t===v)return;S.t=v;buildFilters();render();simRedraw()}));
+  box.querySelectorAll('[data-simn],[data-simnota]').forEach(i=>i.addEventListener('change',()=>{const ch=i.dataset.simn??i.dataset.simnota;const o=c.inc[ch]||(c.inc[ch]={n:'',nota:''});if(i.dataset.simn!=null)o.n=i.value;else o.nota=i.value;simRedraw()}));
+  box.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();i.blur()}}))}
+
+if(['master','admin','gerente'].includes(window.R360_PERFIL)){const b=document.createElement('button');b.type='button';b.id='simBtn';b.className='rail-btn';b.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h2M12 18h4"/></svg><span class="rail-txt">Simulador</span>';b.title='Abrir o simulador de nota';b.onclick=simAbreDlg;
+  if(window.r360RailAdd)window.r360RailAdd(b,false);else{const h=document.querySelector('header.top');if(h)h.appendChild(b)}}
 // ---------------- TOP OPORTUNIDADES ----------------
 const DIMS={ger:'Gerência',sup:'Supervisão',rota:'Rota',canal:'Segmento'};
 function dimKey(i,dim){return dim==='canal'?C[PM.c[i]]:dim==='rota'?rotaLab(RK[PM.r[i]]):RK[PM.r[i]][dim]}
@@ -1967,6 +2245,152 @@ html.authed #auth{display:none}
 .uhist details[open] summary::before{transform:rotate(90deg)}
 .uhist-t{font-family:var(--display);font-size:17px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--fg-2)}
 .uhist-f{margin:10px 0 8px;justify-content:flex-start}
+.umaster{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:700;letter-spacing:.03em;background:var(--accent);color:var(--on-accent);vertical-align:middle}
+/* barra lateral: Gestão e Simulador, no mesmo estilo das abas e cartões */
+.rail{display:flex;gap:8px;align-items:center}
+.rail .rail-btn{position:relative;display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:7px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg-2);cursor:pointer;white-space:nowrap;transition:border-color .15s,color .15s,background .15s}
+.rail .rail-btn:hover{color:var(--fg);border-color:var(--fg-3)}
+.rail .rail-btn:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+.rail .rail-ico{flex:none;color:var(--ice)}
+.rail .rail-btn .ubadge{margin-left:auto}
+.rail.lado{position:fixed;z-index:40;flex-direction:column;align-items:stretch;gap:10px;width:176px}
+.rail.lado .rail-btn{width:100%;height:44px;padding:0 14px;font-size:17px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+@media print{.rail{display:none}}
+.dcard.simc{width:min(1100px,100%)}
+.dcard .panel.sim{border:0;background:none;padding:0;margin:0;box-shadow:none}
+.sim-hd{display:flex;gap:8px;align-items:center}
+.sim-hd .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.sim-hd .seg .btn{border:0;border-radius:0}
+.sim-hd .seg .btn.on{background:var(--ice);color:#fff}
+@media (max-width:700px){.rail .rail-btn{padding:6px 9px;font-size:13px}#simDlg.dovl{padding:0;align-items:stretch}#simDlg .dcard{width:100%;max-height:none;height:100%;border-radius:0;border:0}}
+.sim-fonte{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:10px 0 4px;padding:10px 12px;border:1px dashed var(--line);border-radius:8px}
+.sim-fonte .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}.sim-fonte .seg .btn{border:0;border-radius:0}
+.sim-fonte .seg .btn.on{background:var(--ice);color:#fff}.sim-fonte .seg .btn.vazio{color:var(--fg-3)}
+.sim-imp{cursor:pointer}.linkb{background:none;border:0;padding:0;font:inherit;color:var(--ice);text-decoration:underline;cursor:pointer}
+.sim-fil{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:4px 0 8px}
+.sim-fil label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--fg-3)}
+.sim-fil select{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:140px}
+@media (max-width:700px){.sim-fil label{flex:1 1 45%}.sim-fil select{width:100%;min-width:0;font-size:16px}}
+/* simulador no celular: canais em cartões, cabeçalho fixo */
+.simc-peso{display:none}
+@media (max-width:700px){
+  #simBody .panel.sim>header{position:sticky;top:0;z-index:3;background:var(--surface);padding:6px 0 8px;margin-top:-6px;border-bottom:1px solid var(--line)}
+  #simBody .panel.sim>header h3{font-size:15px;flex:1 1 100%}
+  #simBody .sim-hd{width:100%;justify-content:space-between}
+  #simBody .note{font-size:12px}
+  .sim-res{grid-template-columns:1fr 1fr;gap:8px}.sim-res>div{padding:8px 10px}
+  .sim-fonte{gap:8px}.sim-fonte .seg{width:100%}.sim-fonte .seg .btn{flex:1;justify-content:center}.sim-imp{width:100%;justify-content:center}
+  .simt,.simt tbody{display:block;width:100%}.simt thead{display:none}
+  .simt tr{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--surface)}
+  .simt td{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0!important;border:0!important;white-space:normal!important;font-size:13px}
+  .simt td[data-l]::before{content:attr(data-l);color:var(--fg-3);font-size:11px;text-align:left}
+  .simt td.simc-nome{grid-column:1/-1;justify-content:space-between;border-bottom:1px solid var(--line)!important;padding-bottom:6px!important;font-size:15px}
+  .simt td.simc-pc{display:none}.simc-peso{display:inline}
+  .simt td.simc-res{grid-column:1/-1;font-size:15px}
+  .simt .simin{width:72px;padding:6px}
+}
+.sim-pedir{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex-basis:100%}
+.sim-pedir input{flex:1 1 220px;font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.sim-pend{font-size:13px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--warn-bg);color:var(--fg)}
+@media (max-width:700px){.sim-pedir input{font-size:16px}.sim-pedir .btn{width:100%;justify-content:center}}
+/* simulador · layout dashboard */
+:root{--sim-navy:#1f3b63;--sim-navy2:#2e5a8f;--sim-z1:#cfdcee;--sim-z2:#9fb8dc;--sim-z3:#5f86bf;--sim-z4:#1f3b63;--sim-r0:#1f3b63;--sim-r1:#3f6aa3;--sim-r2:#6f93c6;--sim-r3:#a7c0e2;--sim-r4:#d6e2f2}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--sim-navy:#24466f;--sim-navy2:#3a6ba3;--sim-z1:#3a4a60;--sim-z2:#4d6b94;--sim-z3:#6b92c7;--sim-z4:#9cc0ee;--sim-r0:#9cc0ee;--sim-r1:#6b92c7;--sim-r2:#4d6b94;--sim-r3:#3a5578;--sim-r4:#2c3b50}}
+:root[data-theme=dark]{--sim-navy:#24466f;--sim-navy2:#3a6ba3;--sim-z1:#3a4a60;--sim-z2:#4d6b94;--sim-z3:#6b92c7;--sim-z4:#9cc0ee;--sim-r0:#9cc0ee;--sim-r1:#6b92c7;--sim-r2:#4d6b94;--sim-r3:#3a5578;--sim-r4:#2c3b50}
+.dcard.simc{width:min(1320px,100%);background:var(--bg)}
+.simdash{display:flex;flex-direction:column;gap:12px}
+.sim-top{display:flex!important;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;background:var(--sim-navy);color:#fff;border-radius:10px;padding:10px 14px}
+.sim-tit h3{color:#fff!important;font-family:var(--display);font-size:24px;letter-spacing:.04em;margin:0}
+.sim-tit span{font-size:12px;opacity:.85}
+.sim-top .sim-hd{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sim-top select{font:inherit;font-size:13px;color:#1d1b19;background:#fff;border:0;border-radius:5px;padding:5px 6px;max-width:150px}
+.sim-top .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.35);color:#fff}
+.sim-top .btn:disabled{opacity:.45}
+.sim-top .seg{display:inline-flex;border:1px solid rgba(255,255,255,.35);border-radius:6px;overflow:hidden}
+.sim-top .seg .btn{border:0;border-radius:0;background:transparent}
+.sim-top .seg .btn.on{background:#fff;color:var(--sim-navy)}
+.simk-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.simk{background:var(--sim-navy);color:#fff;border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.simk.destaque{background:var(--sim-navy2);box-shadow:inset 0 0 0 2px rgba(255,255,255,.45)}
+.simk-r{display:flex;justify-content:space-between;align-items:center;font-family:var(--display);font-size:15px;letter-spacing:.03em}
+.simk-ico{width:24px;height:24px;opacity:.85}
+.simk b.num{font-family:var(--display);font-size:34px;line-height:1.05;color:#fff}
+.simk-s{font-size:12px;opacity:.9}
+.simk-s .up{color:#8ff0b5}.simk-s .dn{color:#ffb3b3}
+.simc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.simc-t{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.03em;color:var(--fg);margin-bottom:4px}
+.simg-row{display:grid;grid-template-columns:1fr 150px 190px;gap:10px}
+.simg-4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.simg{display:flex;flex-direction:column;align-items:center}
+.simg-t{font-family:var(--display);font-weight:700;font-size:15px;color:var(--fg);text-align:center}
+.g-svg{width:100%;max-width:200px;height:auto}
+.g-z{font-size:9px;fill:#1d1b19;font-weight:600}.g-z.cl{fill:#fff}
+.g-ag{stroke:var(--fg);stroke-width:5;stroke-linecap:round}.g-cen{fill:var(--fg)}
+.simg-v{font-family:var(--display);font-size:24px;font-weight:700;color:var(--fg)}
+.simt-box{display:flex;flex-direction:column;align-items:center}
+.t-svg{width:100%;max-width:120px;height:auto}
+.t-fundo{fill:var(--surface-2);stroke:var(--line)}.t-cheio{fill:var(--sim-navy2)}.t-meta{stroke:var(--crit);stroke-width:2;stroke-dasharray:4 3}
+.t-tk{stroke:var(--fg-3)}.t-tx{font-size:9px;fill:var(--fg-3)}
+.simreal{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
+.simreal .simk-ico{width:42px;height:42px;color:var(--sim-navy2);opacity:1}
+.simreal b.num{font-family:var(--display);font-size:42px;line-height:1;color:var(--fg)}
+.simgr{display:grid;grid-template-columns:1.25fr .9fr 1.25fr;gap:10px}
+.c-svg{width:100%;height:auto}
+.b-1{fill:var(--sim-navy)}.b-2{fill:var(--sim-z2)}.b-v{font-size:10px;font-weight:700;fill:var(--fg)}.b-c{font-size:9px;fill:var(--fg-3)}.b-eixo{stroke:var(--line)}
+.e-b{fill:var(--sim-z1)}.e-l{fill:none;stroke:var(--crit);stroke-width:2.5}.e-p{fill:var(--crit)}.e-v{font-size:9px;font-weight:700;fill:var(--fg)}
+.e-sim{fill:var(--surface);stroke:var(--sim-navy2);stroke-width:3}.e-sv{font-size:9px;font-weight:700;fill:var(--sim-navy2)}
+.simc-leg{display:flex;gap:14px;font-size:11px;color:var(--fg-3);justify-content:center}
+.simc-leg i{display:inline-block;width:12px;height:8px;margin-right:4px;vertical-align:middle;border-radius:2px}
+.simc-leg i.b-1{background:var(--sim-navy)}.simc-leg i.b-2{background:var(--sim-z2)}.simc-leg i.e-b{background:var(--sim-z1)}
+.simc-leg i.e-l2{background:var(--crit);height:3px}.simc-leg i.e-s2{background:transparent;border:2px solid var(--sim-navy2);border-radius:50%;width:9px;height:9px}
+.sim-rosca{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+.r-svg{width:160px;max-width:100%;height:auto}
+.r-0{fill:var(--sim-r0)}.r-1{fill:var(--sim-r1)}.r-2{fill:var(--sim-r2)}.r-3{fill:var(--sim-r3)}.r-4{fill:var(--sim-r4)}
+.r-p{font-size:9px;font-weight:700;fill:#fff}.r-p.cl{fill:#1d1b19}
+.r-c{font-family:var(--display);font-size:22px;font-weight:700;fill:var(--fg)}.r-s{font-size:9px;fill:var(--fg-3)}
+.r-leg{list-style:none;margin:0;padding:0;font-size:12px;display:flex;flex-direction:column;gap:3px}
+.r-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.r-leg i.r-0{background:var(--sim-r0)}.r-leg i.r-1{background:var(--sim-r1)}.r-leg i.r-2{background:var(--sim-r2)}.r-leg i.r-3{background:var(--sim-r3)}.r-leg i.r-4{background:var(--sim-r4)}
+.sim-podio{display:grid;grid-template-columns:repeat(3,1fr);align-items:end;gap:6px;margin-top:6px;min-height:170px}
+.pd{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.pd-med{width:40px;height:40px}.pd-n{font-family:var(--display);font-weight:700;font-size:14px;color:var(--fg);word-break:break-word}.pd-v{font-size:13px;font-weight:700;color:var(--fg-2)}
+.pd-b{width:100%;background:var(--sim-navy);border-radius:6px 6px 0 0}
+.pd.p1 .pd-b{background:var(--sim-navy2)}
+.sim-hb{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.hb{display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:8px;font-size:13px}
+.hb-n{color:var(--fg-2)}.hb-t{height:16px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.hb-t i{display:block;height:100%;background:var(--sim-navy)}.hb-t i.ruim{background:var(--crit)}.hb-t i.ok{background:var(--good)}
+.hb-v{text-align:right;color:var(--fg)}
+.sim-aj{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.sim-aj summary{cursor:pointer;font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.03em;color:var(--fg)}
+.sim-aj[open] summary{margin-bottom:8px}
+.simdash .sim-fonte{margin:0;background:var(--surface)}
+@media (max-width:1100px){.simk-row{grid-template-columns:repeat(3,1fr)}.simg-row{grid-template-columns:1fr 1fr}.simg-box{grid-column:1/-1}.simgr{grid-template-columns:1fr 1fr}.simgr>.simc:last-child{grid-column:1/-1}}
+@media (max-width:700px){.simk-row{grid-template-columns:1fr 1fr}.simk b.num{font-size:26px}.simg-4{grid-template-columns:1fr 1fr}.simgr{grid-template-columns:1fr}.simgr>.simc:last-child{grid-column:auto}
+  .sim-top{position:sticky;top:0;z-index:3}.sim-top select{flex:1 1 45%;max-width:none;font-size:16px}.sim-tit h3{font-size:20px}.hb{grid-template-columns:90px 1fr 60px}}
+/* simulador de nota */
+.panel.sim{margin:16px 0}
+.panel.sim header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.sim-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+.sim-res>div{background:var(--surface-2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.sim-res>div.destaque{outline:2px solid var(--ice)}
+.sim-res b.num{font-family:var(--display);font-size:30px;line-height:1.05}
+.sim-ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;margin:6px 0 10px}
+.sim-ctl label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--fg-3)}
+.sim-ctl label.chk{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--fg);flex-basis:100%}
+.sim-ctl select,.sim-ctl input[type=text],.simin{font:inherit;font-size:14px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.simin{width:78px;text-align:right}.simpct{display:flex;align-items:center;gap:4px;color:var(--fg)}
+.sim-ctl .simexc input{min-width:220px}
+.sim-prec{background:var(--warn-bg);border-radius:8px;padding:10px 14px;margin:8px 0;font-size:14px}
+.sim-prec ul{margin:6px 0 0;padding-left:18px}
+.simt td,.simt th{white-space:nowrap}
+@media (max-width:700px){.sim-ctl label{flex-basis:100%}.sim-ctl select,.sim-ctl input[type=text]{font-size:16px;width:100%}.simin{font-size:16px}.sim-res b.num{font-size:24px}}
+.dcard.tgc{width:min(440px,100%)}
+.tg-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.tg-hd h3{font-family:var(--display);font-size:22px;margin:0}
+.tg-cod{font-family:var(--display);font-size:46px;font-weight:700;letter-spacing:.22em;text-align:center;padding:12px 8px;margin:12px 0 4px;border:2px dashed var(--line);border-radius:10px;color:var(--fg);user-select:all}
+.tg-c{text-align:center}.tg-abre{display:flex;justify-content:center;width:100%;margin:10px 0 2px;text-decoration:none}
+.tg-pe{display:flex;justify-content:center;margin-top:10px}
 /* solicitações de acesso */
 .upd-btn{position:relative}
 .ubadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;line-height:1}
@@ -2212,7 +2636,8 @@ async function carrega(){
   try{
     try{const {data:ud}=await sb.auth.getUser();const em=((ud&&ud.user&&ud.user.email)||'').toLowerCase();
       const {data:pf,error:pe}=await sb.from(TAB_PERFIS).select('perfil').eq('email',em).maybeSingle();
-      if(!pe&&!pf){await sb.auth.signOut();mostra('fLogin');return msg('Seu acesso ao painel não está liberado. Fale com o administrador.')}}catch(e){}
+      if(!pe&&!pf){await sb.auth.signOut();mostra('fLogin');return msg('Seu acesso ao painel não está liberado. Fale com o administrador.')}
+      window.R360_PERFIL=String((pf&&pf.perfil)||'usuario').toLowerCase()}catch(e){}
     const {data:su,error}=await sb.storage.from(BUCKET).createSignedUrl(ARQUIVO,120);
     if(error)throw error;
     const r=await fetch(su.signedUrl,{cache:'no-store'});
@@ -2261,7 +2686,40 @@ function botaoTema(){const g=document.createElement('div');g.className='tema-seg
   g.addEventListener('keydown',e=>{if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;e.preventDefault();const i=TEMAS.indexOf(temaAtual());const n=TEMAS[(i+(e.key==='ArrowRight'?1:2))%3];aplicaTema(n);const b=g.querySelector(`[data-tema="${n}"]`);if(b)b.focus()});
   pintaTema(g);return g}
 try{const c=document.querySelector('#auth .card');if(c){const w=document.createElement('div');w.className='tema-login';w.appendChild(botaoTema());c.appendChild(w)}}catch(e){}
-function poeSair(){poeAtualizar();
+// barra com Gestão e Abrir simulador: à esquerda do conteúdo em telas largas, no topo nas menores
+function railEl(){let r=$('rail');if(!r){r=document.createElement('div');r.id='rail';r.className='rail';document.body.appendChild(r)}return r}
+function posRail(){const r=$('rail');if(!r)return;const lado=window.innerWidth>=1760;r.classList.toggle('lado',lado);
+  if(lado){if(r.parentNode!==document.body)document.body.appendChild(r);
+    const w=document.querySelector('.wrap'),lg=document.querySelector('header.top .logo');
+    const wl=w?w.getBoundingClientRect().left+16:240,topo=lg?lg.getBoundingClientRect().top+window.scrollY:20;
+    r.style.left=Math.max(16,wl-r.offsetWidth-32)+'px';r.style.top=Math.max(16,topo-window.scrollY)+'px';return}
+  r.style.left='';r.style.top='';
+  const h=document.querySelector('header.top');if(!h)return;const sair=[...h.querySelectorAll('.sair-btn')].find(x=>!x.closest('.rail'));if(r.parentNode!==h||r.nextSibling!==sair)h.insertBefore(r,sair||null)}
+window.addEventListener('resize',posRail);window.addEventListener('scroll',()=>{const r=$('rail');if(r&&r.classList.contains('lado'))posRail()},{passive:true});
+window.r360RailAdd=(b,primeiro)=>{const r=railEl();if(primeiro)r.insertBefore(b,r.firstChild);else r.appendChild(b);posRail()};
+// ---- Ligar o Telegram ao robô do painel (código de 6 letras, vale 15 minutos)
+function poeTelegram(){if(!['master','admin','gerente'].includes(window.R360_PERFIL)||$('tgBtn')||!window.r360RailAdd)return;
+  const b=document.createElement('button');b.type='button';b.id='tgBtn';b.className='rail-btn';b.title='Ligar o seu Telegram ao robô do painel';
+  b.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4L3 11l6 2.5L19 7l-8 8 .5 5 3-3.5 4.5 3.5z"/></svg><span class="rail-txt">Telegram</span>';b.onclick=abreTelegram;window.r360RailAdd(b,false)}
+function abreTelegram(){let o=$('tgDlg');
+  if(!o){o=document.createElement('div');o.id='tgDlg';o.className='dovl';
+    o.innerHTML='<div class="dcard tgc" role="dialog" aria-modal="true" aria-labelledby="tgTit" tabindex="-1"><div class="tg-hd"><h3 id="tgTit">Telegram do painel</h3><button type="button" class="btn" id="tgX" aria-label="Fechar">✕</button></div><div id="tgBody"></div></div>';
+    document.body.appendChild(o);o.addEventListener('click',e=>{if(e.target===o)fechaTg()});$('tgX').onclick=fechaTg;
+    document.addEventListener('keydown',e=>{if(!o.hidden&&e.key==='Escape')fechaTg()})}
+  o.hidden=false;document.body.classList.add('dlock');geraTg()}
+function fechaTg(){const o=$('tgDlg');if(o)o.hidden=true;document.body.classList.remove('dlock')}
+async function geraTg(){const B=$('tgBody');B.innerHTML='<p class="small">Gerando o código…</p>';
+  try{const {data,error}=await sb.rpc('telegram_gerar_codigo');if(error)throw error;
+    const c=String(data.codigo||''),bot=data.bot,adm=['master','admin'].includes(data.perfil);
+    B.innerHTML=`<p>${adm?'Ligue o seu Telegram ao robô para usar <b>/atualizar</b> e <b>/simulador</b> e aprovar pedidos de acesso por lá.':'Ligue o seu Telegram ao robô para receber aviso quando a <b>nota online</b> do Simulador for atualizada.'}</p>
+      <div class="tg-cod" aria-label="Código">${escA(c)}</div>
+      <p class="small tg-c">Vale por ${data.minutos||15} minutos e só uma vez.</p>
+      ${bot?`<a class="btn pri tg-abre" href="https://t.me/${encodeURIComponent(bot)}?start=${encodeURIComponent(c)}" target="_blank" rel="noopener">Abrir no Telegram</a><p class="small tg-c">Quando o robô abrir, toque em <b>Iniciar</b>.</p>`:''}
+      <p class="small tg-c">${bot?'Ou mande no robô do painel:':'No Telegram, abra o robô do painel e mande:'} <b>/start ${escA(c)}</b></p>
+      <div class="tg-pe"><button type="button" class="btn" id="tgNovo">Gerar outro código</button></div>`;
+    $('tgNovo').onclick=geraTg}
+  catch(e){const t=String((e&&e.message)||e);B.innerHTML='<p class="small dn">'+escA(/telegram_gerar_codigo|function|not find|schema cache/i.test(t)?'O vínculo pelo Telegram ainda não foi ativado no Supabase (rode o supabase_telegram_vinculo.sql).':t)+'</p>'}}
+function poeSair(){poeAtualizar();poeTelegram();
   const h=document.querySelector('header.top');if(!h)return;
   if(!h.querySelector('.tema-seg'))h.appendChild(botaoTema());
   const b=document.createElement('button');b.className='sair-btn';b.type='button';b.textContent='Sair';
@@ -2375,16 +2833,17 @@ function r360Merge(D0,files){
 
 
 // ---- Administração (só para perfil admin na tabela perfis): Atualizar dados + Usuários ----
-let EU_EMAIL='';
+let EU_EMAIL='',EU_PERFIL='';
+const PERF_ROT={master:'ADM Master',admin:'Administrador',gerente:'Gerente',usuario:'Usuário'};
 async function poeAtualizar(){
   let email='';try{const {data}=await sb.auth.getUser();email=((data&&data.user&&data.user.email)||'').toLowerCase()}catch(e){}
   if(!email)return;EU_EMAIL=email;
   try{const {data,error}=await sb.from(TAB_PERFIS).select('perfil').eq('email',email).maybeSingle();
     if(error){console.warn('Perfis:',error.message);return}
-    if(!data||String(data.perfil||'').toLowerCase()!=='admin')return}catch(e){return}
+    const pf=String((data&&data.perfil)||'').toLowerCase();if(pf!=='admin'&&pf!=='master')return;EU_PERFIL=pf}catch(e){return}
   const h=document.querySelector('header.top');if(!h||$('updBtn'))return;
-  const b=document.createElement('button');b.id='updBtn';b.className='sair-btn upd-btn';b.type='button';b.innerHTML='<span class="lg">Gestão</span><span class="sm">Gestão</span><span class="ubadge" id="solBadge" hidden></span>';b.setAttribute('aria-label','Gestão');b.onclick=()=>abreAdmin(SOL_PEND?'usr':'upd');
-  const s=h.querySelector('.sair-btn:not(.upd-btn):not(.tema-btn)');h.insertBefore(b,s||null);
+  const b=document.createElement('button');b.id='updBtn';b.className='rail-btn upd-btn';b.type='button';b.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="rail-txt">Gestão</span><span class="ubadge" id="solBadge" hidden></span>';b.setAttribute('aria-label','Gestão');b.onclick=()=>abreAdmin(SOL_PEND?'usr':'upd');
+  window.r360RailAdd(b,true);
   contaSolic();
 }
 let SOL_PEND=0;
@@ -2404,9 +2863,19 @@ function cortaZip(raw){for(let i=0;i+22<=raw.length;i++){if(raw[i]!==0x50||raw[i
     const dv=new DataView(raw.buffer,raw.byteOffset+i,22),tam=dv.getUint32(12,true),ini=dv.getUint32(16,true),com=dv.getUint16(20,true);
     if(ini+tam===i){const fim=i+22+com;if(fim<raw.length)console.warn('Arquivo com sobra no final: usando os primeiros',fim,'de',raw.length,'bytes');return fim<raw.length?raw.subarray(0,fim):raw}}
   return raw}
-async function lePlanilha(f){let raw=new Uint8Array(await f.arrayBuffer());
-  if(raw[0]===0x50&&raw[1]===0x4b){raw=cortaZip(raw);try{await carregaFflate();const re=fflate.zipSync(fflate.unzipSync(raw),{level:0});return XLSX.read(re,{dense:true})}catch(e){console.warn('Reempacotar falhou, lendo direto:',e)}}
-  return XLSX.read(raw,{dense:true})}
+async function lePlanilha(f,extra){let raw=new Uint8Array(await f.arrayBuffer());const op=Object.assign({dense:true},extra||{});
+  if(raw[0]===0x50&&raw[1]===0x4b){raw=cortaZip(raw);try{await carregaFflate();const re=fflate.zipSync(fflate.unzipSync(raw),{level:0});return XLSX.read(re,op)}catch(e){console.warn('Reempacotar falhou, lendo direto:',e)}}
+  return XLSX.read(raw,op)}
+// nota online compartilhada (Storage: dados/nota-online.json) e pedidos de atualização
+window.r360Nuvem={
+  baixar:async()=>{try{const {data,error}=await sb.storage.from(BUCKET).createSignedUrl('nota-online.json',60);if(error||!data)return null;const r=await fetch(data.signedUrl,{cache:'no-store'});return r.ok?await r.json():null}catch(e){return null}},
+  publicar:async obj=>{const {error}=await sb.storage.from(BUCKET).upload('nota-online.json',new Blob([JSON.stringify(obj)],{type:'application/json'}),{upsert:true,contentType:'application/json',cacheControl:'0'});if(error)throw error;
+    try{await sb.from('pedidos_atualizacao').update({atendido:true,atendido_em:new Date().toISOString()}).eq('atendido',false)}catch(e){}},
+  pedir:async obs=>{const {data:u}=await sb.auth.getUser();const email=((u&&u.user&&u.user.email)||'').toLowerCase();const {error}=await sb.from('pedidos_atualizacao').insert({email,obs:obs||null});if(error)throw error},
+  meuPedido:async()=>{try{const {data:u}=await sb.auth.getUser();const email=((u&&u.user&&u.user.email)||'').toLowerCase();const {data}=await sb.from('pedidos_atualizacao').select('criado_em,atendido,atendido_em').eq('email',email).order('criado_em',{ascending:false}).limit(1);return data&&data[0]||null}catch(e){return null}},
+  pendentes:async()=>{try{const {count,error}=await sb.from('pedidos_atualizacao').select('id',{count:'exact',head:true}).eq('atendido',false);return error?null:count}catch(e){return null}}
+};
+window.r360LeArquivo=async f=>{await carregaXLSX();const wb=await lePlanilha(f,{cellDates:true});return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null})};
 const escA=s=>String(s==null?'':s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
 let ADM_TAB='upd';
 function abreAdmin(tab){
@@ -2482,12 +2951,12 @@ function telaUsuarios(B){
   B.innerHTML=`<section class="usol" id="uSolSec" hidden><h3>Solicitações de acesso <span class="small" id="uSolCnt"></span></h3><div id="uSol" class="usolL"></div></section>
     <section class="unew"><h3>Colocar usuário</h3>
     <div class="ufrm"><label>E-mail<input id="nuEmail" type="email" inputmode="email" autocomplete="off" placeholder="nome@rebic.com.br"></label>
-    <label>Perfil<select id="nuPerfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select></label>
+    <label>Perfil<select id="nuPerfil"><option value="usuario">Usuário</option><option value="gerente">Gerente</option><option value="admin">Administrador</option>${EU_PERFIL==='master'?'<option value="master">ADM Master</option>':''}</select></label>
     <label>Senha provisória<span class="usen"><input id="nuSenha" type="text" autocomplete="off" placeholder="mín. 8 caracteres" value="${escA(SENHA_PADRAO)}"><button type="button" class="btn" id="nuGer" title="Usar a senha padrão">Padrão</button></span></label>
     <button type="button" class="btn pri" id="nuGo">Colocar</button></div>
     <p class="small">Passe o e-mail e a senha provisória para a pessoa. No primeiro acesso o painel pede para ela criar a senha dela.</p></section>
     <div id="uMsg"></div>
-    <section><div class="ulhd"><h3>Usuários <span class="small" id="uCnt"></span></h3><div class="ufil"><input id="uQ" type="search" placeholder="Buscar e-mail"><select id="uFP"><option value="">Todos</option><option value="admin">Administradores</option><option value="usuario">Usuários</option><option value="sem acesso">Sem acesso</option><option value="nunca">Nunca entraram</option></select><button type="button" class="btn" id="uRef">Recarregar</button></div></div>
+    <section><div class="ulhd"><h3>Usuários <span class="small" id="uCnt"></span></h3><div class="ufil"><input id="uQ" type="search" placeholder="Buscar e-mail"><select id="uFP"><option value="">Todos</option><option value="master">ADM Master</option><option value="admin">Administradores</option><option value="gerente">Gerentes</option><option value="usuario">Usuários</option><option value="sem acesso">Sem acesso</option><option value="nunca">Nunca entraram</option></select><button type="button" class="btn" id="uRef">Recarregar</button></div></div>
     <div class="tw"><table class="utab ucard"><thead><tr><th>Usuário</th><th>Perfil</th><th>Status</th><th>Último acesso</th><th class="n">Ações</th></tr></thead><tbody id="uBody"><tr><td colspan="5" class="small">Carregando…</td></tr></tbody></table></div></section>
     <section class="uhist"><details id="uHistD"><summary><span class="uhist-t">Histórico de pedidos de acesso</span> <span class="small" id="uHistCnt">quem aprovou e quem recusou</span></summary>
       <div class="ufil uhist-f"><input id="uHq" type="search" placeholder="Buscar nome ou e-mail"><select id="uHf"><option value="">Todos</option><option value="aprovada">Aprovados</option><option value="recusada">Recusados</option></select></div>
@@ -2496,11 +2965,12 @@ function telaUsuarios(B){
   const desenha=()=>{const q=FQ.trim().toLowerCase();
     const L=LISTA.filter(u=>(!q||u.email.includes(q))&&(!FP||(FP==='nunca'?u.tem_conta&&!u.ultimo_acesso&&u.perfil!=='sem acesso':u.perfil===FP)));
     $('uCnt').textContent=`${L.length} de ${LISTA.length}`;
-    $('uBody').innerHTML=L.slice(0,500).map(u=>{const [sc,sl]=stat(u);const eu=u.email===EU_EMAIL,sem=u.perfil==='sem acesso';
-      return`<tr data-em="${escA(u.email)}"><td class="ucell-u"><b>${escA(u.email)}</b></td>
-      <td data-l="Perfil">${sem?'<span class="small">—</span>':`<select data-uperf${eu?' disabled title="Você não pode tirar o seu próprio acesso de administrador"':''}><option value="usuario"${u.perfil!=='admin'?' selected':''}>Usuário</option><option value="admin"${u.perfil==='admin'?' selected':''}>Administrador</option></select>`}</td>
+    $('uBody').innerHTML=L.slice(0,500).map(u=>{const [sc,sl]=stat(u);const eu=u.email===EU_EMAIL,sem=u.perfil==='sem acesso',mst=u.perfil==='master',souM=EU_PERFIL==='master',trava=mst&&!souM;
+      const op=(v,r,dis)=>`<option value="${v}"${u.perfil===v?' selected':''}${dis?' disabled':''}>${r}</option>`;
+      return`<tr data-em="${escA(u.email)}"><td class="ucell-u"><b>${escA(u.email)}</b>${mst?' <span class="umaster" title="Só outro ADM Master pode alterar ou tirar">ADM Master</span>':''}</td>
+      <td data-l="Perfil">${sem?'<span class="small">—</span>':`<select data-uperf${eu||trava?` disabled title="${eu?'Você não pode mudar o seu próprio perfil':'Só um ADM Master pode alterar outro ADM Master'}"`:''}>${op('usuario','Usuário')}${op('gerente','Gerente')}${op('admin','Administrador')}${op('master','ADM Master',!souM)}</select>`}</td>
       <td data-l="Status"><span class="pill ${sc}">${sl}</span></td><td class="small" data-l="Último acesso">${dt(u.ultimo_acesso)}</td>
-      <td class="n uacts" data-l="">${sem?'<button type="button" class="btn" data-ua="liberar">Liberar acesso</button>':''}${u.tem_conta?'<button type="button" class="btn" data-ua="senha">Nova senha</button>':''}${eu?'':'<button type="button" class="btn dng" data-ua="remover">Tirar</button>'}</td></tr>`}).join('')||'<tr><td colspan="5" class="small">Nenhum usuário encontrado.</td></tr>';
+      <td class="n uacts" data-l="">${trava?'<span class="small">Protegido</span>':`${sem?'<button type="button" class="btn" data-ua="liberar">Liberar acesso</button>':''}${u.tem_conta?'<button type="button" class="btn" data-ua="senha">Nova senha</button>':''}${eu?'':'<button type="button" class="btn dng" data-ua="remover">Tirar</button>'}`}</td></tr>`}).join('')||'<tr><td colspan="5" class="small">Nenhum usuário encontrado.</td></tr>';
     if(L.length>500)$('uBody').insertAdjacentHTML('beforeend',`<tr><td colspan="5" class="small">Mostrando 500 de ${L.length}. Use a busca para achar os demais.</td></tr>`)};
   const carrega=async(limpa)=>{try{if(limpa)msgA('');$('uBody').innerHTML='<tr><td colspan="5" class="small">Carregando…</td></tr>';
       const {data,error}=await sb.rpc('adm_listar');if(error)throw error;
@@ -2514,7 +2984,7 @@ function telaUsuarios(B){
     return 'mailto:'+encodeURIComponent(email)+'?subject='+encodeURIComponent('Seu acesso ao Painel RED 360º')+'&body='+encodeURIComponent(corpo)};
   const desenhaSol=()=>{const sec=$('uSolSec');if(!sec)return;sec.hidden=!SOL.length;$('uSolCnt').textContent=SOL.length?`${SOL.length} pendente${SOL.length>1?'s':''}`:'';
     $('uSol').innerHTML=SOL.map(x=>`<div class="usolI" data-sid="${escA(x.id)}"><div class="usolT"><b>${escA(x.nome)}</b><span>${escA(x.email)}</span><span class="small">${[x.cargo,x.obs].filter(Boolean).map(escA).join(' · ')}${x.cargo||x.obs?' · ':''}pedido em ${dt(x.criado_em)}</span></div>
-      <div class="usolA"><select data-sper aria-label="Perfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select><button type="button" class="btn pri" data-sa="aprovar">Aprovar</button><button type="button" class="btn dng" data-sa="recusar">Recusar</button></div></div>`).join('');
+      <div class="usolA"><select data-sper aria-label="Perfil"><option value="usuario">Usuário</option><option value="gerente">Gerente</option><option value="admin">Administrador</option></select><button type="button" class="btn pri" data-sa="aprovar">Aprovar</button><button type="button" class="btn dng" data-sa="recusar">Recusar</button></div></div>`).join('');
     marcaSolic(SOL.length)};
   const carregaSol=async()=>{try{const {data,error}=await sb.from(TAB_SOLIC).select('id,criado_em,nome,email,cargo,obs').eq('status','pendente').order('criado_em',{ascending:true});if(error)throw error;SOL=data||[]}catch(e){SOL=[]}desenhaSol()};
   let HIST=[],HQ='',HF='',histOk=false;
@@ -2553,12 +3023,12 @@ function telaUsuarios(B){
     if(!(ja&&ja.tem_conta&&ja.perfil!=='sem acesso')&&senha.length<8)return msgA('Coloque uma senha provisória com pelo menos 8 caracteres (ou clique em Gerar).','err');
     const b=$('nuGo');b.disabled=true;
     const ok=await faz(async()=>{const r=await colocar(email,perfil,senha);
-      if(!r.novo)return `${email} já tinha conta. Acesso liberado como ${perfil==='admin'?'Administrador':'Usuário'}, com a senha que ele já usa.`;
+      if(!r.novo)return `${email} já tinha conta. Acesso liberado como ${PERF_ROT[perfil]||'Usuário'}, com a senha que ele já usa.`;
       return `Pronto! ${email} pode entrar com a senha provisória: ${senha}`});
     b.disabled=false;if(ok){$('nuEmail').value='';$('nuSenha').value=SENHA_PADRAO;$('nuPerfil').value='usuario'}};
   $('uBody').addEventListener('change',async e=>{const s=e.target.closest('[data-uperf]');if(!s)return;const em=s.closest('tr').dataset.em,u=LISTA.find(x=>x.email===em);if(!u)return;
-    const novo=s.value;if(!confirm(`Mudar ${em} para ${novo==='admin'?'Administrador':'Usuário'}?`)){s.value=u.perfil;return}
-    await faz(()=>setPerfil(em,novo),`${em} agora é ${novo==='admin'?'Administrador':'Usuário'}.`)});
+    const novo=s.value;if(!confirm(`Mudar ${em} para ${PERF_ROT[novo]}?`)){s.value=u.perfil;return}
+    await faz(()=>setPerfil(em,novo),`${em} agora é ${PERF_ROT[novo]}.`)});
   const salvaSenha=async(box,em)=>{const s=box.querySelector('input').value.trim();
     if(s.length<8)return msgA('A senha precisa ter pelo menos 8 caracteres.','err');
     box.querySelectorAll('button,input').forEach(z=>z.disabled=true);
