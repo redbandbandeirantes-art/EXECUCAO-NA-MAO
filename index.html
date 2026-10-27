@@ -3118,7 +3118,7 @@ function telaAtualizar(B){
 
 // ================= USUÁRIOS (tudo pelo navegador: tabela perfis + funções SQL) =================
 const sbTmp=()=>supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'r360-novo-usuario'}});
-const errSQL=e=>{const m=(e&&e.message)||String(e);if(/function .*adm_|Could not find the function|schema cache/i.test(m))return 'Falta rodar o SQL de usuários no Supabase (o Claude te passou). Rode e tente de novo.';if(/Signups not allowed|signup.*disabled/i.test(m))return 'O Supabase está bloqueando cadastro novo. Ligue “Allow new users to sign up” em Authentication → Sign In / Providers.';return m};
+const errSQL=e=>{const m=(e&&e.message)||String(e);if(/adm_trocar_email/i.test(m))return 'Falta rodar no Supabase o arquivo supabase_dono.sql (é ele que traz a troca de e-mail). Rode e tente de novo.';if(/function .*adm_|Could not find the function|schema cache/i.test(m))return 'Falta rodar o SQL de usuários no Supabase (o Claude te passou). Rode e tente de novo.';if(/Signups not allowed|signup.*disabled/i.test(m))return 'O Supabase está bloqueando cadastro novo. Ligue “Allow new users to sign up” em Authentication → Sign In / Providers.';return m};
 const geraSenha=()=>SENHA_PADRAO;
 const geraSenhaAleatoria=()=>{const c='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';let s='';const a=new Uint32Array(10);crypto.getRandomValues(a);a.forEach(x=>s+=c[x%c.length]);return s};
 function telaUsuarios(B){
