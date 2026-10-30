@@ -1,0 +1,334 @@
+# Robo do Telegram do Painel RED 360 (comandos /atualizar e /simulador).
+# Chamado pelo Supabase (repository_dispatch). Nao tem nenhum segredo aqui:
+# os tokens vem dos Secrets do repositorio (Settings > Secrets and variables > Actions).
+name: Robo Telegram RED 360
+
+on:
+  repository_dispatch:
+    types: [r360-telegram]
+
+# um de cada vez: dois pedidos seguidos nao se atropelam
+concurrency:
+  group: r360-telegram
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  robo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Pegar o index.html publicado (mesma conta da Gestao)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: index.html
+          sparse-checkout-cone-mode: false
+
+      - name: Preparar o Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar o leitor de Excel (as mesmas versoes do painel)
+        run: npm install --no-save --no-audit --no-fund xlsx@0.18.5 fflate@0.8.2
+
+      - name: Rodar o robo
+        env:
+          TZ: America/Sao_Paulo
+          SUPABASE_URL: https://yvweqpydwxhtziepemhi.supabase.co
+          TELEGRAM_TOKEN: ${{ secrets.R360_TELEGRAM_TOKEN }}
+          SUPABASE_KEY: ${{ secrets.R360_SUPABASE_SECRET }}
+        run: |
+          cat > bot.js <<'R360_FIM'
+          // Robo RED 360 - roda numa GitHub Action, chamado pelo Supabase (repository_dispatch).
+          // Faz o mesmo que Gestao > Atualizar dados (/atualizar) e Simulador > Importar nota online (/simulador).
+          // Nada de segredo aqui: tokens chegam pelos Secrets do GitHub (variaveis de ambiente).
+          'use strict';
+          const fs = require('fs'), vm = require('vm'), path = require('path'), crypto = require('crypto');
+
+          const TG = (process.env.TELEGRAM_API || 'https://api.telegram.org').replace(/\/$/, '');
+          const TOKEN = process.env.TELEGRAM_TOKEN || '';
+          const SB = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+          const KEY = process.env.SUPABASE_KEY || '';
+          const BUCKET = 'dados';
+          const INDEX = process.env.INDEX_PATH || 'index.html';
+          const NM = process.env.NODE_MODULES || path.join(process.cwd(), 'node_modules');
+
+          const log = (...a) => console.log('[r360]', ...a);
+          const nf = (v, d = 2) => v == null || isNaN(v) ? '-' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+          const MESN = m => ['dez', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][((m - 1) % 12) + 1] || '?';
+          const TN = ['ICE LATAM', 'RED'];
+          const agora = () => new Date();
+          const dmH = ms => { if (!ms) return '-'; const d = new Date(ms), z = n => String(n).padStart(2, '0'); return `${z(d.getDate())}/${z(d.getMonth() + 1)} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+          const carimbo = () => { const d = agora(), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`; };
+
+          // rede com nova tentativa: depois de um calculo demorado, a conexao reaproveitada pode ter sido fechada pelo outro lado
+          const espera = ms => new Promise(r => setTimeout(r, ms));
+          async function rede(url, opt) {
+            for (let i = 0; ; i++) {
+              try { return await fetch(url, opt); }
+              catch (e) { const c = String((e.cause && (e.cause.code || e.cause.message)) || e.message || ''); if (i >= 3 || !/UND_ERR_SOCKET|EPIPE|ECONNRESET|UND_ERR_CLOSED|ETIMEDOUT|EAI_AGAIN|other side closed/i.test(c)) throw e; log('nova tentativa de rede (' + c + ')'); await espera(700 * (i + 1)); }
+            }
+          }
+
+          // ---------------- Supabase (REST e Storage) ----------------
+          function sbHeaders(extra = {}) {
+            const h = Object.assign({ apikey: KEY }, extra);
+            if (KEY.startsWith('eyJ')) h.Authorization = 'Bearer ' + KEY; // chave antiga service_role (JWT)
+            return h;
+          }
+          async function sbFetch(url, opt = {}) {
+            const r = await rede(SB + url, Object.assign({}, opt, { headers: sbHeaders(opt.headers || {}) }));
+            if (!r.ok && r.status !== 404) { const t = await r.text().catch(() => ''); throw new Error(`Supabase ${r.status} em ${url.split('?')[0]}: ${t.slice(0, 200)}`); }
+            return r;
+          }
+          const rest = {
+            async get(tab, q) { const r = await sbFetch(`/rest/v1/${tab}?${q}`); return r.status === 404 ? null : r.json(); },
+            async patch(tab, q, body) { const r = await sbFetch(`/rest/v1/${tab}?${q}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(body) }); return r.status !== 404; },
+          };
+          const store = {
+            async baixar(p) { const r = await sbFetch(`/storage/v1/object/${BUCKET}/${p}`); if (r.status === 404) return null; return Buffer.from(await r.arrayBuffer()); },
+            async gravar(p, texto) {
+              await sbFetch(`/storage/v1/object/${BUCKET}/${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-upsert': 'true', 'cache-control': 'max-age=0' }, body: texto });
+            },
+            async apagar(lista) { await sbFetch(`/storage/v1/object/${BUCKET}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefixes: lista }) }); },
+          };
+
+          // ---------------- Telegram ----------------
+          async function tg(metodo, corpo) {
+            const r = await rede(`${TG}/bot${TOKEN}/${metodo}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+            const j = await r.json().catch(() => ({}));
+            if (!j.ok) log('Telegram recusou', metodo, j.description || r.status);
+            return j.result;
+          }
+          const enviar = (chat, texto, botoes) => tg('sendMessage', Object.assign({ chat_id: chat, text: texto.slice(0, 4000), disable_web_page_preview: true }, botoes ? { reply_markup: { inline_keyboard: botoes } } : {}));
+          const editar = (chat, msg, texto) => msg ? tg('editMessageText', { chat_id: chat, message_id: msg, text: texto.slice(0, 4000) }) : null;
+          async function baixarDoTelegram(fileId) {
+            const f = await tg('getFile', { file_id: fileId });
+            if (!f || !f.file_path) throw new Error('o Telegram não liberou o arquivo (limite de 20 MB)');
+            const r = await rede(`${TG}/file/bot${TOKEN}/${f.file_path}`);
+            if (!r.ok) throw new Error('falha ao baixar o arquivo do Telegram (' + r.status + ')');
+            return new Uint8Array(await r.arrayBuffer());
+          }
+
+          // ---------------- mesmo codigo da Gestao do painel ----------------
+          // Carrega do proprio index.html publicado o bloco da Gestao (r360Merge, cortaZip...), com o SheetJS sem zlib,
+          // exatamente como roda no navegador.
+          function carregaCore() {
+            const html = fs.readFileSync(INDEX, 'utf8');
+            const a = html.indexOf('const mesProxyG'), b = html.indexOf('sb.auth.onAuthStateChange(', a);
+            if (a < 0 || b < 0) throw new Error('não achei o bloco da Gestão no index.html');
+            const ctx = { console, Uint8Array, ArrayBuffer, DataView, TextDecoder, TextEncoder, setTimeout, clearTimeout, JSON, Map, Set, Date, Math, Proxy, Number, String, Object, Array, Promise, parseInt, parseFloat, isNaN, isFinite, Error };
+            ctx.window = ctx; ctx.self = ctx; vm.createContext(ctx);
+            vm.runInContext(fs.readFileSync(path.join(NM, 'xlsx/dist/xlsx.full.min.js'), 'utf8'), ctx);
+            vm.runInContext(fs.readFileSync(path.join(NM, 'fflate/umd/index.js'), 'utf8'), ctx);
+            const stub = "const $=()=>null;const sb=null;const BUCKET='dados',ARQUIVO='data.json',TAB_PERFIS='perfis',TAB_SOLIC='solicitacoes',SUPABASE_URL='',SUPABASE_ANON_KEY='',SENHA_PADRAO='';\n";
+            vm.runInContext(stub + html.slice(a, b) + '\n;this.r360Merge=r360Merge;this.cortaZip=cortaZip;', ctx);
+            return ctx;
+          }
+          // le um .xlsx como o painel: corta sobra de outro arquivo, reempacota com fflate e abre com o SheetJS
+          function lerPlanilha(ctx, bytes, extra) {
+            let raw = bytes;
+            if (!(raw[0] === 0x50 && raw[1] === 0x4b)) throw new Error('não é uma planilha do Excel (.xlsx)');
+            raw = ctx.cortaZip(raw);
+            let wb;
+            try { wb = ctx.XLSX.read(ctx.fflate.zipSync(ctx.fflate.unzipSync(raw), { level: 0 }), Object.assign({ dense: true }, extra || {})); }
+            catch (e) { try { wb = ctx.XLSX.read(raw, Object.assign({ dense: true }, extra || {})); } catch (e2) { throw new Error('arquivo corrompido ou não é Excel (' + (e2.message || e2) + ')'); } }
+            const abas = wb.SheetNames.map(n => ctx.XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null }));
+            return abas;
+          }
+          const cab = (L, cols) => { for (let i = 0; i < Math.min(L.length, 30); i++) { const r = (L[i] || []).map(x => String(x == null ? '' : x).trim().toLowerCase()); if (cols.every(c => r.includes(c))) return i; } return -1; };
+          const ehExportCompleta = L => cab(L, ['pdv', 'pergunta']) >= 0;
+          const ehPesquisaCompleta = L => cab(L, ['pdv', 'total_realizados', 'total_possiveis']) >= 0;
+
+          // ---------------- nota online (mesma regra do Simulador > Importar nota online) ----------------
+          function lerNotaOnline(L, nome, D) {
+            const C = D.canais, PARC = D.meses[D.meses.length - 1], ANO = m => 2026 + Math.floor((m - 1) / 12);
+            const canalIdx = s => { s = String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(); for (const [k, v] of [['CASH', 'C&C'], ['HIPER', 'HIPER'], ['AS 3-4', 'AS 3-4'], ['AS 1-2', 'AS 1-2'], ['SUPER', 'SUPER'], ['MERCEARIA', 'MERCEARIA'], ['LANCHONETE', 'LANCHONETE'], ['BOTECO', 'BOTECO'], ['PADARIA', 'PADARIA'], ['RESTAURANTE', 'RESTAURANTE'], ['ADEGA', 'ADEGA'], ['CONVENI', 'CONVENIÊNCIA']]) if (s.includes(k)) { const i = C.indexOf(v); return i < 0 ? null : i; } return null; };
+            const h = cab(L, ['pdv', 'total_realizados', 'total_possiveis']);
+            if (h < 0) throw new Error('não parece o arquivo "pesquisa completa" do iRED360 (faltam as colunas pdv, total_realizados e total_possiveis)');
+            const H = L[h].map(x => String(x == null ? '' : x).trim().toLowerCase()), col = n => H.indexOf(n);
+            const ix = { pv: col('pdv'), cn: col('canal_fds'), ger: col('gerencia'), sup: col('supervisao'), rota: col('rota_vendedor'), dt: col('data_pesquisa'), re: col('total_realizados'), po: col('total_possiveis'), cl: col('classificacao'), mes: col('mes'), ano: col('ano') };
+            const num = v => { if (v == null || v === '') return null; if (typeof v === 'number') return v; const s = String(v).trim(); const n = parseFloat(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s); return isNaN(n) ? null : n; };
+            const quando = v => { if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) return new Date(v.getTime()); const s = String(v || ''); let m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/); if (m) return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)); m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/); if (m) return new Date(+m[3], +m[2] - 1, +m[1]); return null; };
+            const tipo = cl => { cl = String(cl || '').toUpperCase(); return cl.startsWith('ICE') ? 0 : cl.startsWith('RED') ? 1 : null; }, ano = cl => +((String(cl || '').match(/(20\d\d)/) || [])[1] || 0);
+            const out = { v: 1, arq: nome, em: Date.now(), m: null, t: {}, classes: [] }; const meses = {}, usadas = new Set(); let semCanal = 0;
+            for (let i = h + 1; i < L.length; i++) {
+              const r = L[i]; if (!r || r[ix.pv] == null) continue; const tt = tipo(r[ix.cl]); if (tt == null) continue;
+              const d = quando(r[ix.dt]); const anoPesq = (ix.ano >= 0 && num(r[ix.ano])) || (d ? d.getFullYear() : ANO(PARC));
+              if (ano(r[ix.cl]) !== anoPesq) continue; usadas.add(String(r[ix.cl]).trim());
+              const pv = String(r[ix.pv]).trim(); if (!/^\d+$/.test(pv)) continue; const c = canalIdx(r[ix.cn]); if (c == null) { semCanal++; continue; }
+              const re = num(r[ix.re]), po = num(r[ix.po]); if (re == null || !po) continue;
+              let m = null; if (ix.mes >= 0 && ix.ano >= 0 && num(r[ix.mes]) && num(r[ix.ano])) m = (num(r[ix.ano]) - 2026) * 12 + num(r[ix.mes]); else if (d) m = (d.getFullYear() - 2026) * 12 + d.getMonth() + 1;
+              if (m != null) meses[m] = (meses[m] || 0) + 1;
+              const T0 = out.t[tt] || (out.t[tt] = { map: {}, ate: 0 }); const ant = T0.map[pv], dv = d ? d.getTime() : 0;
+              if (!ant || dv >= ant.d) T0.map[pv] = { pv, c, ger: String(r[ix.ger] || '').trim(), sup: String(r[ix.sup] || '').trim(), rota: String(r[ix.rota] || '').trim(), real: re, poss: po, d: dv, m };
+              if (dv > T0.ate) T0.ate = dv;
+            }
+            const mm = Object.entries(meses).sort((a, b) => b[1] - a[1])[0]; out.m = mm ? +mm[0] : null;
+            for (const k in out.t) { const T0 = out.t[k]; T0.rows = Object.values(T0.map).filter(x => x.m === out.m).map(({ d, m, ...x }) => x); T0.n = T0.rows.length; delete T0.map; }
+            out.classes = [...usadas].sort();
+            if (!out.t[0] && !out.t[1]) throw new Error('não achei pesquisas ICE LATAM nem RED com a classificação do ano da pesquisa (ex.: ICE_LATAM_2026, RED_2026)');
+            return { out, semCanal, PARC };
+          }
+          function notaBand(D, t, rows) {
+            const P = D.peso[t === 0 ? 'ICE' : 'RED'], ch = {};
+            for (const r of rows) { const o = ch[r.c] || (ch[r.c] = { r: 0, p: 0 }); o.r += r.real; o.p += r.poss; }
+            let W = 0, s = 0; for (const c in ch) { const w = P[D.canais[c]] || 0; if (w > 0 && ch[c].p > 0) { W += w; s += w * ch[c].r / ch[c].p * 100; } }
+            return W ? s / W : null;
+          }
+
+          // ---------------- resumos ----------------
+          function resumoAtualizar(R, sess) {
+            const L = ['📊 ATUALIZAR DADOS · confira antes de publicar', ''];
+            L.push('Arquivos:');
+            R.arquivos.forEach(a => L.push(`• ${a.nome}\n   ${TN[a.t]} · ${a.pdvs.toLocaleString('pt-BR')} PDVs · ${a.meses.map(MESN).join(', ')} · até ${a.ate || '-'}`));
+            L.push('', 'Nota BAND:');
+            Object.values(R.pesq).forEach(p => { const d = p.depois.v != null && p.antes.v != null ? p.depois.v - p.antes.v : null;
+              L.push(`• ${TN[p.t]} · ${MESN(p.m)}: ${nf(p.antes.v)} → ${nf(p.depois.v)}${d != null && Math.abs(d) >= 0.005 ? ` (${d > 0 ? '+' : '−'}${nf(Math.abs(d))})` : ''} · ${p.antes.n} → ${p.depois.n} PDVs`); });
+            const ex = [R.novosPdv ? `${R.novosPdv} PDV${R.novosPdv > 1 ? 's' : ''} novo${R.novosPdv > 1 ? 's' : ''}` : '', R.novasRotas ? `${R.novasRotas} rota${R.novasRotas > 1 ? 's' : ''} nova${R.novasRotas > 1 ? 's' : ''}` : '', R.novasPerg ? `${R.novasPerg} pergunta${R.novasPerg > 1 ? 's' : ''} nova${R.novasPerg > 1 ? 's' : ''}` : ''].filter(Boolean);
+            if (ex.length) L.push(ex.join(' · '));
+            if (R.avisos.length) { L.push('', '⚠️ Avisos:'); R.avisos.forEach(a => L.push('• ' + a)); }
+            L.push('', `Pedido por ${sess.nome || sess.email || 'administrador'}. Nada foi publicado ainda.`);
+            return L.join('\n');
+          }
+          function resumoSimulador(info, D, sess) {
+            const { out, semCanal } = info, L = ['📱 NOTA ONLINE DO SIMULADOR · confira antes de publicar', '', `Arquivo: ${out.arq}`];
+            for (const t of [0, 1]) { const T0 = out.t[t]; if (!T0) { L.push(`• ${TN[t]}: não veio no arquivo`); continue; }
+              L.push(`• ${TN[t]}: nota BAND ${nf(notaBand(D, t, T0.rows))} · ${T0.n.toLocaleString('pt-BR')} PDVs · até ${dmH(T0.ate)}`); }
+            L.push(`Mês: ${MESN(out.m)} · classificação: ${out.classes.join(', ') || '-'}`);
+            if (semCanal) L.push(`⚠️ ${semCanal} linhas sem canal reconhecido ficaram de fora.`);
+            L.push('', 'A nota online fica só no Simulador (não muda o data.json nem as abas).', `Pedido por ${sess.nome || sess.email || 'administrador'}. Nada foi publicado ainda.`);
+            return L.join('\n');
+          }
+          const botoes = id => [[{ text: '✅ Publicar', callback_data: 'pub:' + id }, { text: '❌ Cancelar', callback_data: 'can:' + id }]];
+          const sha = txt => crypto.createHash('sha256').update(txt).digest('hex');
+
+          // ---------------- acoes ----------------
+          async function calcular(sess, ctx) {
+            const chat = sess.chat_id, arqs = Array.isArray(sess.arquivos) ? sess.arquivos : [];
+            if (!arqs.length) throw new Error('nenhum arquivo recebido');
+            const dataBuf = await store.baixar('data.json');
+            if (!dataBuf) throw new Error('não achei o data.json no Supabase');
+            const dataTxt = dataBuf.toString('utf8'); const D = JSON.parse(dataTxt);
+            const pendente = `pendente/${sess.id}/`;
+            if (sess.modo === 'atualizar') {
+              const files = [], erros = [];
+              for (const a of arqs) {
+                let abas;
+                try { abas = lerPlanilha(ctx, await baixarDoTelegram(a.file_id)); }
+                catch (e) { erros.push(`${a.nome}: ${e.message || e}`); continue; }
+                const certa = abas.find(ehExportCompleta);
+                if (!certa) { erros.push(abas.some(ehPesquisaCompleta) ? `${a.nome}: esse é o arquivo da nota online (pesquisa completa GPS). Para ele use /simulador.` : `${a.nome}: não parece uma exportação completa do iRED360 (faltam as colunas pdv e pergunta).`); continue; }
+                files.push({ nome: a.nome, linhas: certa });
+              }
+              if (erros.length) return { erro: 'Não publiquei nada. Problema nos arquivos:\n• ' + erros.join('\n• ') + '\n\nMande /atualizar e envie os arquivos de novo.' };
+              const res = ctx.r360Merge(D, files), R = res.rel;
+              const ignorados = R.avisos.filter(x => /Ignorado/.test(x));
+              if (!res.ok || ignorados.length) return { erro: 'Não publiquei nada:\n• ' + (R.avisos.length ? R.avisos.join('\n• ') : 'nenhum dado de pesquisa encontrado') + '\n\nMande /atualizar e envie os arquivos certos.' };
+              await store.gravar(pendente + 'data.json', JSON.stringify(res.D));
+              return { texto: resumoAtualizar(R, sess), base: sha(dataTxt) };
+            }
+            // simulador
+            const a = arqs[0]; let abas;
+            try { abas = lerPlanilha(ctx, await baixarDoTelegram(a.file_id), { cellDates: true }); }
+            catch (e) { return { erro: `Não publiquei nada. ${a.nome}: ${e.message || e}` }; }
+            if (!abas.some(ehPesquisaCompleta)) return { erro: abas.some(ehExportCompleta) ? `Não publiquei nada. ${a.nome} é a exportação completa (por pergunta). Para ela use /atualizar; no /simulador mande o iRED360-pesquisa-completa-…_GPS.xlsx.` : `Não publiquei nada. ${a.nome} não parece o arquivo "pesquisa completa" do iRED360.` };
+            let info; try { info = lerNotaOnline(abas.find(ehPesquisaCompleta), a.nome, D); } catch (e) { return { erro: 'Não publiquei nada. ' + (e.message || e) }; }
+            if (info.out.m !== info.PARC) return { erro: `Não publiquei nada. O arquivo é de ${MESN(info.out.m)} e o painel está em ${MESN(info.PARC)} (mês aberto). Mande o arquivo do mês atual.` };
+            await store.gravar(pendente + 'nota-online.json', JSON.stringify(info.out));
+            return { texto: resumoSimulador(info, D, sess) };
+          }
+
+          // mesmo nome do painel: perfis.nome, senão o nome do pedido de acesso, senão o do Telegram, senão o e-mail
+          async function nomeDe(sess) {
+            const em = String(sess.email || '').toLowerCase(), q = encodeURIComponent(em);
+            if (em) {
+              try { const p = await rest.get('perfis', `email=eq.${q}&select=nome`); if (Array.isArray(p) && p[0] && p[0].nome) return String(p[0].nome).trim(); } catch (e) { log('nome perfis:', e.message); }
+              try { const s = await rest.get('solicitacoes', `email=eq.${q}&select=nome&order=criado_em.desc&limit=1`); if (Array.isArray(s) && s[0] && s[0].nome) return String(s[0].nome).trim(); } catch (e) { log('nome solicitacoes:', e.message); }
+            }
+            if (sess.nome) return sess.nome;
+            return em ? em.split('@')[0].split(/[._-]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ') : 'administrador';
+          }
+
+          async function publicar(sess) {
+            const chat = sess.chat_id, pendente = `pendente/${sess.id}/`;
+            if (sess.modo === 'atualizar') {
+              const novo = await store.baixar(pendente + 'data.json');
+              if (!novo) throw new Error('o resultado pendente sumiu (talvez já publicado ou cancelado)');
+              const atual = await store.baixar('data.json'); const atualTxt = atual ? atual.toString('utf8') : '';
+              if (sess.base_hash && atual && sha(atualTxt) !== sess.base_hash)
+                return { erro: 'Não publiquei: o painel foi atualizado por outra pessoa depois deste cálculo. Mande /atualizar de novo para recalcular em cima da versão nova.' };
+              if (atual) await store.gravar(`backup/data-${carimbo()}.json`, atualTxt);
+              let novoTxt = novo.toString('utf8');
+              try { const N = JSON.parse(novoTxt); N.upd = Object.assign({}, N.upd, { por: await nomeDe(sess), porEmail: sess.email || '', porVia: 'telegram' }); novoTxt = JSON.stringify(N); } catch (e) { log('nao gravei o nome: ' + e.message); }
+              await store.gravar('data.json', novoTxt);
+              await store.apagar([pendente + 'data.json']);
+              return { texto: '✅ Dados publicados no painel. A versão anterior ficou em backup/. Quem abrir o painel (Ctrl + F5) já vê os números novos.' };
+            }
+            const buf = await store.baixar(pendente + 'nota-online.json');
+            if (!buf) throw new Error('o resultado pendente sumiu (talvez já publicado ou cancelado)');
+            const obj = JSON.parse(buf.toString('utf8')); obj.em = Date.now();
+            await store.gravar('nota-online.json', JSON.stringify(obj));
+            await store.apagar([pendente + 'nota-online.json']);
+            // pedidos de atualizacao pendentes: marca como atendidos e avisa quem pediu (se tiver Telegram vinculado)
+            let avisados = 0, pend = [];
+            try { pend = (await rest.get('pedidos_atualizacao', 'atendido=eq.false&select=id,email')) || []; } catch (e) { log('pedidos:', e.message); }
+            if (pend.length) {
+              try { await rest.patch('pedidos_atualizacao', 'atendido=eq.false', { atendido: true, atendido_em: new Date().toISOString() }); } catch (e) { log('pedidos patch:', e.message); }
+              const emails = [...new Set(pend.map(p => String(p.email || '').toLowerCase()).filter(Boolean))];
+              if (emails.length) {
+                const lista = emails.map(e => '"' + e.replace(/"/g, '') + '"').join(',');
+                let chats = [];
+                try { chats = chats.concat((await rest.get('telegram_contatos', `email=in.(${encodeURIComponent(lista)})&select=chat_id`)) || []); } catch (e) { log('contatos:', e.message); }
+                try { chats = chats.concat((await rest.get('aviso_telegram_destinos', `email=in.(${encodeURIComponent(lista)})&ativo=eq.true&select=chat_id`)) || []); } catch (e) { log('destinos:', e.message); }
+                for (const c of [...new Set(chats.map(x => String(x.chat_id)))]) { if (c === String(chat)) continue; await enviar(c, '✅ A nota online do Painel RED 360º foi atualizada (' + dmH(obj.em) + '). Abra o Simulador para ver.'); avisados++; }
+              }
+            }
+            return { texto: `✅ Nota online publicada para todos (${dmH(obj.em)}).${pend.length ? ` ${pend.length} pedido${pend.length > 1 ? 's' : ''} de atualização marcado${pend.length > 1 ? 's' : ''} como atendido${pend.length > 1 ? 's' : ''}${avisados ? `; ${avisados} pessoa${avisados > 1 ? 's' : ''} avisada${avisados > 1 ? 's' : ''} no Telegram` : ''}.` : ''}` };
+          }
+
+          async function principal() {
+            const ev = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+            const p = ev.client_payload || {}, acao = String(p.acao || ''), id = String(p.sessao || '');
+            if (!['calcular', 'publicar', 'cancelar'].includes(acao) || !/^[0-9a-f-]{36}$/i.test(id)) { log('pedido invalido'); return; }
+            if (!TOKEN || !SB || !KEY) throw new Error('faltam os Secrets R360_TELEGRAM_TOKEN / R360_SUPABASE_SECRET');
+            const rows = await rest.get('telegram_sessoes', `id=eq.${id}&select=*`);
+            const sess = rows && rows[0]; if (!sess) { log('sessao nao encontrada'); return; }
+            // confere de novo a permissao (master/admin) direto no banco
+            const perf = sess.email ? await rest.get('perfis', `email=eq.${encodeURIComponent(String(sess.email).toLowerCase())}&select=perfil`) : null;
+            const ok = perf && perf[0] && ['master', 'admin'].includes(perf[0].perfil);
+            const chat = sess.chat_id;
+            if (!ok) { await enviar(chat, '⛔ Sem permissão: só ADM Master e Administrador podem atualizar o painel pelo robô.'); await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'erro', atualizado_em: new Date().toISOString() }); return; }
+
+            if (acao === 'cancelar') { await store.apagar([`pendente/${id}/data.json`, `pendente/${id}/nota-online.json`]); log('pendente apagado'); return; }
+
+            if (acao === 'calcular') {
+              if (sess.status !== 'calculando') { log('sessao nao esta calculando:', sess.status); return; }
+              let r; try { r = await calcular(sess, carregaCore()); } catch (e) { r = { erro: 'Não consegui processar: ' + (e.message || e) + '\nNada foi publicado. Tente /' + sess.modo + ' de novo.' }; }
+              if (r.erro) { await enviar(chat, '❌ ' + r.erro); await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'erro', atualizado_em: new Date().toISOString() }); return; }
+              const de_novo = await rest.get('telegram_sessoes', `id=eq.${id}&select=status`);
+              if (!de_novo || !de_novo[0] || de_novo[0].status !== 'calculando') { await store.apagar([`pendente/${id}/data.json`, `pendente/${id}/nota-online.json`]); log('cancelado durante o calculo'); return; }
+              const m = await enviar(chat, r.texto, botoes(id));
+              await rest.patch('telegram_sessoes', `id=eq.${id}`, Object.assign({ status: 'pronto', msg_id: m ? m.message_id : null, resumo: r.texto, atualizado_em: new Date().toISOString() }, r.base ? { base_hash: r.base } : {}));
+              return;
+            }
+            // publicar
+            if (sess.status !== 'publicando') { log('sessao nao esta publicando:', sess.status); return; }
+            let r; try { r = await publicar(sess); } catch (e) { r = { erro: 'Não consegui publicar: ' + (e.message || e) }; }
+            if (r.erro) {
+              await enviar(chat, '❌ ' + r.erro);
+              await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'erro', atualizado_em: new Date().toISOString() });
+              if (sess.msg_id) await editar(chat, sess.msg_id, (sess.resumo || '') + '\n\n❌ NÃO PUBLICADO');
+              return;
+            }
+            await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'publicado', atualizado_em: new Date().toISOString() });
+            if (sess.msg_id) await editar(chat, sess.msg_id, (sess.resumo || '') + `\n\n✅ PUBLICADO por ${sess.nome || sess.email} em ${dmH(Date.now())}`);
+            await enviar(chat, r.texto);
+          }
+
+          principal().catch(e => { console.error('[r360] erro:', e.message || e, e.cause ? String(e.cause.code || e.cause.message || e.cause) : ''); process.exitCode = 1; });
+          R360_FIM
+          node bot.js
