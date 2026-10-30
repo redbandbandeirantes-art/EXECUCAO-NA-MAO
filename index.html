@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}:root[data-theme=dark] body{background:#171615;color:#f1eee9}@media (prefers-color-scheme:dark){:root:not([data-theme=light]) body{background:#171615;color:#f1eee9}}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}:root[data-theme=dark] body{background:#171615;color:#f1eee9}@media (prefers-color-scheme:dark){:root:not([data-theme=light]) body{background:#171615;color:#f1eee9}}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}.vrk{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}.vrk .v{flex:none}.vrk .rk{display:flex;flex-direction:column;line-height:1.15;padding-left:10px;border-left:1px solid var(--line,rgba(127,127,127,.35));min-width:0}.vrk .rk b{font-size:24px;font-weight:700;white-space:nowrap}.vrk .rk span{font-size:11px;opacity:.75;max-width:92px}</style>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -1129,6 +1129,13 @@ function trendSVG(series){
 
 // ---------------- VISÃO GERAL ----------------
 function pillarAgg(a){const out=K.map(()=>({imp:0,r:0,p:0}));if(!a.W)return out;for(const c in a.ch){const o=a.ch[c];if(!o.w)continue;for(let k=0;k<5;k++){out[k].imp+=o.wn*(o.kp[k]-Math.min(o.kr[k],o.kp[k]))/o.poss*100;out[k].r+=o.kr[k];out[k].p+=o.kp[k]}}return out}
+// posição do filtro no ranking: gerência entre as gerências, supervisão entre as da gerência, rota entre as da supervisão (respeita o canal)
+function rankPos(t,m){const lvl=S.rota?'rota':S.sup?'sup':S.ger?'ger':null;if(!lvl)return null;
+  const pai=r=>lvl==='rota'?(S.sup?r.sup===S.sup:r.ger===S.ger):lvl==='sup'?(!S.ger||r.ger===S.ger):true;
+  const keys=uniq(RK.filter(pai).map(r=>r[lvl]));
+  const L=keys.map(k=>({k,A:agg(t,m,i=>{const r=RK[PM.r[i]];return r[lvl]===k&&pai(r)&&(S.canal===''||PM.c[i]==+S.canal)})})).filter(x=>x.A.n>0&&x.A.score!=null).sort((a,b)=>b.A.score-a.A.score);
+  const i=L.findIndex(x=>x.k===S[lvl]);if(i<0)return null;
+  return{pos:i+1,tot:L.length,lab:{ger:'gerências',sup:'supervisões'+(S.ger?' da '+S.ger:''),rota:'rotas'+(S.sup?' da '+S.sup:'')}[lvl]}}
 function renderGeral(){
   const t=S.t,m=S.mes,pm=prevM(m),cls=TC[t];
   const A=scope(t,m),Ap=pm?scope(t,pm):null;
@@ -1141,7 +1148,7 @@ function renderGeral(){
   const below=A.rows.filter(i=>PM.real[i]/PM.poss[i]*100<70).length;
   $('tab-geral').innerHTML=`
   <div class="score">
-    <div class="tile"><div class="k"><span class="sw" style="background:var(--${cls})"></span>Nota ${TN[t]} · ${esc(scopeName())}</div><div class="v num">${fmt(A.score,2)}</div><div class="meta">${pm?delta(A.score,Ap.score)+' vs '+MESN[pm]:''}</div></div>
+    <div class="tile"><div class="k"><span class="sw" style="background:var(--${cls})"></span>Nota ${TN[t]} · ${esc(scopeName())}</div>${(()=>{const R=rankPos(t,m);return`<div class="vrk"><div class="v num">${fmt(A.score,2)}</div>${R?`<div class="rk" title="${R.pos}º de ${R.tot} ${esc(R.lab)} em ${T[t]}"><b class="num">${R.pos}º</b><span>de ${R.tot} ${esc(R.lab)}</span></div>`:''}</div>`})()}<div class="meta">${pm?delta(A.score,Ap.score)+' vs '+MESN[pm]:''}</div></div>
     ${t===0?`<div class="tile"><div class="k">Objetivo ICE ${MESN[m]}</div><div class="v num">${fmt(obj,1)}</div><div class="meta">${obj!=null&&A.score!=null?(A.score>=obj?'<span class="up">acima do objetivo</span>':`<span class="dn">faltam ${fmt(obj-A.score,2)} pts</span>`):'sem objetivo no mês'}</div></div>`:''}
     ${isBand()?'':(()=>{const B=bandA(t,m);return`<div class="tile band"><div class="k">BAND · referência</div><div class="v num">${fmt(B.score,2)}</div><div class="meta">${esc(scopeName())} ${A.score!=null&&B.score!=null?(A.score>=B.score?`<span class="up">${fmt(A.score-B.score,2)} acima</span>`:`<span class="dn">${fmt(B.score-A.score,2)} abaixo</span>`):''} da BAND</div></div>`})()}
     <div class="tile"><div class="k">PDVs pesquisados</div><div class="v num">${A.n.toLocaleString('pt-BR')}</div><div class="meta">${below} com nota abaixo de 70</div></div>
@@ -1815,6 +1822,7 @@ function renderOutubro(){
         <button class="chip" data-odia="" aria-pressed="${!S.oDia}">Todos</button>
         ${DIAS.map(d=>`<button class="chip${d===DN?' now':''}" data-odia="${d}" aria-pressed="${S.oDia===d}">${d.charAt(0)+d.slice(1).toLowerCase()}${d===DN?' <b class="nowtag">hoje</b>':''}</button>`).join('')}</div></div>
       ${WS&&WS!=='-'?`<p class="small">Mostrando a semana ${WS}${wkAuto()?' (semana atual, muda sozinha a cada segunda-feira)':''}${S.oDia?' · '+S.oDia.toLowerCase():''}. Os status acima e o roteiro seguem a semana escolhida.</p>`:''}
+      ${D.upd&&D.upd.rot?`<p class="small">Roteiro atualizado em ${esc(D.upd.rot)}${D.upd.rotPor?' por <b>'+esc(D.upd.rotPor)+'</b>':''}.</p>`:''}
       <p class="note">Ordenado pela nota projetada, da menor para a maior: os primeiros são os que mais puxam a nota para baixo. RED por pilar mostra o % atingido em cada pilar na última pesquisa RED. Use os ícones para abrir o endereço no Maps ou no Waze e o Antes e Depois do cliente.</p>
       <div class="inline"><div class="f"><label for="oCanal">Canal</label><select id="oCanal"><option value="">Todos os canais</option>${C.map((c,i)=>D.base.some(b=>b.c===i)?`<option value="${i}"${S.canal===String(i)?' selected':''}>${c}</option>`:'').join('')}</select></div><div class="f" style="max-width:340px;flex:1"><label for="oQ">Buscar PDV ou nome</label><input type="search" id="oQ" value="${esc(S.oQ)}"></div>${rNSel()}${routeBtn(rows.filter(b=>b.iceOut==null).slice(0,S.rN).map(b=>b.pv),`Roteiro dos ${S.rN} primeiros pendentes`)}</div>
       <div class="tw"><table><thead><tr><th>PDV</th><th>Canal</th><th>Rota</th><th>Situação</th><th class="n">ICE ${MESN[PARC]}</th><th class="n">Última ICE</th><th class="n">RED</th><th>RED por pilar</th><th class="n">Projeção</th><th class="n">Simular</th></tr></thead><tbody>
@@ -3396,13 +3404,19 @@ function r360Roteiro(D0,E,M){
   D.geo=D.geo||{};for(const b of depois)if(!D.geo[b.pv]&&v.D.geo[b.pv])D.geo[b.pv]=v.D.geo[b.pv];
   const hj=new Date(),z=n=>String(n).padStart(2,'0');D.upd=Object.assign({},D.upd,{rot:`${z(hj.getDate())}/${z(hj.getMonth()+1)}`});
   return{D,rel,ok:true}}
+// nome de quem está logado: o nome do pedido de acesso aprovado; se não houver, monta pelo e-mail (daniel.moura@ → Daniel Moura)
+async function quemSou(){let email=EU_EMAIL||'';
+  try{if(!email){const {data}=await sb.auth.getUser();email=((data&&data.user&&data.user.email)||'').toLowerCase()}}catch(e){}
+  let nome='';try{const {data}=await sb.from(TAB_SOLIC).select('nome,criado_em').eq('email',email).order('criado_em',{ascending:false}).limit(1);if(data&&data[0]&&data[0].nome)nome=String(data[0].nome).trim()}catch(e){}
+  if(!nome)nome=email.split('@')[0].split(/[._-]+/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(' ');
+  return{nome:nome||email||'?',email}}
 function telaRoteiro(B){
   let Datual=null;try{Datual=JSON.parse($('data').textContent)}catch(e){}
   if(!Datual||!Datual.meses||!Datual.base){B.innerHTML='<div class="umsg err">Não consegui ler os dados atuais do painel. Recarregue a página e tente de novo.</div>';return}
   const LAST=Datual.meses[Datual.meses.length-1];let res=null,nome='';
   const conta=D=>{const c={},L=(D.base||[]).filter(b=>b.prio===1||b.iceOut!=null);L.forEach(b=>{const k=/^S\d$/.test(b.sem)?b.sem:'-';c[k]=(c[k]||0)+1});return c};
   const tela0=()=>{
-    B.innerHTML=`<p class="note">Use sempre que o Estudos GC ICE LATAM do mês mudar: semana nova de roteiro (ex.: S5) ou troca de cliente (DE X PARA Y). Atualiza a <b>semana</b>, o <b>dia previsto</b> e a <b>prioridade</b> de cada cliente da base de <b>${MESVF[LAST]}</b>. Pesquisas, notas, objetivos, endereços e consultores continuam iguais.${Datual.upd&&Datual.upd.rot?` Última troca de roteiro: ${escA(Datual.upd.rot)}.`:''}</p>
+    B.innerHTML=`<p class="note">Use sempre que o Estudos GC ICE LATAM do mês mudar: semana nova de roteiro (ex.: S5) ou troca de cliente (DE X PARA Y). Atualiza a <b>semana</b>, o <b>dia previsto</b> e a <b>prioridade</b> de cada cliente da base de <b>${MESVF[LAST]}</b>. Pesquisas, notas, objetivos, endereços e consultores continuam iguais.${Datual.upd&&Datual.upd.rot?` Última atualização do roteiro: <b>${escA(Datual.upd.rot)}${Datual.upd.rotPor?' por '+escA(Datual.upd.rotPor):''}</b>.`:''}</p>
     <label class="udrop" id="rDrop"><input type="file" id="rFile" accept=".xlsm,.xlsx" hidden><b><span class="lg">Arraste aqui o Estudos GC ICE LATAM</span><span class="sm">Toque para escolher o Estudos GC ICE LATAM</span></b><span class="small">Só esse arquivo (.xlsm). Leva uns segundos.</span></label>
     <div id="uMsg"></div>`;
     const inp=$('rFile'),dr=$('rDrop');inp.onchange=()=>le(inp.files[0]);
@@ -3434,7 +3448,9 @@ function telaRoteiro(B){
     $('rVolta').onclick=tela0;$('rPub').onclick=publica}
   async function publica(){if(!confirm(`Trocar o roteiro de ${MESVF[LAST]}? A versão atual fica guardada como backup.`))return;
     busy(1);const bt=B.querySelectorAll('.uact button');bt.forEach(b=>b.disabled=true);
-    try{msgA('Guardando a versão atual como backup…');
+    try{const quem=await quemSou();const hj=new Date(),z=n=>String(n).padStart(2,'0');
+      res.D.upd=Object.assign({},res.D.upd,{rot:`${z(hj.getDate())}/${z(hj.getMonth()+1)} às ${z(hj.getHours())}:${z(hj.getMinutes())}`,rotPor:quem.nome,rotEmail:quem.email});
+      msgA('Guardando a versão atual como backup…');
       const b1=await sb.storage.from(BUCKET).upload(`backup/data-${carimbo()}-antes-roteiro.json`,new Blob([$('data').textContent],{type:'application/json'}),{upsert:true,contentType:'application/json'});if(b1.error)throw b1.error;
       msgA('Publicando o roteiro…');
       const b2=await sb.storage.from(BUCKET).upload(ARQUIVO,new Blob([JSON.stringify(res.D)],{type:'application/json'}),{upsert:true,contentType:'application/json',cacheControl:'0'});if(b2.error)throw b2.error;
