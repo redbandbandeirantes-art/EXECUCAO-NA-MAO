@@ -1,0 +1,28 @@
+# Mantem o Supabase do Painel RED 360 acordado (plano gratis pausa sem uso por 7 dias).
+# Faz uma consulta simples no banco todo dia. Usa o mesmo Secret do robo: R360_SUPABASE_SECRET.
+name: Manter Supabase acordado
+
+on:
+  schedule:
+    - cron: '17 11 * * *'   # todo dia, por volta das 08:17 de Brasilia
+  workflow_dispatch:         # botao "Run workflow" para testar na hora
+
+permissions:
+  contents: read
+
+jobs:
+  acordar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Consulta simples no banco
+        env:
+          KEY: ${{ secrets.R360_SUPABASE_SECRET }}
+        run: |
+          if [ -z "$KEY" ]; then echo "Falta o Secret R360_SUPABASE_SECRET"; exit 1; fi
+          AUTH=()
+          case "$KEY" in eyJ*) AUTH=(-H "Authorization: Bearer $KEY");; esac
+          code=$(curl -s -o /dev/null -w "%{http_code}" -H "apikey: $KEY" "${AUTH[@]}" \
+            "https://yvweqpydwxhtziepemhi.supabase.co/rest/v1/perfis?select=email&limit=1")
+          echo "Supabase respondeu: $code"
+          test "$code" = "200"
