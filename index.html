@@ -2270,7 +2270,7 @@ try{if(matchMedia('(max-width:640px)').matches)document.body.classList.add('fclo
 try{const fb=document.querySelector('.filters');if(fb&&window.ResizeObserver)new ResizeObserver(()=>document.documentElement.style.setProperty('--fh',(getComputedStyle(fb).position==='sticky'?fb.offsetHeight:0)+'px')).observe(fb)}catch(e){}
 // datas da atualização vêm do data.json (não precisa trocar o index a cada atualização)
 try{const U=D.upd||{},mf=MESF[PARC],Mf=mf.charAt(0).toUpperCase()+mf.slice(1),nR=rowsOf(1,PARC).length,nI=rowsOf(0,PARC).length,nf=n=>n.toLocaleString('pt-BR');
-  $('updBox').innerHTML=`${U.por?`<span class="updpor" title="${esc(U.porEmail||'')}">👤 <b>${esc(U.por)}</b> atualizou ${U.porVia==='telegram'?'pelo Telegram':'pelo painel'}</span><br>`:''}${U.dt?'Atualizado em <b>'+U.dt+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`;
+  $('updBox').innerHTML=`${U.por?`<span class="updpor" title="${esc(U.porEmail||'')}">👤 <b>${esc(U.por)}</b> atualizou ${U.porVia==='telegram'?'pelo Telegram':'pelo painel'}</span><br>`:''}${U.dt?'Atualizado em <b>'+U.dt+(U.hr?' às '+U.hr:'')+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`;
   $('updFoot').innerHTML=`<b>${Mf} (*)</b> é parcial: RED até ${U.red||'–'} (${nf(nR)} PDVs) e ICE LATAM até ${U.ice||'–'} (${nf(nI)} PDVs)${U.arq?', arquivos iRED360 de '+U.arq:''}.`;
   $('updSrc').textContent=U.arq?U.arq.slice(0,5):(U.ice||'')}catch(e){}
 buildFilters();render();
@@ -3012,7 +3012,9 @@ function r360Merge(D0,files){
   const ateDe=t=>{let z='';pm.t.forEach((x,i)=>{if(x===t&&pm.m[i]===LAST){const d=pm.d[i];const k=d.slice(3,5)+d.slice(0,2);if(k>z)z=k}});return z?z.slice(2)+'/'+z.slice(0,2):''};
   const hoje=new Date(),dd=n=>String(n).padStart(2,'0'),hj=`${dd(hoje.getDate())}/${dd(hoje.getMonth()+1)}/${hoje.getFullYear()}`;
   let arq='';for(const f of files){const x=f.nome.match(/(\d{2})_(\d{2})_(\d{4})/);if(x){arq=`${x[1]}/${x[2]}/${x[3]}`;break}}
-  D.upd=Object.assign({},D.upd,{red:ateDe(1)||(D.upd&&D.upd.red)||'',ice:ateDe(0)||(D.upd&&D.upd.ice)||'',dt:hj,arq:arq||hj});
+  {const U0=D0.upd||{},k=v=>{const x=String(v||'').match(/^(\d{2})\/(\d{2})/);return x?(+x[2])*100+(+x[1]):null};
+    [[1,'RED','red'],[0,'ICE LATAM','ice']].forEach(([t,n,c])=>{const nv=ateDe(t),a=k(U0[c]),b=k(nv);if(nv&&a!=null&&b!=null&&b<a)rel.avisos.push(`ATENÇÃO: o arquivo ${n} vai só até ${nv}, mas o painel já tem ${n} até ${U0[c]}. Publicar VOLTA o ${n} para ${nv}. Confira se baixou o arquivo de hoje.`)})}
+  {const h0=new Date(),zz=n=>String(n).padStart(2,'0');D.upd=Object.assign({},D.upd,{red:ateDe(1)||(D.upd&&D.upd.red)||'',ice:ateDe(0)||(D.upd&&D.upd.ice)||'',dt:hj,hr:`${zz(h0.getHours())}:${zz(h0.getMinutes())}`,arq:arq||hj})}
   // relatório
   troca.forEach(k=>{const [t,m]=k.split('|').map(Number);const dep=band(pm,t,m,Array.from({length:pm.t.length},(_,i)=>i));rel.pesq[k]={t,m,antes:antes[k],depois:dep}});
   if(rel.mesNovo.length)rel.avisos.push(`Mês novo nas exportações (${rel.mesNovo.join(', ')}) e a virada de mês ainda não foi feita. As pesquisas entram, mas a base de prioridades, os objetivos e a estrutura continuam os do mês anterior. Faça a virada em Gestão → Virada de mês.`);
