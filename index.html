@@ -2269,8 +2269,8 @@ window.addEventListener('afterprint',()=>{delete document.body.dataset.print});
 try{if(matchMedia('(max-width:640px)').matches)document.body.classList.add('fclosed')}catch(e){}
 try{const fb=document.querySelector('.filters');if(fb&&window.ResizeObserver)new ResizeObserver(()=>document.documentElement.style.setProperty('--fh',(getComputedStyle(fb).position==='sticky'?fb.offsetHeight:0)+'px')).observe(fb)}catch(e){}
 // datas da atualização vêm do data.json (não precisa trocar o index a cada atualização)
-try{const U=D.upd||{},mf=MESF[PARC],Mf=mf.charAt(0).toUpperCase()+mf.slice(1),nR=rowsOf(1,PARC).length,nI=rowsOf(0,PARC).length,nf=n=>n.toLocaleString('pt-BR');
-  $('updBox').innerHTML=['master','admin'].includes(window.R360_PERFIL)?`${U.por?`<span class="updpor" title="${esc(U.porEmail||'')}">👤 <b>${esc(U.por)}</b> atualizou ${U.porVia==='telegram'?'pelo Telegram':'pelo painel'}</span><br>`:''}${U.dt?'Atualizado em <b>'+U.dt+(U.hr?' às '+U.hr:'')+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`:(U.dt?`<span class="updflag">🕒 Atualizado em <b>${esc(U.dt.slice(0,5))}${U.hr?' às '+esc(U.hr):''}</b></span>`:'');
+try{const U=Object.assign({},D.upd||{});if(!U.hr&&window.R360_UPD_EM){const t=new Date(window.R360_UPD_EM),z=n=>String(n).padStart(2,'0');U.hr=`${z(t.getHours())}:${z(t.getMinutes())}`;if(!U.dt)U.dt=`${z(t.getDate())}/${z(t.getMonth()+1)}/${t.getFullYear()}`}const mf=MESF[PARC],Mf=mf.charAt(0).toUpperCase()+mf.slice(1),nR=rowsOf(1,PARC).length,nI=rowsOf(0,PARC).length,nf=n=>n.toLocaleString('pt-BR');
+  $('updBox').innerHTML=['master','admin'].includes(window.R360_PERFIL)?`${U.por?`<span class="updpor" title="${esc(U.porEmail||'')}">👤 <b>${esc(U.por)}</b> atualizou ${U.porVia==='telegram'?'pelo Telegram':'pelo painel'}</span><br>`:''}${U.dt?'Atualizado em <b>'+U.dt+(U.hr?' às '+U.hr:'')+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`:(U.dt?`<span class="updflag">🕒 Atualizado em <b>${esc(U.dt.slice(0,5))}</b></span>`:'');
   $('updFoot').innerHTML=`<b>${Mf} (*)</b> é parcial: RED até ${U.red||'–'} (${nf(nR)} PDVs) e ICE LATAM até ${U.ice||'–'} (${nf(nI)} PDVs)${U.arq?', arquivos iRED360 de '+U.arq:''}.`;
   $('updSrc').textContent=U.arq?U.arq.slice(0,5):(U.ice||'')}catch(e){}
 buildFilters();render();
@@ -2829,6 +2829,9 @@ async function carrega(){
     if(error)throw error;
     const r=await fetch(su.signedUrl,{cache:'no-store'});
     if(!r.ok)throw new Error('HTTP '+r.status);
+    // hora em que o data.json foi gravado no Supabase (vale mesmo para publicações antigas)
+    try{const lm=r.headers.get('last-modified');if(lm&&!isNaN(Date.parse(lm)))window.R360_UPD_EM=Date.parse(lm)}catch(e){}
+    try{const {data:ls}=await sb.storage.from(BUCKET).list('',{search:ARQUIVO,limit:10});const it=(ls||[]).find(o=>o.name===ARQUIVO);const t=it&&(it.updated_at||it.created_at);if(t&&!isNaN(Date.parse(t)))window.R360_UPD_EM=Date.parse(t)}catch(e){}
     const total=+r.headers.get('content-length')||0,bar=$('loadBar');
     let txt;
     if(total&&r.body&&r.body.getReader){
