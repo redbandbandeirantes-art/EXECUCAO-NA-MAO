@@ -2270,7 +2270,7 @@ try{if(matchMedia('(max-width:640px)').matches)document.body.classList.add('fclo
 try{const fb=document.querySelector('.filters');if(fb&&window.ResizeObserver)new ResizeObserver(()=>document.documentElement.style.setProperty('--fh',(getComputedStyle(fb).position==='sticky'?fb.offsetHeight:0)+'px')).observe(fb)}catch(e){}
 // datas da atualização vêm do data.json (não precisa trocar o index a cada atualização)
 try{const U=D.upd||{},mf=MESF[PARC],Mf=mf.charAt(0).toUpperCase()+mf.slice(1),nR=rowsOf(1,PARC).length,nI=rowsOf(0,PARC).length,nf=n=>n.toLocaleString('pt-BR');
-  $('updBox').innerHTML=`${U.por?`<span class="updpor" title="${esc(U.porEmail||'')}">👤 <b>${esc(U.por)}</b> atualizou${U.porVia==='telegram'?' pelo Telegram':''}</span><br>`:''}${U.dt?'Atualizado em <b>'+U.dt+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`;
+  $('updBox').innerHTML=`${U.por?`<span class="updpor" title="${esc(U.porEmail||'')}">👤 <b>${esc(U.por)}</b> atualizou ${U.porVia==='telegram'?'pelo Telegram':'pelo painel'}</span><br>`:''}${U.dt?'Atualizado em <b>'+U.dt+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`;
   $('updFoot').innerHTML=`<b>${Mf} (*)</b> é parcial: RED até ${U.red||'–'} (${nf(nR)} PDVs) e ICE LATAM até ${U.ice||'–'} (${nf(nI)} PDVs)${U.arq?', arquivos iRED360 de '+U.arq:''}.`;
   $('updSrc').textContent=U.arq?U.arq.slice(0,5):(U.ice||'')}catch(e){}
 buildFilters();render();
