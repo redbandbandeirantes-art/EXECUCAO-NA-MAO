@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}:root[data-theme=dark] body{background:#171615;color:#f1eee9}@media (prefers-color-scheme:dark){:root:not([data-theme=light]) body{background:#171615;color:#f1eee9}}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}.vrk{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}.vrk .v{flex:none}.vrk .rk{display:flex;flex-direction:column;line-height:1.15;padding-left:10px;border-left:1px solid var(--line,rgba(127,127,127,.35));min-width:0}.vrk .rk b{font-size:24px;font-weight:700;white-space:nowrap}.vrk .rk span{font-size:11px;opacity:.75;max-width:92px}</style>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}:root[data-theme=dark] body{background:#171615;color:#f1eee9}@media (prefers-color-scheme:dark){:root:not([data-theme=light]) body{background:#171615;color:#f1eee9}}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}.vrk{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}.vrk .v{flex:none}.vrk .rk{display:flex;flex-direction:column;line-height:1.15;padding-left:10px;border-left:1px solid var(--line,rgba(127,127,127,.35));min-width:0}.vrk .rk b{font-size:24px;font-weight:700;white-space:nowrap}.vrk .rk span{font-size:11px;opacity:.75;max-width:92px}.updpor{display:inline-block;margin-bottom:4px;padding:2px 10px;border-radius:999px;background:color-mix(in srgb,var(--ice,#2364AA) 18%,transparent);border:1px solid color-mix(in srgb,var(--ice,#2364AA) 45%,transparent);color:var(--fg);font-size:12px;white-space:nowrap}</style>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -1024,8 +1024,9 @@ function dailySVG(t,m,cls,obj,prevScore){
   const rows=rowsOf(t,m).filter(inScope);const days=[...new Set(rows.map(dn).filter(x=>x))].sort((a,b)=>a-b);
   if(!days.length)return'<p class="note">Sem pesquisas no escopo neste mês.</p>';
   const cnt={};rows.forEach(i=>{const d=dn(i);cnt[d]=(cnt[d]||0)+1});
-  const pts=days.map(d=>{const a=agg(t,m,i=>inScope(i)&&dn(i)<=d);const o=agg(t,m,i=>inScope(i)&&dn(i)===d);return{d,v:a.score,n:cnt[d],acc:a.n,dv:o.score}});
-  const w=640,h=240,ml=34,mr=78,mt=14,mb=26;const vals=pts.map(p=>p.v).filter(v=>v!=null).concat([obj,prevScore].filter(v=>v!=null));
+  const pm0=prevM(m);const pDays=pm0!=null?new Set(rowsOf(t,pm0).filter(inScope).map(dn).filter(x=>x)):new Set();const pMin=pDays.size?Math.min(...pDays):null;
+  const pts=days.map(d=>{const a=agg(t,m,i=>inScope(i)&&dn(i)<=d);const o=agg(t,m,i=>inScope(i)&&dn(i)===d);const pa=pMin!=null&&d>=pMin?agg(t,pm0,i=>inScope(i)&&dn(i)<=d):null;return{d,v:a.score,n:cnt[d],acc:a.n,dv:o.score,pv:pa?pa.score:null}});
+  const w=640,h=240,ml=34,mr=78,mt=14,mb=26;const vals=pts.map(p=>p.v).concat(pts.map(p=>p.pv)).filter(v=>v!=null).concat([obj].filter(v=>v!=null));
   let lo=Math.floor(Math.min(...vals)/5)*5-5,hi=Math.min(100,Math.ceil(Math.max(...vals)/5)*5);if(hi-lo<10)lo=hi-10;
   const nx=pts.length,bw=Math.max(4,Math.min(22,(w-ml-mr)/nx*0.6));const x=k=>nx===1?(ml+w-mr)/2:ml+k*(w-ml-mr)/(nx-1);const y=v=>mt+(hi-v)*(h-mt-mb)/(hi-lo);
   DAYCTX={t,m,cls,obj,days};const mxN=Math.max(...pts.map(p=>p.n)),bh=(h-mt-mb)*0.32;const mm=String(((m-1)%12)+1).padStart(2,'0');const MC=`var(--${cls})`;
@@ -1033,15 +1034,16 @@ function dailySVG(t,m,cls,obj,prevScore){
   pts.forEach((p,k)=>{const hh=Math.max(2,p.n/mxN*bh);g+=`<rect x="${x(k)-bw/2}" y="${h-mb-hh}" width="${bw}" height="${hh}" rx="2" fill="${MC}" opacity=".16"/>`;if(nx<=16)g+=`<text x="${x(k)}" y="${h-mb-hh-3}" text-anchor="middle" style="fill:${MC};font-size:9.5px;font-weight:600;opacity:.8">${p.n}</text>`});
   const step=Math.ceil(nx/12);pts.forEach((p,k)=>{if(k%step===0||k===nx-1)g+=`<text x="${x(k)}" y="${h-8}" text-anchor="middle" style="fill:var(--fg-3);font-size:10px">${String(p.d).padStart(2,'0')}/${mm}</text>`});
   const hl=(v,c,dash,cap)=>v==null?'':`<line x1="${ml}" x2="${w-mr}" y1="${y(v)}" y2="${y(v)}" stroke="${c}" stroke-width="1.8" stroke-dasharray="${dash}"${cap?' stroke-linecap="round"':''}/>`;
-  g+=hl(obj,'var(--obj)','7 4');g+=hl(prevScore,'var(--prevm)','4 3');
+  g+=hl(obj,'var(--obj)','7 4');
+  {let dp='';pts.forEach((p,k)=>{if(p.pv!=null)dp+=(dp?'L':'M')+x(k)+' '+y(p.pv)});if(dp)g+=`<path d="${dp}" fill="none" stroke="var(--prevm)" stroke-width="1.8" stroke-dasharray="4 3" stroke-linejoin="round" opacity=".85"/>`}
   let d='';pts.forEach((p,k)=>{if(p.v!=null)d+=(d?'L':'M')+x(k)+' '+y(p.v)});g+=`<path d="${d}" fill="none" stroke="${MC}" stroke-width="2.8" stroke-linejoin="round"/>`;
   pts.forEach((p,k)=>{if(p.v==null)return;g+=`<circle cx="${x(k)}" cy="${y(p.v)}" r="${k===nx-1?4.5:3}" fill="${MC}"/>`});
-  const lv=pts[nx-1].v;const labs=[];if(lv!=null)labs.push({v:lv,t:fmt(lv,2),c:'var(--fg)',b:1});if(obj!=null)labs.push({v:obj,t:'Obj. '+fmt(obj,1),c:'var(--obj)'});if(prevScore!=null&&prevM(m)!=null)labs.push({v:prevScore,t:MESN[prevM(m)]+' '+fmt(prevScore,1),c:'var(--prevm)'});
+  const lv=pts[nx-1].v;const labs=[];if(lv!=null)labs.push({v:lv,t:fmt(lv,2),c:'var(--fg)',b:1});if(obj!=null)labs.push({v:obj,t:'Obj. '+fmt(obj,1),c:'var(--obj)'});{const lp=pts[nx-1].pv;if(lp!=null&&pm0!=null)labs.push({v:lp,t:MESN[pm0]+' '+fmt(lp,1),c:'var(--prevm)'})}
   labs.forEach(l=>l.y=y(l.v)+4);labs.sort((a,b)=>a.y-b.y);for(let k=1;k<labs.length;k++)if(labs[k].y-labs[k-1].y<13)labs[k].y=labs[k-1].y+13;
   labs.forEach(l=>g+=`<text x="${w-mr+8}" y="${l.y}" style="fill:${l.c};font-size:11px;font-weight:${l.b?700:600}">${l.t}</text>`);
-  pts.forEach((p,k)=>{const x0=nx===1?ml:(k===0?ml:(x(k-1)+x(k))/2),x1=nx===1?w-mr:(k===nx-1?w-mr:(x(k)+x(k+1))/2);g+=`<rect x="${x0}" y="${mt}" width="${x1-x0}" height="${h-mt-mb}" fill="transparent" data-dday="${p.d}" data-tt="<b>${String(p.d).padStart(2,'0')}/${mm}</b><br>Nota acumulada: <b>${fmt(p.v,2)}</b> (${p.acc} PDVs)<br>Pesquisados no dia: ${p.n}${p.dv!=null?' · nota do dia '+fmt(p.dv,1):''}<br><i>Clique para ver o que aconteceu</i>"/>`});
+  pts.forEach((p,k)=>{const x0=nx===1?ml:(k===0?ml:(x(k-1)+x(k))/2),x1=nx===1?w-mr:(k===nx-1?w-mr:(x(k)+x(k+1))/2);g+=`<rect x="${x0}" y="${mt}" width="${x1-x0}" height="${h-mt-mb}" fill="transparent" data-dday="${p.d}" data-tt="<b>${String(p.d).padStart(2,'0')}/${mm}</b><br>Nota acumulada: <b>${fmt(p.v,2)}</b> (${p.acc} PDVs)<br>Pesquisados no dia: ${p.n}${p.dv!=null?' · nota do dia '+fmt(p.dv,1):''}${p.pv!=null?`<br>${MESN[pm0]} até o dia ${String(p.d).padStart(2,'0')}: ${fmt(p.pv,2)} (${p.pv<=p.v?'<span class=up>+':'<span class=dn>'}${fmt(p.v-p.pv,2)}</span> agora)`:''}<br><i>Clique para ver o que aconteceu</i>"/>`});
   const f=pts[0],l=pts[nx-1];
-  return`<svg class="trend" viewBox="0 0 ${w} ${h}" role="img" aria-label="Nota ${T[t]} acumulada por dia">${g}</svg><p class="small">Linha: nota ${T[t]} acumulada do mês até cada dia. Barras: PDVs pesquisados no dia. Do primeiro ao último dia: ${fmt(f.v,2)} → <b>${fmt(l.v,2)}</b> (${l.v!=null&&f.v!=null?(l.v>=f.v?'<span class="up">+':'<span class="dn">')+fmt(l.v-f.v,2)+'</span>':'–'}). <b>Clique em um dia</b> para ver o que aconteceu: canais, pilares, métricas e PDVs que mexeram na nota.</p>`}
+  return`<svg class="trend" viewBox="0 0 ${w} ${h}" role="img" aria-label="Nota ${T[t]} acumulada por dia">${g}</svg><p class="small">Linha: nota ${T[t]} acumulada do mês até cada dia. Tracejada: ${pm0!=null?MESN[pm0]:'mês anterior'} acumulado até o mesmo dia${prevScore!=null?` (fechou em ${fmt(prevScore,2)})`:''}. Barras: PDVs pesquisados no dia. Do primeiro ao último dia: ${fmt(f.v,2)} → <b>${fmt(l.v,2)}</b> (${l.v!=null&&f.v!=null?(l.v>=f.v?'<span class="up">+':'<span class="dn">')+fmt(l.v-f.v,2)+'</span>':'–'}). <b>Clique em um dia</b> para ver o que aconteceu: canais, pilares, métricas e PDVs que mexeram na nota.</p>`}
 // ---------------- INSIGHT DO DIA (clique no gráfico dia a dia) ----------------
 const dayN=i=>{const d=PM.d[i];return d?parseInt(String(d).slice(0,2),10):null};
 const WD=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
@@ -1160,7 +1162,7 @@ function renderGeral(){
       ${trendSVG([{n:T[t],c:`var(--${cls})`,v:tr.map(x=>x[0])}].concat(t===0?[{n:'Objetivo',c:'var(--fg-3)',dash:1,v:tr.map(x=>x[1])}]:[]))}
     </div>
     <div class="panel">
-      <header><h3>Nota dia a dia · ${MESN[m]} · ${esc(scopeName())}</h3><div class="legend dlg">${dLeg('line',`var(--${cls})`)}${T[t]} acumulado</span>${dLeg('bar',`var(--${cls})`)}PDVs no dia</span>${t===0&&obj!=null?dLeg('dash','var(--obj)')+'Objetivo</span>':''}${Ap&&Ap.score!=null?dLeg('dash2','var(--prevm)')+MESN[pm]+' fechado</span>':''}</div></header>
+      <header><h3>Nota dia a dia · ${MESN[m]} · ${esc(scopeName())}</h3><div class="legend dlg">${dLeg('line',`var(--${cls})`)}${T[t]} acumulado</span>${dLeg('bar',`var(--${cls})`)}PDVs no dia</span>${t===0&&obj!=null?dLeg('dash','var(--obj)')+'Objetivo</span>':''}${Ap&&Ap.score!=null?dLeg('dash2','var(--prevm)')+MESN[pm]+' no mesmo dia</span>':''}</div></header>
       ${dailySVG(t,m,cls,obj,Ap&&Ap.score)}
     </div>
   </div>
@@ -2268,7 +2270,7 @@ try{if(matchMedia('(max-width:640px)').matches)document.body.classList.add('fclo
 try{const fb=document.querySelector('.filters');if(fb&&window.ResizeObserver)new ResizeObserver(()=>document.documentElement.style.setProperty('--fh',(getComputedStyle(fb).position==='sticky'?fb.offsetHeight:0)+'px')).observe(fb)}catch(e){}
 // datas da atualização vêm do data.json (não precisa trocar o index a cada atualização)
 try{const U=D.upd||{},mf=MESF[PARC],Mf=mf.charAt(0).toUpperCase()+mf.slice(1),nR=rowsOf(1,PARC).length,nI=rowsOf(0,PARC).length,nf=n=>n.toLocaleString('pt-BR');
-  $('updBox').innerHTML=`${U.dt?'Atualizado em <b>'+U.dt+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`;
+  $('updBox').innerHTML=`${U.por?`<span class="updpor" title="${esc(U.porEmail||'')}">👤 <b>${esc(U.por)}</b> atualizou${U.porVia==='telegram'?' pelo Telegram':''}</span><br>`:''}${U.dt?'Atualizado em <b>'+U.dt+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`;
   $('updFoot').innerHTML=`<b>${Mf} (*)</b> é parcial: RED até ${U.red||'–'} (${nf(nR)} PDVs) e ICE LATAM até ${U.ice||'–'} (${nf(nI)} PDVs)${U.arq?', arquivos iRED360 de '+U.arq:''}.`;
   $('updSrc').textContent=U.arq?U.arq.slice(0,5):(U.ice||'')}catch(e){}
 buildFilters();render();
@@ -3113,6 +3115,7 @@ function telaAtualizar(B){
   function baixa(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(res.D)],{type:'application/json'}));a.download='data.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
   async function publica(){busy(1);const bt=B.querySelectorAll('.uact button');bt.forEach(b=>b.disabled=true);
     try{const d=new Date(),z=n=>String(n).padStart(2,'0'),st=`${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
+      {const q=await quemSou();res.D.upd=Object.assign({},res.D.upd,{por:q.nome,porEmail:q.email,porVia:'painel'})}
       msgA('Guardando a versão anterior como backup…');
       const b1=await sb.storage.from(BUCKET).upload(`backup/data-${st}.json`,new Blob([res.antigo],{type:'application/json'}),{upsert:true,contentType:'application/json'});
       if(b1.error)throw b1.error;
@@ -3407,7 +3410,8 @@ function r360Roteiro(D0,E,M){
 // nome de quem está logado: o nome do pedido de acesso aprovado; se não houver, monta pelo e-mail (daniel.moura@ → Daniel Moura)
 async function quemSou(){let email=EU_EMAIL||'';
   try{if(!email){const {data}=await sb.auth.getUser();email=((data&&data.user&&data.user.email)||'').toLowerCase()}}catch(e){}
-  let nome='';try{const {data}=await sb.from(TAB_SOLIC).select('nome,criado_em').eq('email',email).order('criado_em',{ascending:false}).limit(1);if(data&&data[0]&&data[0].nome)nome=String(data[0].nome).trim()}catch(e){}
+  let nome='';try{const {data,error}=await sb.from(TAB_PERFIS).select('nome').eq('email',email).maybeSingle();if(!error&&data&&data.nome)nome=String(data.nome).trim()}catch(e){}
+  if(!nome)try{const {data}=await sb.from(TAB_SOLIC).select('nome,criado_em').eq('email',email).order('criado_em',{ascending:false}).limit(1);if(data&&data[0]&&data[0].nome)nome=String(data[0].nome).trim()}catch(e){}
   if(!nome)nome=email.split('@')[0].split(/[._-]+/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(' ');
   return{nome:nome||email||'?',email}}
 function telaRoteiro(B){
@@ -3523,7 +3527,8 @@ function telaVirada(B){
     $('vVolta').onclick=tela0;$('vBaixa').onclick=()=>baixaArquivo('data.json',JSON.stringify(res.D));$('vPub').onclick=()=>publicaV(M)}
   async function publicaV(M){if(!confirm(res.rel.mesNovo?`Virar o painel para ${MESVF[M]}? A versão atual fica guardada como backup.`:`Trocar a base de ${MESVF[M]}? A versão atual fica guardada como backup.`))return;
     busy(1);const bt=B.querySelectorAll('.uact button');bt.forEach(b=>b.disabled=true);
-    try{msgA('Guardando a versão atual como backup…');
+    try{{const q=await quemSou();res.D.upd=Object.assign({},res.D.upd,{por:q.nome,porEmail:q.email,porVia:'painel'})}
+      msgA('Guardando a versão atual como backup…');
       const b1=await sb.storage.from(BUCKET).upload(`backup/data-${carimbo()}-antes-virada.json`,new Blob([res.antigo],{type:'application/json'}),{upsert:true,contentType:'application/json'});if(b1.error)throw b1.error;
       msgA('Publicando a base nova…');
       const b2=await sb.storage.from(BUCKET).upload(ARQUIVO,new Blob([JSON.stringify(res.D)],{type:'application/json'}),{upsert:true,contentType:'application/json',cacheControl:'0'});if(b2.error)throw b2.error;
