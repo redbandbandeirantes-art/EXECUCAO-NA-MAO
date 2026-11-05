@@ -8,7 +8,7 @@ on:
   repository_dispatch:
     types: [r360-telegram]
   schedule:
-    - cron: '20 11 * * *'   # 08:20 de Brasilia, todos os dias
+       - cron: '0 10 * * *'    # 07:00 de Brasilia, todos os dias
   workflow_dispatch:        # botao "Run workflow" em Actions = atualizar agora
 
 # um de cada vez: dois pedidos seguidos nao se atropelam
