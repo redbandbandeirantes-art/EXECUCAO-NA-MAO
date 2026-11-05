@@ -1,11 +1,15 @@
-# Robo do Telegram do Painel RED 360 (comandos /atualizar e /simulador).
-# Chamado pelo Supabase (repository_dispatch). Nao tem nenhum segredo aqui:
+# Robo do Telegram do Painel RED 360 (comandos /atualizar, /simulador e Buscar do iRED360).
+# Chamado pelo Supabase (repository_dispatch) e, todo dia as 08:20 (Brasilia), sozinho:
+# entra no iRED360, baixa as exportacoes completas ICE LATAM e RED e publica no painel. Nao tem nenhum segredo aqui:
 # os tokens vem dos Secrets do repositorio (Settings > Secrets and variables > Actions).
 name: Robo Telegram RED 360
 
 on:
   repository_dispatch:
     types: [r360-telegram]
+  schedule:
+    - cron: '20 11 * * *'   # 08:20 de Brasilia, todos os dias
+  workflow_dispatch:        # botao "Run workflow" em Actions = atualizar agora
 
 # um de cada vez: dois pedidos seguidos nao se atropelam
 concurrency:
@@ -40,6 +44,8 @@ jobs:
           SUPABASE_URL: https://yvweqpydwxhtziepemhi.supabase.co
           TELEGRAM_TOKEN: ${{ secrets.R360_TELEGRAM_TOKEN }}
           SUPABASE_KEY: ${{ secrets.R360_SUPABASE_SECRET }}
+          IRED_USER: ${{ secrets.R360_IRED_USUARIO }}
+          IRED_PASS: ${{ secrets.R360_IRED_SENHA }}
         run: |
           cat > bot.js <<'R360_FIM'
           // Robo RED 360 - roda numa GitHub Action, chamado pelo Supabase (repository_dispatch).
@@ -53,6 +59,8 @@ jobs:
           const SB = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
           const KEY = process.env.SUPABASE_KEY || '';
           const BUCKET = 'dados';
+          const IRED = (process.env.IRED_API || 'https://portal-api.ired360.com').replace(/\/$/, '');
+          const IRED_USER = process.env.IRED_USER || '', IRED_PASS = process.env.IRED_PASS || '', IRED_COMPANY = process.env.IRED_COMPANY || '17';
           const INDEX = process.env.INDEX_PATH || 'index.html';
           const NM = process.env.NODE_MODULES || path.join(process.cwd(), 'node_modules');
 
@@ -111,6 +119,49 @@ jobs:
             const r = await rede(`${TG}/file/bot${TOKEN}/${f.file_path}`);
             if (!r.ok) throw new Error('falha ao baixar o arquivo do Telegram (' + r.status + ')');
             return new Uint8Array(await r.arrayBuffer());
+          }
+
+          // ---------------- portal iRED360 (mesmos pedidos que o portal faz ao clicar em exportar) ----------------
+          async function iredLogin() {
+            if (!IRED_USER || !IRED_PASS) throw new Error('faltam os Secrets R360_IRED_USUARIO e R360_IRED_SENHA no GitHub');
+            const r = await rede(IRED + '/auth/signin.json', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ username: IRED_USER, password: IRED_PASS }) });
+            if (r.status === 403 || r.status === 401) throw new Error('o iRED360 recusou o usuário/senha do robô (a senha mudou? atualize o Secret R360_IRED_SENHA)');
+            if (!r.ok) throw new Error('o iRED360 não respondeu ao login (' + r.status + ')');
+            const j = await r.json().catch(() => ({}));
+            if (!j.token) throw new Error('o iRED360 não devolveu o acesso (token) no login');
+            return j.token;
+          }
+          async function iredGet(tok, p, tipo) {
+            const r = await rede(IRED + p, { headers: { Authorization: tok, Accept: tipo === 'bin' ? '*/*' : 'application/json' } });
+            if (!r.ok) throw new Error('o iRED360 respondeu ' + r.status + ' em ' + p.split('?')[0]);
+            return tipo === 'bin' ? new Uint8Array(await r.arrayBuffer()) : r.json();
+          }
+          // baixa as exportações completas (ICE LATAM e RED) do mês atual; nos 5 primeiros dias também as do mês anterior (fechamento)
+          async function baixarDoPortal(ctx) {
+            const tok = await iredLogin();
+            const dhp = await iredGet(tok, '/user/dhp-current.json');
+            if (!dhp || !dhp.id) throw new Error('o iRED360 não informou o mês atual');
+            const meses = [{ id: +dhp.id, mes: +dhp.month, ano: +dhp.year }];
+            if (new Date().getDate() <= 5) { const m = +dhp.month === 1 ? 12 : +dhp.month - 1, a = +dhp.month === 1 ? +dhp.year - 1 : +dhp.year; meses.push({ id: +dhp.id - 1, mes: m, ano: a }); }
+            const z = n => String(n).padStart(2, '0'), d = new Date(), hoje = `${z(d.getDate())}_${z(d.getMonth() + 1)}_${d.getFullYear()}`;
+            const files = [], erros = [];
+            for (const M of meses) for (const [t, base] of [[0, 'ICE_LATAM'], [1, 'RED']]) {
+              const classif = `${base}_${M.ano}`, nome = `iRED360-complete-${hoje}_${classif}${M.id !== meses[0].id ? '_mes-anterior' : ''}.xlsx`;
+              try {
+                const bytes = await iredGet(tok, `/red-light/dashboard/report/clients-complete.json?officeId=0&office=null&superiorPosition=null&dhpId=${M.id}&companyId=${IRED_COMPANY}&classification=${classif}`, 'bin');
+                const abas = lerPlanilha(ctx, bytes); const certa = abas.find(ehExportCompleta);
+                if (!certa) { erros.push(`${TN[t]} ${z(M.mes)}/${M.ano}: o portal não devolveu a exportação completa`); continue; }
+                // confere se o arquivo é mesmo do mês pedido (pela data das pesquisas)
+                const h = cab(certa, ['pdv', 'pergunta']), H = certa[h].map(x => String(x || '').trim().toLowerCase()), di = H.indexOf('data_pesquisa');
+                const datas = certa.slice(h + 1).map(r => String(r[di] || '')).filter(x => /^\d{2}\/\d{2}\/\d{4}/.test(x));
+                const linhas = certa.slice(h + 1).filter(r => r && r.some(x => x != null && x !== '')).length;
+                if (!linhas) { if (M.id === meses[0].id) erros.push(`${TN[t]} ${z(M.mes)}/${M.ano}: sem pesquisas ainda`); continue; }
+                const fora = datas.filter(x => +x.slice(3, 5) !== M.mes || +x.slice(6, 10) !== M.ano).length;
+                if (datas.length && fora > datas.length * 0.05) { erros.push(`${TN[t]} ${z(M.mes)}/${M.ano}: o portal devolveu pesquisas de outro mês, ignorado`); continue; }
+                files.push({ nome, linhas: certa });
+              } catch (e) { erros.push(`${TN[t]} ${z(M.mes)}/${M.ano}: ${e.message || e}`); }
+            }
+            return { files, erros, dhp };
           }
 
           // ---------------- mesmo codigo da Gestao do painel ----------------
@@ -214,6 +265,16 @@ jobs:
             if (!dataBuf) throw new Error('não achei o data.json no Supabase');
             const dataTxt = dataBuf.toString('utf8'); const D = JSON.parse(dataTxt);
             const pendente = `pendente/${sess.id}/`;
+            if (sess.modo === 'atualizar' && arqs.some(a => a && a.portal)) {
+              const P = await baixarDoPortal(ctx);
+              if (!P.files.length) return { erro: 'Não publiquei nada. Não consegui baixar os relatórios do iRED360:\n• ' + (P.erros.join('\n• ') || 'sem dados') };
+              const res = ctx.r360Merge(D, P.files), R = res.rel;
+              const ignorados = R.avisos.filter(x => /Ignorado/.test(x));
+              if (!res.ok || ignorados.length) return { erro: 'Não publiquei nada:\n• ' + R.avisos.join('\n• ') };
+              R.avisos.push(...P.erros);
+              await store.gravar(pendente + 'data.json', JSON.stringify(res.D));
+              return { texto: '🤖 Baixado agora do iRED360\n\n' + resumoAtualizar(R, sess), base: sha(dataTxt) };
+            }
             if (sess.modo === 'atualizar') {
               const files = [], erros = [];
               for (const a of arqs) {
@@ -290,8 +351,36 @@ jobs:
             return { texto: `✅ Nota online publicada para todos (${dmH(obj.em)}).${pend.length ? ` ${pend.length} pedido${pend.length > 1 ? 's' : ''} de atualização marcado${pend.length > 1 ? 's' : ''} como atendido${pend.length > 1 ? 's' : ''}${avisados ? `; ${avisados} pessoa${avisados > 1 ? 's' : ''} avisada${avisados > 1 ? 's' : ''} no Telegram` : ''}.` : ''}` };
           }
 
+          // ---------------- atualização automática (todo dia, sem ninguém) ----------------
+          async function avisarAdmins(texto) {
+            let chats = [];
+            try { chats = (await rest.get('aviso_telegram_destinos', 'ativo=eq.true&select=chat_id')) || []; } catch (e) { log('destinos:', e.message); }
+            for (const c of [...new Set(chats.map(x => String(x.chat_id)))]) await enviar(c, texto);
+            log('avisados', chats.length);
+          }
+          async function automatico() {
+            if (!TOKEN || !SB || !KEY) throw new Error('faltam os Secrets R360_TELEGRAM_TOKEN / R360_SUPABASE_SECRET');
+            const ctx = carregaCore();
+            const dataBuf = await store.baixar('data.json'); if (!dataBuf) throw new Error('não achei o data.json no Supabase');
+            const dataTxt = dataBuf.toString('utf8'), D = JSON.parse(dataTxt);
+            let P; try { P = await baixarDoPortal(ctx); } catch (e) { await avisarAdmins('❌ Atualização automática das 8h: ' + (e.message || e) + '\nNada foi publicado. Dá para atualizar pelo /menu ou pela Gestão.'); throw e; }
+            if (!P.files.length) { await avisarAdmins('⚠️ Atualização automática: o iRED360 não devolveu pesquisas.\n• ' + P.erros.join('\n• ') + '\nNada foi publicado.'); return; }
+            const res = ctx.r360Merge(D, P.files), R = res.rel;
+            const ignorados = R.avisos.filter(x => /Ignorado/.test(x)), volta = R.avisos.filter(x => /VOLTA/.test(x));
+            if (!res.ok || ignorados.length || volta.length) { await avisarAdmins('⚠️ Atualização automática NÃO publicada:\n• ' + R.avisos.concat(P.erros).join('\n• ') + '\n\nConfira e, se estiver certo, use /menu → 🤖 Buscar do iRED360 agora.'); return; }
+            const atual = await store.baixar('data.json'); const atualTxt = atual ? atual.toString('utf8') : '';
+            if (atualTxt && sha(atualTxt) !== sha(dataTxt)) { await avisarAdmins('⚠️ Atualização automática: alguém publicou ao mesmo tempo. Nada foi trocado; rode de novo pelo /menu.'); return; }
+            await store.gravar(`backup/data-${carimbo()}-antes-automatico.json`, dataTxt);
+            const N = res.D; N.upd = Object.assign({}, N.upd, { por: 'Robô iRED360', porEmail: '', porVia: 'automatico' });
+            await store.gravar('data.json', JSON.stringify(N));
+            R.avisos.push(...P.erros);
+            await avisarAdmins('✅ Painel atualizado automaticamente com o iRED360 (' + dmH(Date.now()) + ').\n\n' + resumoAtualizar(R, { nome: 'Robô iRED360' }).replace(/^.*\n\n/, '').replace(/\n*Pedido por[\s\S]*$/, ''));
+            log('publicado automatico');
+          }
+
           async function principal() {
             const ev = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+            if (process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') { await automatico(); return; }
             const p = ev.client_payload || {}, acao = String(p.acao || ''), id = String(p.sessao || '');
             if (!['calcular', 'publicar', 'cancelar'].includes(acao) || !/^[0-9a-f-]{36}$/i.test(id)) { log('pedido invalido'); return; }
             if (!TOKEN || !SB || !KEY) throw new Error('faltam os Secrets R360_TELEGRAM_TOKEN / R360_SUPABASE_SECRET');
