@@ -1,5 +1,5 @@
 # Robo do Telegram do Painel RED 360 (comandos /atualizar, /simulador e Buscar do iRED360).
-# Chamado pelo Supabase (repository_dispatch) e, todo dia as 08:20 (Brasilia), sozinho:
+# Chamado pelo Supabase (repository_dispatch) e, todo dia as 07:07 (Brasilia, com reserva as 07:41), sozinho:
 # entra no iRED360, baixa as exportacoes completas ICE LATAM e RED e publica no painel. Nao tem nenhum segredo aqui:
 # os tokens vem dos Secrets do repositorio (Settings > Secrets and variables > Actions).
 name: Robo Telegram RED 360
@@ -8,7 +8,8 @@ on:
   repository_dispatch:
     types: [r360-telegram]
   schedule:
-       - cron: '0 10 * * *'    # 07:00 de Brasilia, todos os dias
+    - cron: '7 10 * * *'    # 07:07 de Brasilia, todos os dias
+    - cron: '41 10 * * *'   # 07:41 = reserva, se o GitHub pular o das 07:07 (nao publica duas vezes)
   workflow_dispatch:        # botao "Run workflow" em Actions = atualizar agora
 
 # um de cada vez: dois pedidos seguidos nao se atropelam
@@ -363,7 +364,10 @@ jobs:
             const ctx = carregaCore();
             const dataBuf = await store.baixar('data.json'); if (!dataBuf) throw new Error('não achei o data.json no Supabase');
             const dataTxt = dataBuf.toString('utf8'), D = JSON.parse(dataTxt);
-            let P; try { P = await baixarDoPortal(ctx); } catch (e) { await avisarAdmins('❌ Atualização automática das 8h: ' + (e.message || e) + '\nNada foi publicado. Dá para atualizar pelo /menu ou pela Gestão.'); throw e; }
+            // reserva: se o robo ja atualizou sozinho hoje, nao repete
+            { const d = new Date(), z = n => String(n).padStart(2, '0'), hj = `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()}`;
+              if (process.env.GITHUB_EVENT_NAME === 'schedule' && D.upd && D.upd.porVia === 'automatico' && D.upd.dt === hj) { log('ja atualizado automaticamente hoje, nada a fazer'); return; } }
+            let P; try { P = await baixarDoPortal(ctx); } catch (e) { await avisarAdmins('❌ Atualização automática da manhã: ' + (e.message || e) + '\nNada foi publicado. Dá para atualizar pelo /menu ou pela Gestão.'); throw e; }
             if (!P.files.length) { await avisarAdmins('⚠️ Atualização automática: o iRED360 não devolveu pesquisas.\n• ' + P.erros.join('\n• ') + '\nNada foi publicado.'); return; }
             const res = ctx.r360Merge(D, P.files), R = res.rel;
             const ignorados = R.avisos.filter(x => /Ignorado/.test(x)), volta = R.avisos.filter(x => /VOLTA/.test(x));
