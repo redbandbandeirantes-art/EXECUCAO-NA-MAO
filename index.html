@@ -3086,10 +3086,11 @@ function gsrLiga(pre,st,muda){
   $(pre+'Sup').onchange=e=>{st.sup=e.target.value;st.rota='';enche();muda()};
   $(pre+'Rota').onchange=e=>{st.rota=e.target.value;muda()};
   return enche}
-/* link do Google Maps com as paradas em ordem (saindo de onde a pessoa está); o Maps aceita até 10 */
-function rotaMapsUrl(L){const pts=L.filter(p=>p&&p.lat!=null).slice(0,10);if(!pts.length)return{url:'',n:0};
-  const ll=p=>p.lat+','+p.lon,dest=pts[pts.length-1],mid=pts.slice(0,-1);
-  return{url:`https://www.google.com/maps/dir/?api=1&destination=${ll(dest)}${mid.length?'&waypoints='+mid.map(ll).join('%7C'):''}&travelmode=driving`,n:pts.length}}
+/* link do Google Maps com as paradas em ordem: sai de onde a pessoa está (até 10 paradas) ou, com doPrimeiro, do 1º PDV (até 11 pontos) */
+function rotaMapsUrl(L,doPrimeiro){const pts=L.filter(p=>p&&p.lat!=null).slice(0,doPrimeiro?11:10);if(!pts.length)return{url:'',n:0};
+  const ll=p=>p.lat+','+p.lon,dest=pts[pts.length-1];let org='',mid=pts.slice(0,-1);
+  if(doPrimeiro&&pts.length>1){org='&origin='+ll(pts[0]);mid=pts.slice(1,-1)}
+  return{url:`https://www.google.com/maps/dir/?api=1${org}&destination=${ll(dest)}${mid.length?'&waypoints='+mid.map(ll).join('%7C'):''}&travelmode=driving`,n:pts.length}}
 const ordemT=(a,b)=>(a.data<b.data?-1:a.data>b.data?1:0)||((a.ordem==null)-(b.ordem==null))||((a.ordem||0)-(b.ordem||0))||String(a.criado_em||'').localeCompare(String(b.criado_em||''));
 
 function renderCampo(){
@@ -3356,9 +3357,9 @@ function rDesenha(){const el=$('rLst');if(!el)return;const L=RT.lista;
   el.querySelectorAll('[data-rx]').forEach(b=>b.onclick=()=>{RT.lista.splice(+b.dataset.rx,1);RT.sujo=true;rDesenha();rBusca()});
   rLigaBotoes()}
 function rBotoes(){const m=rotaMapsUrl(RT.lista.filter(it=>!rFoto(it.pv)).map(it=>pdvDe(it.pv)));
-  return`<div class="acts">${RT.lista.length>2?'<button class="btn sm" id="rOtim" type="button">🧭 Organizar pelo caminho mais curto</button>':''}${m.url?`<a class="btn sm" href="${m.url}" target="_blank" rel="noopener">🗺 Ver no Google Maps</a>`:''}${RT.lista.length?'<button class="btn sm danger" id="rLimpa" type="button">✕ Limpar roteiro</button>':''}</div>
+  return`<div class="acts">${RT.lista.length>2?'<button class="btn sm pri" id="rOtim" type="button">🧭 Caminho mais curto e abrir no mapa</button>':''}${m.url?`<a class="btn sm" href="${m.url}" target="_blank" rel="noopener">🗺 Ver no Google Maps</a>`:''}${RT.lista.length?'<button class="btn sm danger" id="rLimpa" type="button">✕ Limpar roteiro</button>':''}</div>
   <button class="cta" id="rSalvar" type="button"${RT.sujo?'':' disabled'}>${RT.sujo?'Salvar roteiro':'Roteiro salvo ✓'}</button>`}
-function rLigaBotoes(){if($('rOtim'))$('rOtim').onclick=rOtimiza;if($('rSalvar'))$('rSalvar').onclick=rSalva;
+function rLigaBotoes(){if($('rOtim'))$('rOtim').onclick=rOtimizaEMapa;if($('rSalvar'))$('rSalvar').onclick=()=>rSalva();
   const lb=$('rLimpa');if(lb){let arm=0;lb.onclick=()=>{if(!arm){arm=1;lb.textContent='Toque de novo para tirar todos';setTimeout(()=>{if($('rLimpa')===lb){arm=0;lb.textContent='✕ Limpar roteiro'}},4000);return}
     RT.lista=[];RT.sujo=true;rDesenha();rBusca();toast('Roteiro vazio. Toque em Salvar roteiro para confirmar.',4000)}}}
 function rMove(i,d){const L=RT.lista,j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];RT.sujo=true;rDesenha()}
@@ -3375,7 +3376,7 @@ function rBusca(){const el=$('rRes');if(!el)return;const q=norm(RT.q);
 function rOtimiza(){
   const feitos=RT.lista.filter(it=>rFoto(it.pv)),pend=RT.lista.filter(it=>!rFoto(it.pv));
   const com=pend.filter(it=>pdvDe(it.pv).lat!=null),sem=pend.filter(it=>pdvDe(it.pv).lat==null);
-  if(com.length<2)return toast('Precisa de pelo menos 2 PDVs com GPS na base.');
+  if(com.length<2)return null;
   const d=(a,b)=>distM(a.lat,a.lon,b.lat,b.lon);
   const P=com.map(it=>{const p=pdvDe(it.pv);return{it,lat:p.lat,lon:p.lon}});
   const ini=GPS.fix&&Date.now()-GPS.fix.ts<10*60000?{lat:GPS.fix.lat,lon:GPS.fix.lon}:null;
@@ -3385,16 +3386,29 @@ function rOtimiza(){
   while(melhorou&&voltas++<60){melhorou=false;
     for(let i=1;i<path.length-1;i++)for(let j=i+1;j<path.length;j++){const a=path[i-1],b=path[i],c=path[j],e=path[j+1];
       if(d(a,c)+(e?d(b,e):0)<d(a,b)+(e?d(c,e):0)-1){const seg=path.slice(i,j+1).reverse();path.splice(i,seg.length,...seg);melhorou=true}}}
-  RT.lista=feitos.concat((ini?path.slice(1):path).map(x=>x.it),sem);RT.sujo=true;rDesenha();
-  toast(ini?'Organizado a partir de onde você está agora.':'Organizado a partir do 1º PDV da lista.',3500)}
-async function rSalva(){const email=RT.email;if(!emailOk(email))return toast('Digite o e-mail da pessoa.');
+  const nova=feitos.concat((ini?path.slice(1):path).map(x=>x.it),sem);
+  if(nova.some((it,k)=>it!==RT.lista[k]))RT.sujo=true;RT.lista=nova;rDesenha();
+  return{ini:!!ini}}
+/* botão: organiza, abre o Google Maps na mesma hora e salva o roteiro */
+function rOtimizaEMapa(){
+  const r=rOtimiza();
+  const pend=RT.lista.filter(it=>!rFoto(it.pv)).map(it=>pdvDe(it.pv));
+  const m=rotaMapsUrl(pend,!(r&&r.ini));
+  if(!m.url){toast('Nenhum PDV pendente com GPS na base para abrir no mapa.',4000);if(RT.sujo)rSalva();return}
+  let w=null;try{w=window.open(m.url,'_blank');if(w)w.opener=null}catch(e){}
+  const comGps=pend.filter(p=>p.lat!=null).length;
+  const msg=(r?(r.ini?'✓ Organizado a partir de onde você está':'✓ Organizado a partir do 1º PDV'):'✓ Ordem mantida')
+    +(w?'. Google Maps aberto':'. O navegador bloqueou o Google Maps: toque em "Ver no Google Maps"')
+    +(m.n<comGps?` com os ${m.n} primeiros PDVs (é o máximo que o Google Maps aceita de uma vez)`:'')+'.';
+  if(RT.sujo)rSalva(msg+' Roteiro salvo.');else toast(msg,6000)}
+async function rSalva(msgOk){const email=RT.email;if(!emailOk(email))return toast('Digite o e-mail da pessoa.');
   const btn=$('rSalvar');btn.disabled=true;btn.textContent='Salvando…';
   const rows=RT.lista.map((it,i)=>{const p=pdvDe(it.pv);return{email,pv:it.pv,nome:p.nome||null,canal:p.canal||null,ger:p.ger||null,sup:p.sup||null,rota:p.rota||null,data:RT.dia,ordem:i+1,obs:it.obs||null}});
   const ficam=new Set(RT.lista.map(x=>x.pv)),sai=RT.orig.filter(t=>!ficam.has(t.pv)).map(t=>t.id);
   try{for(let i=0;i<rows.length;i+=500){const {error}=await sb.from(TAB_TAREFAS).upsert(rows.slice(i,i+500),{onConflict:'email,pv,data'});if(error)throw error}
     for(let i=0;i<sai.length;i+=200){const {error}=await sb.from(TAB_TAREFAS).delete().in('id',sai.slice(i,i+200));if(error)throw error}
     RT.sujo=false;if(email===EU.email)TAREFAS=null;
-    toast(`✓ Roteiro salvo: ${rows.length} PDV${rows.length===1?'':'s'} para ${email} em ${fmtDia(RT.dia)}`,4000);
+    toast(typeof msgOk==='string'?msgOk:`✓ Roteiro salvo: ${rows.length} PDV${rows.length===1?'':'s'} para ${email} em ${fmtDia(RT.dia)}`,typeof msgOk==='string'?7000:4000);
     await rCarrega()}
   catch(e){btn.disabled=false;btn.textContent='Salvar roteiro';
     toast(faltaSQL(e)?'Falta criar a coluna "ordem" no Supabase (a linha de SQL do roteiro).':'Não consegui salvar: '+traduz(e),7000)}}
