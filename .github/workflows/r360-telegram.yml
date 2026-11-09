@@ -1,5 +1,5 @@
-# Robo do Telegram do Painel RED 360 (comandos /atualizar, /simulador e Buscar do iRED360).
-# Chamado pelo Supabase (repository_dispatch) e, todo dia as 07:07 (Brasilia, com reserva as 07:41), sozinho:
+# Robo do Telegram do Painel RED 360 (comandos /atualizar, /simulador, /buscar e /entrar).
+# Chamado pelo Supabase (repository_dispatch; o relogio do Supabase dispara as 07:05) e pelo GitHub as 07:07 e 07:41 (reservas):
 # entra no iRED360, baixa as exportacoes completas ICE LATAM e RED e publica no painel. Nao tem nenhum segredo aqui:
 # os tokens vem dos Secrets do repositorio (Settings > Secrets and variables > Actions).
 name: Robo Telegram RED 360
@@ -60,6 +60,7 @@ jobs:
           const SB = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
           const KEY = process.env.SUPABASE_KEY || '';
           const BUCKET = 'dados';
+          const PAINEL = process.env.PAINEL_URL || 'https://redbandbandeirantes-art.github.io/EXECUCAO-NA-MAO/';
           const IRED = (process.env.IRED_API || 'https://portal-api.ired360.com').replace(/\/$/, '');
           const IRED_USER = process.env.IRED_USER || '', IRED_PASS = process.env.IRED_PASS || '', IRED_COMPANY = process.env.IRED_COMPANY || '17';
           const INDEX = process.env.INDEX_PATH || 'index.html';
@@ -325,7 +326,7 @@ jobs:
                 return { erro: 'Não publiquei: o painel foi atualizado por outra pessoa depois deste cálculo. Mande /atualizar de novo para recalcular em cima da versão nova.' };
               if (atual) await store.gravar(`backup/data-${carimbo()}.json`, atualTxt);
               let novoTxt = novo.toString('utf8');
-              try { const N = JSON.parse(novoTxt); N.upd = Object.assign({}, N.upd, { por: await nomeDe(sess), porEmail: sess.email || '', porVia: 'telegram' }); novoTxt = JSON.stringify(N); } catch (e) { log('nao gravei o nome: ' + e.message); }
+              try { const N = JSON.parse(novoTxt); N.upd = Object.assign({}, N.upd, { por: await nomeDe(sess), porEmail: sess.email || '', porVia: sess.chat_id === 'painel' ? 'painel' : 'telegram' }); novoTxt = JSON.stringify(N); } catch (e) { log('nao gravei o nome: ' + e.message); }
               await store.gravar('data.json', novoTxt);
               await store.apagar([pendente + 'data.json']);
               return { texto: '✅ Dados publicados no painel. A versão anterior ficou em backup/. Quem abrir o painel (Ctrl + F5) já vê os números novos.' };
@@ -359,14 +360,14 @@ jobs:
             for (const c of [...new Set(chats.map(x => String(x.chat_id)))]) await enviar(c, texto);
             log('avisados', chats.length);
           }
-          async function automatico() {
+          async function automatico(reserva) {
             if (!TOKEN || !SB || !KEY) throw new Error('faltam os Secrets R360_TELEGRAM_TOKEN / R360_SUPABASE_SECRET');
             const ctx = carregaCore();
             const dataBuf = await store.baixar('data.json'); if (!dataBuf) throw new Error('não achei o data.json no Supabase');
             const dataTxt = dataBuf.toString('utf8'), D = JSON.parse(dataTxt);
             // reserva: se o robo ja atualizou sozinho hoje, nao repete
             { const d = new Date(), z = n => String(n).padStart(2, '0'), hj = `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()}`;
-              if (process.env.GITHUB_EVENT_NAME === 'schedule' && D.upd && D.upd.porVia === 'automatico' && D.upd.dt === hj) { log('ja atualizado automaticamente hoje, nada a fazer'); return; } }
+              if (reserva && D.upd && D.upd.porVia === 'automatico' && D.upd.dt === hj) { log('ja atualizado automaticamente hoje, nada a fazer'); return; } }
             let P; try { P = await baixarDoPortal(ctx); } catch (e) { await avisarAdmins('❌ Atualização automática da manhã: ' + (e.message || e) + '\nNada foi publicado. Dá para atualizar pelo /menu ou pela Gestão.'); throw e; }
             if (!P.files.length) { await avisarAdmins('⚠️ Atualização automática: o iRED360 não devolveu pesquisas.\n• ' + P.erros.join('\n• ') + '\nNada foi publicado.'); return; }
             const res = ctx.r360Merge(D, P.files), R = res.rel;
@@ -384,9 +385,11 @@ jobs:
 
           async function principal() {
             const ev = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
-            if (process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') { await automatico(); return; }
+            if (process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') { await automatico(process.env.GITHUB_EVENT_NAME === 'schedule'); return; }
             const p = ev.client_payload || {}, acao = String(p.acao || ''), id = String(p.sessao || '');
-            if (!['calcular', 'publicar', 'cancelar'].includes(acao) || !/^[0-9a-f-]{36}$/i.test(id)) { log('pedido invalido'); return; }
+            // disparo do relogio do Supabase (07:05): mesma atualizacao automatica, sem repetir se ja rodou hoje
+            if (acao === 'auto') { await automatico(true); return; }
+            if (!['calcular', 'publicar', 'cancelar', 'entrar'].includes(acao) || !/^[0-9a-f-]{36}$/i.test(id)) { log('pedido invalido'); return; }
             if (!TOKEN || !SB || !KEY) throw new Error('faltam os Secrets R360_TELEGRAM_TOKEN / R360_SUPABASE_SECRET');
             const rows = await rest.get('telegram_sessoes', `id=eq.${id}&select=*`);
             const sess = rows && rows[0]; if (!sess) { log('sessao nao encontrada'); return; }
@@ -398,10 +401,27 @@ jobs:
 
             if (acao === 'cancelar') { await store.apagar([`pendente/${id}/data.json`, `pendente/${id}/nota-online.json`]); log('pendente apagado'); return; }
 
+          // /entrar: link de acesso de uso unico para o proprio admin entrar no painel sem digitar senha
+          if (acao === 'entrar') {
+            if (sess.modo !== 'entrar' || sess.status !== 'calculando') { log('sessao de entrar invalida'); return; }
+            let link = null, erro = null;
+            try {
+              const r = await rede(SB + '/auth/v1/admin/generate_link', { method: 'POST', headers: Object.assign(sbHeaders({ 'Content-Type': 'application/json' }), { Authorization: 'Bearer ' + KEY }), body: JSON.stringify({ type: 'magiclink', email: String(sess.email).toLowerCase(), redirect_to: PAINEL }) });
+              const j = await r.json().catch(() => ({}));
+              link = j.action_link || (j.properties && j.properties.action_link) || null;
+              if (!r.ok || !link) erro = 'o Supabase não gerou o link (' + r.status + (j.msg || j.message ? ': ' + (j.msg || j.message) : '') + ')';
+            } catch (e) { erro = e.message || String(e); }
+            if (erro) { await enviar(chat, '❌ Não consegui gerar o link de acesso: ' + erro + '\nEntre com e-mail e senha normalmente.'); await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'erro', atualizado_em: new Date().toISOString() }); return; }
+            await enviar(chat, '🔑 Seu acesso ao Painel RED 360º (' + sess.email + ')\n\nToque no botão para entrar sem senha. O link funciona UMA vez só e expira sozinho. Não encaminhe esta mensagem.', [[{ text: '🔑 Entrar no painel', url: link }]]);
+            await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'publicado', atualizado_em: new Date().toISOString() });
+            log('link de acesso enviado');
+            return;
+          }
+
             if (acao === 'calcular') {
               if (sess.status !== 'calculando') { log('sessao nao esta calculando:', sess.status); return; }
               let r; try { r = await calcular(sess, carregaCore()); } catch (e) { r = { erro: 'Não consegui processar: ' + (e.message || e) + '\nNada foi publicado. Tente /' + sess.modo + ' de novo.' }; }
-              if (r.erro) { await enviar(chat, '❌ ' + r.erro); await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'erro', atualizado_em: new Date().toISOString() }); return; }
+              if (r.erro) { await enviar(chat, '❌ ' + r.erro); await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'erro', resumo: '❌ ' + r.erro, atualizado_em: new Date().toISOString() }); return; }
               const de_novo = await rest.get('telegram_sessoes', `id=eq.${id}&select=status`);
               if (!de_novo || !de_novo[0] || de_novo[0].status !== 'calculando') { await store.apagar([`pendente/${id}/data.json`, `pendente/${id}/nota-online.json`]); log('cancelado durante o calculo'); return; }
               const m = await enviar(chat, r.texto, botoes(id));
@@ -413,7 +433,7 @@ jobs:
             let r; try { r = await publicar(sess); } catch (e) { r = { erro: 'Não consegui publicar: ' + (e.message || e) }; }
             if (r.erro) {
               await enviar(chat, '❌ ' + r.erro);
-              await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'erro', atualizado_em: new Date().toISOString() });
+              await rest.patch('telegram_sessoes', `id=eq.${id}`, { status: 'erro', resumo: '❌ ' + r.erro, atualizado_em: new Date().toISOString() });
               if (sess.msg_id) await editar(chat, sess.msg_id, (sess.resumo || '') + '\n\n❌ NÃO PUBLICADO');
               return;
             }
