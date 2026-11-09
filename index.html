@@ -3099,13 +3099,15 @@ function renderCampo(){
   <div class="card">
     <input type="search" id="cq" placeholder="Buscar: código, nome, bairro ou rota" value="${esc(S.cq)}" autocomplete="off" enterkeyhint="search">
     ${gsrHTML('c')}
-    <div class="row" style="margin-top:8px"><button class="btn" id="cperto" type="button">📍 Perto de mim</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="cperto" type="button">📍 Perto de mim</button><button class="btn" id="climpa" type="button">✕ Limpar filtros</button></div>
   </div>
   <div id="clista" class="lista"></div>
   <p class="small mut center">${fmtN(BASE.pdvs.length)} PDVs da base do painel (ICE + RED)</p>`;
   let tq=0;$('cq').oninput=e=>{const v0=e.target.value;clearTimeout(tq);tq=setTimeout(()=>{S.cq=v0;S.mostra=40;desenhaLista()},180)};
   const enche=gsrLiga('c',S.cf,()=>{lsSet('r360f-filtro',S.cf);S.mostra=40;desenhaLista()});
-  $('cperto').onclick=()=>{S.cq='';$('cq').value='';Object.assign(S.cf,GSR_VAZIO());enche();lsSet('r360f-filtro',S.cf);S.mostra=40;ULT_LISTA=null;gpsStart();gpsAgora();desenhaLista();toast('Procurando os PDVs mais perto…')};
+  const limpa=()=>{S.cq='';$('cq').value='';Object.assign(S.cf,GSR_VAZIO());enche();lsSet('r360f-filtro',S.cf);S.mostra=40};
+  $('cperto').onclick=()=>{limpa();ULT_LISTA=null;gpsStart();gpsAgora();desenhaLista();toast(GPS.fix?'PDVs do mais perto ao mais longe':'Procurando a sua localização…')};
+  $('climpa').onclick=()=>{limpa();desenhaLista();toast('Filtros limpos')};
   pintaGpsLinha();desenhaLista();
   Promise.all([carregaTarefas(),carregaMinhas()]).then(()=>{if(ABERTO&&S.aba==='campo'){desenhaTarefas();desenhaLista()}})}
 function pintaGpsLinha(){const el=$('gpsLinha');if(!el)return;const f=GPS.fix;
@@ -3116,20 +3118,22 @@ function cardPdv(p,extra){const ft=fotosHoje(p.pv),ta=tarefaAberta(p.pv);
   <div class="l2">${esc(p.pv)} · ${esc(p.canal||'—')} · ${esc(rotaLab(p.sup,p.rota))}${p.bairro?' · '+esc(p.bairro):''}</div>
   ${ft||ta||extra?`<div class="tags">${extra||''}${ta&&!extra?'<span class="tag dest">No seu roteiro</span>':''}${ft?`<span class="tag ok">📷 ${ft} hoje</span>`:''}</div>`:''}</button>`}
 function ligaCards(root){root.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>abrePdv(b.dataset.pv))}
+const cmpN=(a,b)=>String(a||'').localeCompare(String(b||''),'pt',{numeric:true});
+const ordGR=(a,b)=>cmpN(a.ger,b.ger)||cmpN(a.sup,b.sup)||cmpN(a.rota,b.rota)||cmpN(a.nome,b.nome);
 function desenhaLista(){
-  const el=$('clista');if(!el)return;const q=norm(S.cq),f=GPS.fix,filt=gsrTem(S.cf);
+  const el=$('clista');if(!el)return;const q=norm(S.cq),f=GPS.fix,filt=gsrTem(S.cf),tudo=!q&&!filt;
   let L=BASE.pdvs;
   if(filt)L=L.filter(p=>gsrOk(p,S.cf));
   if(q){const ws=q.split(' ');L=L.filter(p=>ws.every(w=>p._h.includes(w)))}
   L.forEach(p=>{p._d=f&&p.lat!=null?distM(f.lat,f.lon,p.lat,p.lon):null});
-  if(!q&&!filt){
-    if(!f){el.innerHTML=`<div class="card vazio">${GPS.err?'Sem GPS: busque o PDV pelo código ou nome, ou escolha a GC / rota.':'Esperando o GPS para mostrar os PDVs perto de você… Se preferir, busque pelo código ou escolha a GC / rota.'}</div>`;return}
-    L=L.filter(p=>p._d!=null).sort((a,b)=>a._d-b._d).slice(0,30);
-    el.innerHTML=`<div class="small mut">PDVs mais perto de você</div>`+L.map(p=>cardPdv(p)).join('');ligaCards(el);return}
-  L=L.slice().sort(f?((a,b)=>(a._d==null)-(b._d==null)||(a._d-b._d)||a.nome.localeCompare(b.nome)):((a,b)=>a.nome.localeCompare(b.nome)));
+  // com GPS: do mais perto ao mais longe; sem GPS: em ordem de GC, supervisão, rota e nome
+  L=L.slice().sort(f?((a,b)=>(a._d==null)-(b._d==null)||(a._d-b._d)||ordGR(a,b)):ordGR);
   const qd=q.replace(/\D/g,'');
-  let html=`<div class="small mut">${fmtN(L.length)} PDV${L.length===1?'':'s'}${f?' · do mais perto ao mais longe':''}</div>`+L.slice(0,S.mostra).map(p=>cardPdv(p)).join('');
-  if(L.length>S.mostra)html+=`<button class="btn" id="cmais" type="button">Mostrar mais ${Math.min(40,L.length-S.mostra)}</button>`;
+  const tit=f?(tudo?`PDVs mais perto de você · ${fmtN(L.length)} na base`:`${fmtN(L.length)} PDV${L.length===1?'':'s'} · do mais perto ao mais longe`)
+            :`${fmtN(L.length)} PDV${L.length===1?'':'s'}${tudo?' · todas as GCs':''} · em ordem de GC e rota`;
+  const semGps=!f?`<div class="small mut">${GPS.err?'Sem GPS agora: a lista não está pela distância.':'Esperando o GPS para pôr a lista pela distância…'}</div>`:'';
+  let html=`<div class="small mut">${tit}</div>${semGps}`+L.slice(0,S.mostra).map(p=>cardPdv(p)).join('');
+  if(L.length>S.mostra)html+=`<button class="btn" id="cmais" type="button">Mostrar mais ${Math.min(40,L.length-S.mostra)} (de ${fmtN(L.length-S.mostra)})</button>`;
   if(!L.length)html=`<div class="card vazio">Nenhum PDV encontrado${filt?' com esse filtro':' na base'}.${qd.length>=4&&qd===q.replace(/\s/g,'')?`<div class="acts" style="justify-content:center"><button class="btn pri" id="cfora" type="button">Fotografar o PDV ${esc(qd)} mesmo assim</button></div>`:''}</div>`;
   el.innerHTML=html;ligaCards(el);
   if($('cmais'))$('cmais').onclick=()=>{S.mostra+=40;desenhaLista()};
@@ -3315,12 +3319,14 @@ function renderRoteiro(){
   <div class="card"><h3 style="margin-top:0">Adicionar PDVs ao roteiro</h3>
     ${gsrHTML('r')}
     <input type="search" id="rQ" placeholder="Buscar: código, nome ou bairro" value="${esc(RT.q)}" autocomplete="off" style="margin-top:8px">
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="rLimpaF" type="button">✕ Limpar filtros</button></div>
     <div id="rRes" class="mini-lista"></div>
   </div>`;
   $('rDia').onchange=e=>{RT.dia=e.target.value||hoje();rCarrega()};
   let te=0;$('rEmail').oninput=e=>{const v0=e.target.value;clearTimeout(te);te=setTimeout(()=>{const v=v0.trim().toLowerCase();if(emailOk(v)&&v!==RT.email){RT.email=v;rCarrega()}},600)};
   $('rEmail').onchange=e=>{const v=e.target.value.trim().toLowerCase();if(emailOk(v)&&v!==RT.email){RT.email=v;rCarrega()}};
-  gsrLiga('r',RT.f,rBusca);
+  const encheR=gsrLiga('r',RT.f,rBusca);
+  $('rLimpaF').onclick=()=>{Object.assign(RT.f,GSR_VAZIO());RT.q='';$('rQ').value='';encheR();rBusca();toast('Filtros limpos')};
   let tq=0;$('rQ').oninput=e=>{const v0=e.target.value;clearTimeout(tq);tq=setTimeout(()=>{RT.q=v0;rBusca()},180)};
   carregaEmails().then(L=>{const d=$('rLista');if(d)d.innerHTML=L.map(x=>`<option value="${esc(x)}">`).join('')});
   rBusca();
@@ -3350,15 +3356,16 @@ function rDesenha(){const el=$('rLst');if(!el)return;const L=RT.lista;
   el.querySelectorAll('[data-rx]').forEach(b=>b.onclick=()=>{RT.lista.splice(+b.dataset.rx,1);RT.sujo=true;rDesenha();rBusca()});
   rLigaBotoes()}
 function rBotoes(){const m=rotaMapsUrl(RT.lista.filter(it=>!rFoto(it.pv)).map(it=>pdvDe(it.pv)));
-  return`<div class="acts">${RT.lista.length>2?'<button class="btn sm" id="rOtim" type="button">🧭 Organizar pelo caminho mais curto</button>':''}${m.url?`<a class="btn sm" href="${m.url}" target="_blank" rel="noopener">🗺 Ver no Google Maps</a>`:''}</div>
+  return`<div class="acts">${RT.lista.length>2?'<button class="btn sm" id="rOtim" type="button">🧭 Organizar pelo caminho mais curto</button>':''}${m.url?`<a class="btn sm" href="${m.url}" target="_blank" rel="noopener">🗺 Ver no Google Maps</a>`:''}${RT.lista.length?'<button class="btn sm danger" id="rLimpa" type="button">✕ Limpar roteiro</button>':''}</div>
   <button class="cta" id="rSalvar" type="button"${RT.sujo?'':' disabled'}>${RT.sujo?'Salvar roteiro':'Roteiro salvo ✓'}</button>`}
-function rLigaBotoes(){if($('rOtim'))$('rOtim').onclick=rOtimiza;if($('rSalvar'))$('rSalvar').onclick=rSalva}
+function rLigaBotoes(){if($('rOtim'))$('rOtim').onclick=rOtimiza;if($('rSalvar'))$('rSalvar').onclick=rSalva;
+  const lb=$('rLimpa');if(lb){let arm=0;lb.onclick=()=>{if(!arm){arm=1;lb.textContent='Toque de novo para tirar todos';setTimeout(()=>{if($('rLimpa')===lb){arm=0;lb.textContent='✕ Limpar roteiro'}},4000);return}
+    RT.lista=[];RT.sujo=true;rDesenha();rBusca();toast('Roteiro vazio. Toque em Salvar roteiro para confirmar.',4000)}}}
 function rMove(i,d){const L=RT.lista,j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];RT.sujo=true;rDesenha()}
 function rAdd(pvs){const tem=new Set(RT.lista.map(x=>x.pv));let n=0;pvs.forEach(pv=>{if(!tem.has(pv)){RT.lista.push({pv,obs:''});tem.add(pv);n++}});if(n){RT.sujo=true;rDesenha();rBusca()}return n}
 function rBusca(){const el=$('rRes');if(!el)return;const q=norm(RT.q);
-  if(!q&&!gsrTem(RT.f)){el.innerHTML='<div class="small mut">Escolha a GC, a supervisão ou a rota, ou busque pelo nome ou código.</div>';return}
   const tem=new Set(RT.lista.map(x=>x.pv)),ws=q?q.split(' '):[];
-  const L=BASE.pdvs.filter(p=>gsrOk(p,RT.f)&&ws.every(w=>p._h.includes(w))&&!tem.has(p.pv)).sort((a,b)=>a.rota.localeCompare(b.rota,'pt',{numeric:true})||a.nome.localeCompare(b.nome));
+  const L=BASE.pdvs.filter(p=>gsrOk(p,RT.f)&&ws.every(w=>p._h.includes(w))&&!tem.has(p.pv)).sort(ordGR);
   el.innerHTML=(L.length?`<div class="row" style="margin:6px 0"><span class="small mut">${fmtN(L.length)} PDV${L.length>1?'s':''} fora do roteiro</span>${L.length<=150?`<button class="btn sm" id="rAddAll" type="button">＋ Adicionar todos (${L.length})</button>`:''}</div>`:'<div class="small mut">Nenhum PDV novo com esse filtro.</div>')
     +L.slice(0,30).map(p=>`<button type="button" data-radd="${esc(p.pv)}">＋ <b>${esc(p.nome||p.pv)}</b> · ${esc(p.pv)} <span class="small mut">· ${esc(rotaLab(p.sup,p.rota))}${p.bairro?' · '+esc(p.bairro):''}${p.ice&&p.prio===1?' · prioridade 1':''}</span></button>`).join('')
     +(L.length>30?`<div class="small mut">Mostrando 30 de ${fmtN(L.length)}. Refine o filtro ou a busca.</div>`:'');
@@ -3406,7 +3413,7 @@ function renderPortal(){
     <div class="grid3"><select id="pLocal" aria-label="Local"><option value="">Todas as fotos</option><option value="ok">Só no PDV</option><option value="fora">Só fora do local</option><option value="sem">Sem GPS</option></select>
       <select id="pBase" aria-label="Base"><option value="todos">Cobertura sobre: todos os PDVs</option><option value="p1">Cobertura sobre: prioridade ICE 1</option><option value="ice">Cobertura sobre: base ICE</option><option value="red">Cobertura sobre: base RED</option></select>
       <input type="search" id="pQ" placeholder="Buscar PDV ou pessoa" value="${esc(P.q)}"></div></details>
-    <div class="row" style="margin-top:8px"><button class="btn sm" id="pAtual" type="button">↻ Atualizar</button><button class="btn sm" id="pCsv" type="button">⬇ Baixar planilha</button><span class="small mut" id="pInfo" style="flex:1 1 200px"></span></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="pAtual" type="button">↻ Atualizar</button><button class="btn sm" id="pLimpa" type="button">✕ Limpar filtros</button><button class="btn sm" id="pCsv" type="button">⬇ Baixar planilha</button><span class="small mut" id="pInfo" style="flex:1 1 200px"></span></div>
   </div>
   <div id="pRes"><div class="card vazio">Carregando as fotos…</div></div>`;
   qa('#pPer [data-per]').forEach(b=>b.onclick=()=>{P.per=b.dataset.per;P.mostra=40;renderPortal()});
@@ -3415,6 +3422,7 @@ function renderPortal(){
   $('pLocal').onchange=e=>{P.local=e.target.value;desenhaPortal()};$('pBase').onchange=e=>{P.base=e.target.value;desenhaPortal()};
   let tq=0;$('pQ').oninput=e=>{const v0=e.target.value;clearTimeout(tq);tq=setTimeout(()=>{P.q=v0;P.mostra=40;desenhaPortal()},200)};
   $('pAtual').onclick=()=>carregaPortal(true);$('pCsv').onclick=baixaCsv;
+  $('pLimpa').onclick=()=>{Object.assign(P,{ger:'',sup:'',rota:'',local:'',base:'todos',q:'',mostra:40});$('pQ').value='';$('pLocal').value='';$('pBase').value='todos';poeSelects();desenhaPortal();toast('Filtros limpos')};
   poeSelects();carregaPortal(true)}
 function poeSelects(){
   const gs=[...new Set(BASE.pdvs.map(p=>p.ger).filter(Boolean))].sort();
