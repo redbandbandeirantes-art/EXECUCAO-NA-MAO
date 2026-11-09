@@ -139,7 +139,9 @@ jobs:
             return tipo === 'bin' ? new Uint8Array(await r.arrayBuffer()) : r.json();
           }
           // baixa as exportações completas (ICE LATAM e RED) do mês atual; nos 5 primeiros dias também as do mês anterior (fechamento)
-          async function baixarDoPortal(ctx) {
+          async function baixarDoPortal(ctx, passo) {
+            passo = passo || (async () => {});
+            await passo(20, 'Entrando no iRED360');
             const tok = await iredLogin();
             const dhp = await iredGet(tok, '/user/dhp-current.json');
             if (!dhp || !dhp.id) throw new Error('o iRED360 não informou o mês atual');
@@ -147,7 +149,9 @@ jobs:
             if (new Date().getDate() <= 5) { const m = +dhp.month === 1 ? 12 : +dhp.month - 1, a = +dhp.month === 1 ? +dhp.year - 1 : +dhp.year; meses.push({ id: +dhp.id - 1, mes: m, ano: a }); }
             const z = n => String(n).padStart(2, '0'), d = new Date(), hoje = `${z(d.getDate())}_${z(d.getMonth() + 1)}_${d.getFullYear()}`;
             const files = [], erros = [];
+            const total = meses.length * 2; let feito = 0;
             for (const M of meses) for (const [t, base] of [[0, 'ICE_LATAM'], [1, 'RED']]) {
+              await passo(30 + Math.round(feito++ / total * 40), `Baixando ${TN[t]} de ${z(M.mes)}/${M.ano}${M.id !== meses[0].id ? ' (mês anterior)' : ''}`);
               const classif = `${base}_${M.ano}`, nome = `iRED360-complete-${hoje}_${classif}${M.id !== meses[0].id ? '_mes-anterior' : ''}.xlsx`;
               try {
                 const bytes = await iredGet(tok, `/red-light/dashboard/report/clients-complete.json?officeId=0&office=null&superiorPosition=null&dhpId=${M.id}&companyId=${IRED_COMPANY}&classification=${classif}`, 'bin');
@@ -268,13 +272,16 @@ jobs:
             const dataTxt = dataBuf.toString('utf8'); const D = JSON.parse(dataTxt);
             const pendente = `pendente/${sess.id}/`;
             if (sess.modo === 'atualizar' && arqs.some(a => a && a.portal)) {
-              const P = await baixarDoPortal(ctx);
+              const passo = async (pct, txt) => { try { await rest.patch('telegram_sessoes', `id=eq.${sess.id}`, { resumo: `⏳ ${pct}|${txt}`, atualizado_em: new Date().toISOString() }); } catch (e) { log('passo:', e.message); } };
+              const P = await baixarDoPortal(ctx, passo);
+              await passo(75, 'Calculando as notas');
               if (!P.files.length) return { erro: 'Não publiquei nada. Não consegui baixar os relatórios do iRED360:\n• ' + (P.erros.join('\n• ') || 'sem dados') };
               const res = ctx.r360Merge(D, P.files), R = res.rel;
               const ignorados = R.avisos.filter(x => /Ignorado/.test(x));
               if (!res.ok || ignorados.length) return { erro: 'Não publiquei nada:\n• ' + R.avisos.join('\n• ') };
               R.avisos.push(...P.erros);
               await store.gravar(pendente + 'data.json', JSON.stringify(res.D));
+              await passo(95, 'Montando o resumo');
               return { texto: '🤖 Baixado agora do iRED360\n\n' + resumoAtualizar(R, sess), base: sha(dataTxt) };
             }
             if (sess.modo === 'atualizar') {
