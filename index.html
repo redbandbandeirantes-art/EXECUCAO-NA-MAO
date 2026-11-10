@@ -1329,14 +1329,16 @@ function simGaugeAplica(key,alvo){const t=S.t,m=S.mes,c=S.sim[t],R=simCalc(t,m),
   S.simGaugeMsg=msg.join(' ');S.simGaugeFoco=key;simRedraw()}
 function simGaugeLiga(box){
   box.querySelectorAll('[data-gauge]').forEach(svg=>{const key=svg.dataset.gauge,o=SIMG[key];if(!o)return;
-    const card=svg.closest('.simg'),txt=card&&card.querySelector('.simg-v');let arr=false,ult=null;
+    const card=svg.closest('.simg'),txt=card&&card.querySelector('.simg-v');let arr=false,ult=null,lim=null;
+    const prende=v=>{if(key!=='nota'||!lim)return v;let lado=null;if(v>lim.hi){v=lim.hi;lado='max'}else if(v<lim.lo){v=lim.lo;lado='min'}
+      const g=$('simGmsg');if(g){if(lado){g.innerHTML=simLimMsg(lim.R,lim,lado);g.hidden=false}else g.hidden=true}return v};
     const valor=e=>{const r=svg.getBoundingClientRect();if(!r.width)return null;const x=(e.clientX-r.left)/r.width*200,y=(e.clientY-r.top)/r.height*108;
       let a=Math.atan2(100-y,x-100);if(a<0)a=x<100?Math.PI:0;return o.min+(1-a/Math.PI)*(o.max-o.min)};
     const mostra=v=>{const G=simGeo(o,v);const ln=svg.querySelector('.g-ag'),pr=svg.querySelector('.g-prog'),ce=svg.querySelector('.g-cen');
       ln.setAttribute('x2',G.nx);ln.setAttribute('y2',G.ny);pr.setAttribute('d',G.prog);pr.style.fill=G.cor;ce.style.fill=G.cor;
       if(txt){txt.textContent=(o.fmt?o.fmt(v):fmt(v,2));txt.style.color=G.cor}const zn=card&&card.querySelector('.simg-z');if(zn){zn.textContent=G.zona;zn.style.color=G.cor}};
-    svg.addEventListener('pointerdown',e=>{e.preventDefault();arr=true;try{svg.setPointerCapture(e.pointerId)}catch(_){}const v=valor(e);if(v!=null){ult=v;mostra(v)}});
-    svg.addEventListener('pointermove',e=>{if(!arr)return;const v=valor(e);if(v!=null){ult=v;mostra(v)}});
+    svg.addEventListener('pointerdown',e=>{e.preventDefault();arr=true;try{svg.setPointerCapture(e.pointerId)}catch(_){}lim=key==='nota'?simLimites(simCalc(S.t,S.mes)):null;let v=valor(e);if(v!=null){v=prende(v);ult=v;mostra(v)}});
+    svg.addEventListener('pointermove',e=>{if(!arr)return;let v=valor(e);if(v!=null){v=prende(v);ult=v;mostra(v)}});
     const solta=()=>{if(!arr)return;arr=false;if(ult!=null)simGaugeAplica(key,ult)};
     svg.addEventListener('pointerup',solta);svg.addEventListener('pointercancel',()=>{arr=false;simRedraw()});
     svg.addEventListener('keydown',e=>{const passo=(o.max-o.min)/70,atual=parseFloat(String(svg.getAttribute('aria-valuenow')).replace(',','.'));if(isNaN(atual))return;
@@ -1459,6 +1461,12 @@ function simPanel(){
   </details>
   `}
   </div>`}
+// limite do que a projeção alcança: nota com os que faltam tirando 0 (mínimo) e 110 (máximo)
+function simLimites(R){if(!R||!R.nF||typeof R.precisa!=='function')return null;const inv=alvo=>{let a=-60,b=220;for(let i=0;i<60;i++){const mm=(a+b)/2,p=R.precisa(mm);if(p==null||isNaN(p))return null;if(p<alvo)a=mm;else b=mm}return(a+b)/2};
+  const hi=inv(110),lo=inv(0);return hi==null||lo==null?null:{lo,hi,R}}
+function simLimMsg(R,lim,lado){const nf=R.nF.toLocaleString('pt-BR'),na=R.A.n.toLocaleString('pt-BR'),parc=R.nFTot&&R.nF<R.nFTot?` Hoje a projeção conta só ${nf} dos ${R.nFTot.toLocaleString('pt-BR')} que faltam: aumente “Quantos dos que faltam vão ser pesquisados” para ir mais alto.`:'';
+  return lado==='max'?`🚫 <b>Não passa de ${fmt(lim.hi,2)}.</b> Mesmo se os ${nf} PDVs que faltam tirarem <b>110</b> (a nota máxima), os ${na} já pesquisados, com nota <b>${fmt(R.A.score,2)}</b>, seguram a nota: essa parte não muda mais neste mês.${parc}`
+    :`🚫 <b>Não cai abaixo de ${fmt(lim.lo,2)}.</b> Mesmo se os ${nf} PDVs que faltam tirarem <b>0</b>, os ${na} já pesquisados (nota ${fmt(R.A.score,2)}) garantem essa nota.`}
 // pedaços que mudam enquanto se arrasta (o resto da tela fica parado)
 function simHeroHTML(R){const t=S.t,m=S.mes,pr=m===PARC,ff=FAIXA(R.final),meta=t===0?R.obj:75,gap=R.score!=null&&meta!=null?R.score-meta:null;
   const ZN=[[60,'Péssimo',1],[70,'Ruim',2],[75,'Regular',3],[110,'Ótimo',4]];
@@ -1467,6 +1475,7 @@ function simHeroHTML(R){const t=S.t,m=S.mes,pr=m===PARC,ff=FAIXA(R.final),meta=t
     <div class="sim-hc"><span>Hoje</span><b class="num">${fmt(R.A.score,2)}</b><em>${R.A.n.toLocaleString('pt-BR')} PDVs${R.B.ate?' · até '+esc(R.B.ate):''}${R.B.fonte==='online'?' · online':''}</em></div>
     <div class="sim-hc"><span>${t===0?'Objetivo '+MESN[m]:'Meta (100% da variável)'}</span><b class="num">${fmt(meta,1)}</b><em>${gap==null?'–':gap>=0?`<span class="up">bate com folga de ${fmt(gap,2)}</span>`:`<span class="dn">faltam ${fmt(-gap,2)} pts</span>`}</em></div>
     <div class="sim-hc"><span>Variável (nota final)</span><b class="num" style="color:${R.final!=null?simCorNota(R.final):'inherit'}">${ff?ff.p+'%':'–'}</b><em>nota final ${fmt(R.final,2)} = média ICE e RED</em></div>
+    ${(()=>{const lim=pr?simLimites(R):null;let gm='';if(lim&&R.score!=null){if(R.score>=lim.hi-0.01)gm=simLimMsg(R,lim,'max');else if(R.score<=lim.lo+0.01)gm=simLimMsg(R,lim,'min')}return`<div class="sim-gmsg" id="simGmsg" role="status"${gm?'':' hidden'}>${gm}</div>`})()}
   </div>`}
 function simPrecHTML(R){if(!R.nF)return'<span class="small">Nenhum PDV que falta entra na simulação.</span>';
   const t=S.t,alvos=[];if(t===0&&R.obj!=null)alvos.push(['objetivo '+fmt(R.obj,1),R.obj]);alvos.push(['75 (100%)',75],['70 (70%)',70]);
@@ -2607,6 +2616,8 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 .simples .sim-hero{display:grid;grid-template-columns:minmax(260px,1.1fr) 2fr;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
 .simples .sim-gbig .simg-t{font-size:18px}.simples .sim-gbig .g-svg{max-width:340px}.simples .sim-gbig .simg-v{font-size:40px}
 .sim-hcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sim-gmsg{grid-column:1/-1;padding:10px 14px;border-radius:10px;border:1px solid color-mix(in srgb,var(--warn) 55%,transparent);background:color-mix(in srgb,var(--warn) 14%,transparent);font-size:13.5px;line-height:1.45}
+.sim-gmsg[hidden]{display:none}
 .sim-hc{background:var(--surface-2);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
 .sim-hc span{font-family:var(--display);font-weight:700;font-size:15px;color:var(--fg-2)}
 .sim-hc b.num{font-family:var(--display);font-size:38px;line-height:1;color:var(--fg)}.sim-hc em{font-style:normal;font-size:12px;color:var(--fg-3)}
