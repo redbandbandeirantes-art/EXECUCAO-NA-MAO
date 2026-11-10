@@ -1204,7 +1204,7 @@ let SIMNUV={carregado:false,meu:null,pend:null};
 async function simSincroniza(){const N=window.r360Nuvem;if(!N)return;
   const x=await N.baixar();if(x&&x.v===1){if(!x.t||(!x.t[0]&&!x.t[1])){SIMON=null;try{localStorage.removeItem(SIMON_K)}catch(e){}}
     else if(!SIMON||!SIMON.em||x.em>=SIMON.em){SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}}}
-  SIMNUV.carregado=true;if(SIM_ADM())SIMNUV.pend=await N.pendentes();else SIMNUV.meu=await N.meuPedido();
+  SIMNUV.carregado=true;if(SIM_ADM()){SIMNUV.pend=await N.pendentes();simBadge(SIMNUV.pend)}else SIMNUV.meu=await N.meuPedido();
   if(S.simOpen)simRedraw()}
 function simOnline(t){return SIMON&&SIMON.m===PARC&&SIMON.t&&SIMON.t[t]&&SIMON.t[t].rows.length?SIMON.t[t]:null}
 async function simImporta(file){
@@ -1596,19 +1596,22 @@ function simBind(){const c=S.sim[S.t];
       const st=await N.status();
       if(st&&st.em>t0){if(st.ok===false)return fim('<span class="dn">Não consegui: '+esc(st.msg||'erro')+'. Nada foi trocado.</span>');if(st.pct!=null&&st.pct>alvo){alvo=st.pct;txt=st.txt||txt;tEtapa=Date.now()}}
       if(st&&st.em>t0&&st.ok===true||i%2===1){const x=await N.baixar();if(x&&x.v===1&&x.em>t0){vivo=false;clearTimeout(tk);const mm=$('simMsg');if(mm)mm.innerHTML=`<div class="sim-pgb"><div class="pb-top"><b>Pronto</b><span>100%</span></div><div class="pbar ok"><i style="width:100%"></i></div></div>`;
-        await new Promise(r=>setTimeout(r,900));SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}S.simFonte='online';SIMNUV.pend=0;simRedraw();const T0=x.t||{};
+        await new Promise(r=>setTimeout(r,900));SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}S.simFonte='online';SIMNUV.pend=0;simBadge(0);simRedraw();const T0=x.t||{};
         return fim(`<span class="up">✅ Nota online atualizada pelo robô e publicada para todos: ${T0[0]?`ICE ${(+T0[0].n).toLocaleString('pt-BR')} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${(+T0[1].n).toLocaleString('pt-BR')} PDVs até ${dmH(T0[1].ate)}`:''}</span>`)}}}
     if(vivo)fim('<span class="dn">O robô não respondeu em 4 minutos (o GitHub pode estar atrasado). Confira o Telegram ou tente de novo.</span>')});
   on('simArq','change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const m=$('simMsg');if(m)m.textContent='Lendo o arquivo…';
-    try{const r=await simImporta(f);let pub='';try{if(m)m.textContent='Publicando para todos…';await window.r360Nuvem.publicar(r.out);pub=' · publicada para todos ✓';SIMNUV.pend=0}catch(e2){console.warn(e2);pub=' · ficou só neste aparelho (não consegui publicar: '+esc(e2.message||e2)+')'}
+    try{const r=await simImporta(f);let pub='';try{if(m)m.textContent='Publicando para todos…';await window.r360Nuvem.publicar(r.out);pub=' · publicada para todos ✓';SIMNUV.pend=0;simBadge(0)}catch(e2){console.warn(e2);pub=' · ficou só neste aparelho (não consegui publicar: '+esc(e2.message||e2)+')'}
       simRedraw();const mm=$('simMsg');const T0=r.out.t;if(mm)mm.innerHTML=`<span class="up">Nota online carregada${pub}: ${T0[0]?`ICE ${T0[0].n} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${T0[1].n} PDVs até ${dmH(T0[1].ate)}`:''}${r.out.classes.length?` · classificação: ${esc(r.out.classes.join(', '))}`:''}${r.semCanal?` · ${r.semCanal} linhas sem canal ficaram de fora`:''}</span>`}
     catch(er){console.error(er);const mm=$('simMsg');if(mm)mm.innerHTML='<span class="dn">Não consegui ler: '+esc(er.message||er)+'</span>'}});
   box.querySelectorAll('[data-simt]').forEach(b=>b.addEventListener('click',()=>{const v=+b.dataset.simt;if(S.t===v)return;S.t=v;buildFilters();render();simRedraw()}));
   box.querySelectorAll('[data-simn],[data-simnota]').forEach(i=>i.addEventListener('change',()=>{const ch=i.dataset.simn??i.dataset.simnota;const o=c.inc[ch]||(c.inc[ch]={n:'',nota:''});if(i.dataset.simn!=null)o.n=i.value;else o.nota=i.value;simRedraw()}));
   box.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();i.blur()}}))}
 
-if(['master','admin','gerente'].includes(window.R360_PERFIL)){const b=document.createElement('button');b.type='button';b.id='simBtn';b.className='rail-btn';b.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h2M12 18h4"/></svg><span class="rail-txt">Simulador</span>';b.title='Abrir o simulador de nota';b.onclick=simAbreDlg;
-  if(window.r360RailAdd)window.r360RailAdd(b,false);else{const h=document.querySelector('header.top');if(h)h.appendChild(b)}}
+if(['master','admin','gerente'].includes(window.R360_PERFIL)){const b=document.createElement('button');b.type='button';b.id='simBtn';b.className='rail-btn';b.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h2M12 18h4"/></svg><span class="rail-txt">Simulador</span><span class="ubadge" id="simBadge" hidden title="Pedidos de atualização da nota online esperando"></span>';b.title='Abrir o simulador de nota';b.onclick=simAbreDlg;
+  if(window.r360RailAdd)window.r360RailAdd(b,false);else{const h=document.querySelector('header.top');if(h)h.appendChild(b)}
+  // bolinha vermelha com os pedidos de atualização da nota online (só ADM Master e Administrador), como a da Gestão
+  if(SIM_ADM()){const conta=async()=>{const N=window.r360Nuvem;if(!N||!N.pendentes)return;const n=await N.pendentes();SIMNUV.pend=n;simBadge(n)};conta();setInterval(conta,60000)}}
+function simBadge(n){const g=$('simBadge');if(!g)return;n=+n||0;g.textContent=n>99?'99+':String(n);g.hidden=!n;const b=$('simBtn');if(b)b.title=n?`Abrir o simulador de nota · ${n} pedido${n>1?'s':''} de atualização esperando`:'Abrir o simulador de nota'}
 // ---------------- TOP OPORTUNIDADES ----------------
 const DIMS={ger:'Gerência',sup:'Supervisão',rota:'Rota',canal:'Segmento'};
 function dimKey(i,dim){return dim==='canal'?C[PM.c[i]]:dim==='rota'?rotaLab(RK[PM.r[i]]):RK[PM.r[i]][dim]}
