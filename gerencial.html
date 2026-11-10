@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ICE · Painel Gerencial</title><meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0f14; --panel:#141923; --panel-2:#1a212d; --line:#283242;
+  --txt:#e8eef6; --muted:#8a98ab; --faint:#5c6878;
+  --brand:#e8131e; --brand-2:#ff4d57;
+  --good:#28d39a; --warn:#f5a623; --crit:#ff5e6c; --info:#4aa8ff;
+  --shadow:0 18px 50px rgba(0,0,0,.45);
+  --r:14px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(232,19,30,.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(40,211,154,.06), transparent 55%),
+    var(--bg);
+  color:var(--txt);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:'Archivo',sans-serif;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:'Archivo',sans-serif;margin:0;letter-spacing:-.02em}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit}
+
+/* ---------- HEADER ---------- */
+header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(12,15,20,.82);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.head-in{max-width:1400px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px}
+.mark{width:42px;height:42px;border-radius:11px;background:linear-gradient(145deg,var(--brand),#a30c14);
+  display:grid;place-items:center;box-shadow:0 6px 18px rgba(232,19,30,.4);flex:none}
+.mark svg{width:24px;height:24px}
+.brand h1{font-size:18px;font-weight:800;line-height:1.05}
+.brand .sub{font-size:11.5px;color:var(--muted);font-weight:500}
+.filters{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap;align-items:center}
+.fld{display:flex;flex-direction:column;gap:3px}
+.fld label{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-family:'IBM Plex Mono',monospace}
+select,.chip-in{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:9px;
+  padding:7px 11px;font-family:inherit;font-size:13px;font-weight:600}
+select:focus,input:focus{outline:2px solid var(--brand-2);outline-offset:1px}
+.userbox{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--panel-2);border:1px solid var(--line);border-radius:30px}
+.avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#3b4a5e,#1d2530);display:grid;place-items:center;font-weight:700;font-size:12px;color:#cdd8e6}
+.userbox .meta{font-size:11px;line-height:1.15}
+.userbox .meta b{font-size:12.5px}
+
+/* ---------- NAV ---------- */
+nav.tabs{max-width:1400px;margin:0 auto;padding:0 28px;display:flex;gap:4px;overflow-x:auto}
+.tab{background:none;border:none;color:var(--muted);padding:13px 16px;font-size:13px;font-weight:600;
+  border-bottom:2px solid transparent;white-space:nowrap;transition:.15s}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--txt);border-bottom-color:var(--brand)}
+
+main{max-width:1400px;margin:0 auto;padding:26px 28px 80px}
+.view{display:none;animation:fade .35s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.sec-h{display:flex;align-items:baseline;gap:14px;margin:6px 0 16px}
+.sec-h h2{font-size:21px;font-weight:800}
+.sec-h .desc{color:var(--muted);font-size:13px}
+.grid{display:grid;gap:16px}
+
+.card{background:linear-gradient(180deg,var(--panel),#11161f);border:1px solid var(--line);
+  border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+.card h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+
+/* ---------- KPI STRIP ---------- */
+.kpis{grid-template-columns:1.4fr 1fr 1fr 1fr 1.2fr}
+.kpi .big{font-size:40px;line-height:1;margin-top:8px}
+.kpi .unit{font-size:18px;color:var(--muted);font-weight:700}
+.kpi .delta{font-size:12px;font-weight:700;margin-top:7px;display:inline-flex;gap:5px;align-items:center}
+.up{color:var(--good)} .down{color:var(--crit)}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+
+/* gauge */
+.gaugewrap{display:flex;align-items:center;gap:18px}
+.gauge{position:relative;width:128px;height:128px;flex:none}
+.gauge .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge .center .v{font-size:30px;line-height:1}
+.gauge .center .l{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+
+/* ---------- SIMULATOR ---------- */
+.sim-grid{grid-template-columns:380px 1fr}
+.seg-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.seg-tab{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600}
+.seg-tab.active{background:var(--brand);border-color:var(--brand);color:#fff}
+.slider-row{margin:15px 0}
+.slider-row .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.slider-row .name{font-weight:600;font-size:13.5px}
+.slider-row .wt{font-size:10.5px;color:var(--faint);font-family:'IBM Plex Mono',monospace;margin-left:6px}
+.slider-row .val{font-family:'Archivo';font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:#fff;border:3px solid var(--brand);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+input[type=range]:disabled{opacity:.35}
+input[type=range]:disabled::-webkit-slider-thumb{border-color:var(--faint)}
+.bar-track{height:8px;border-radius:6px;background:var(--panel-2);overflow:hidden;position:relative}
+.bar-track .now{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .4s ease}
+.bar-track .tgt{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;opacity:.7}
+.row-bar{display:grid;grid-template-columns:120px 1fr 92px;gap:10px;align-items:center;margin:11px 0}
+.row-bar .lab{font-size:12.5px;font-weight:600}
+.row-bar .nums{font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:right}
+.btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--txt);border-radius:9px;padding:9px 14px;font-size:12.5px;font-weight:600;transition:.15s}
+.btn:hover{border-color:var(--brand-2)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.ghost{background:none}
+.assump{background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:12px 14px;margin-top:14px}
+.assump label{display:block;font-size:11px;color:var(--warn);font-weight:700;margin-bottom:6px;letter-spacing:.03em}
+.assump input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 11px;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.assump .hint{font-size:10.5px;color:var(--faint);margin-top:6px}
+
+/* scenario compare */
+.scen{grid-template-columns:repeat(3,1fr)}
+.scen .card{position:relative;overflow:hidden}
+.scen .tagline{position:absolute;top:0;left:0;right:0;height:3px}
+.scen .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.scen .v{font-size:46px;line-height:1;margin:6px 0}
+.scen .meta{font-size:12px;color:var(--muted)}
+.fin-banner{margin-top:16px;background:linear-gradient(110deg,rgba(40,211,154,.12),rgba(74,168,255,.08));
+  border:1px solid rgba(40,211,154,.3);border-radius:var(--r);padding:22px 26px;display:flex;flex-wrap:wrap;gap:30px;align-items:center}
+.fin-banner .blk .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.fin-banner .blk .v{font-size:34px;line-height:1.05;margin-top:4px}
+.fin-banner .blk .v small{font-size:16px;color:var(--muted);font-weight:700}
+
+/* heatmap */
+.heat{width:100%;border-collapse:separate;border-spacing:4px}
+.heat th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:6px;text-align:center}
+.heat th.rowh,.heat td.rowh{text-align:left;font-weight:700;font-size:12.5px;white-space:nowrap;color:var(--txt);text-transform:none;letter-spacing:0;min-width:120px}
+.heat td{text-align:center;border-radius:9px;padding:13px 6px;font-family:'Archivo';font-weight:800;font-size:15px;color:#0c0f14;position:relative}
+.heat td.na{background:var(--panel-2)!important;color:var(--faint)}
+.heat td .pw{display:block;font-size:8.5px;font-weight:600;opacity:.65;font-family:'IBM Plex Mono',monospace}
+.heat td.rowh .pesoseg{display:block;font-size:10px;color:var(--faint);font-weight:500;font-family:'IBM Plex Mono',monospace}
+.legend{display:flex;gap:16px;align-items:center;margin-top:14px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.legend .sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:5px;vertical-align:-2px}
+
+/* ranking */
+.opp{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.opp:last-child{border-bottom:none}
+.opp .rk{font-family:'Archivo';font-weight:800;font-size:18px;color:var(--faint);width:30px;flex:none;text-align:center}
+.opp .info{flex:1;min-width:0}
+.opp .info .t{font-weight:700;font-size:14px}
+.opp .info .s{font-size:12px;color:var(--muted)}
+.opp .mini{flex:1;max-width:200px}
+.opp .imp{text-align:right;flex:none;min-width:150px}
+.opp .imp .pts{font-family:'Archivo';font-weight:800;font-size:18px;color:var(--good)}
+.opp .imp .rs{font-size:11.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+
+/* benchmark + gc */
+.bench-row{display:grid;grid-template-columns:120px 1fr 74px;gap:12px;align-items:center;margin:9px 0}
+.bench-row .nm{font-size:12.5px;font-weight:600}
+.bench-row .nm small{display:block;color:var(--faint);font-size:10px;font-family:'IBM Plex Mono',monospace}
+.gc-row{display:grid;grid-template-columns:60px 1fr 50px;gap:10px;align-items:center;margin:7px 0;font-size:13px}
+.gc-row .gnm{font-weight:700;font-family:'IBM Plex Mono',monospace;font-size:12px}
+
+/* recommendations */
+.rec{display:flex;gap:14px;padding:16px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);margin-bottom:12px}
+.rec .ic{width:40px;height:40px;border-radius:10px;flex:none;display:grid;place-items:center;font-family:'Archivo';font-weight:800;font-size:16px}
+.rec .body{flex:1}
+.rec .body h4{font-size:15px;font-weight:700;margin:0 0 4px;font-family:'Inter'}
+.rec .body p{margin:0;font-size:13px;color:var(--muted)}
+.rec .body .tag{display:inline-block;margin-top:8px;margin-right:6px;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;font-family:'IBM Plex Mono',monospace}
+
+.spark{display:flex;align-items:flex-end;gap:8px;height:70px}
+.spark .b{flex:1;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--brand-2),var(--brand));position:relative;transition:.4s;min-height:6px}
+.spark .b span{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.spark .b em{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:10px;color:var(--faint);font-style:normal}
+
+.note{font-size:11px;color:var(--faint);margin-top:10px;line-height:1.5}
+.foot{text-align:center;color:var(--faint);font-size:11.5px;padding:30px 0 0;border-top:1px solid var(--line);margin-top:40px}
+
+@media(max-width:1080px){.kpis,.scen{grid-template-columns:1fr 1fr}.sim-grid{grid-template-columns:1fr}}
+@media(max-width:680px){.kpis,.scen{grid-template-columns:1fr}.head-in{padding:12px 16px}main{padding:18px 16px 60px}
+  .opp{flex-wrap:wrap}.opp .mini{order:5;max-width:none;width:100%}.heat{font-size:11px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.mesSel{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:6px 10px;font-family:inherit;font-size:12.5px;font-weight:600}
+</style>
+
+
+<style>
+.bar2{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px}
+.bar2 .f{display:flex;flex-direction:column;gap:3px}.bar2 label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-family:'IBM Plex Mono',monospace}
+.bar2 input{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 11px;font-weight:600;font-size:13px}
+.cbtn{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:9px 13px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.cbtn:hover{border-color:var(--brand-2)}.cbtn.go{background:linear-gradient(135deg,var(--brand),#a30c14);color:#fff;border:none}.cbtn.good{background:var(--good);color:#06281e;border:none}.cbtn.sm{padding:5px 9px;font-size:11px}
+.conn{display:flex;align-items:center;gap:8px;font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--faint)}.dot.ok{background:var(--good);box-shadow:0 0 8px var(--good)}.dot.err{background:var(--crit)}.dot.load{background:var(--warn)}
+.kpi6{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kc{background:linear-gradient(180deg,var(--panel),#11161f);border:1px solid var(--line);border-radius:13px;padding:14px 15px}
+.kc .l{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;font-family:'IBM Plex Mono',monospace}
+.kc .v{font-family:'Archivo';font-weight:800;font-size:23px;margin-top:6px;line-height:1}.kc .v small{font-size:12px;color:var(--muted)}.kc .s{font-size:9.5px;color:var(--faint);margin-top:4px}
+.subcard{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}.subcard .x{color:var(--faint);cursor:pointer}
+.subwrap{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;margin-bottom:9px;overflow:hidden}
+.subhead{padding:12px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:10px}
+.subhead:hover{background:rgba(255,255,255,.02)}
+.subhead .x{color:var(--faint);cursor:pointer;font-size:13px}
+.schev{display:inline-block;color:var(--muted);margin-right:9px;font-size:10px;transition:transform .15s}
+.subwrap.open .schev{transform:rotate(90deg)}
+.subdet{display:none;padding:2px 15px 12px 15px;border-top:1px solid var(--line)}
+.subwrap.open .subdet{display:block}
+.subop{margin-top:11px}
+.subop-h{font-size:12px;color:var(--txt);font-weight:700;margin-bottom:5px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.subop-h .mut{color:var(--muted);font-weight:400;font-size:11px}
+.scli{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.scli:last-child{border-bottom:0}
+.scli-n{font-size:11.5px;color:var(--txt)}
+.scli-n .mut{color:var(--faint);font-size:10px}
+.scli-a{font-size:11px;color:var(--good);text-align:right;white-space:nowrap;flex-shrink:0}
+.scli-a .pl{color:var(--muted)}
+.empty{color:var(--faint);font-size:12.5px;text-align:center;padding:18px 0}
+.actrow{display:grid;grid-template-columns:1fr 60px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.actbar{height:7px;border-radius:5px;background:var(--panel-2);overflow:hidden;margin-top:4px}.actbar i{display:block;height:100%;background:linear-gradient(90deg,var(--brand-2),#2b6fd6);border-radius:5px}
+.foldbox{border:1px dashed var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+.foldbox summary{cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:600}
+@media(max-width:1080px){.kpi6{grid-template-columns:repeat(3,1fr)}}
+</style>
+
+</head><body>
+
+<header><div class="head-in">
+  <div class="brand"><div class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M3 17l5-6 4 3 5-7 4 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="6" r="2" fill="#fff"/></svg></div>
+  <div><h1>ICE · Painel Gerencial</h1><div class="sub">Bandeirantes — consolidado ao vivo dos compromissos</div></div></div>
+  <div class="filters"><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">conectando…</span></div><button class="cbtn go" id="presBtn">▶ Apresentação</button></div>
+</div></header>
+<main>
+  <div class="bar2">
+    <span class="eyebrow">As gerências aparecem automaticamente conforme os líderes clicam "Enviar".</span>
+    <select id="mesSel" class="mesSel" title="Mês da base"></select>
+    <button class="cbtn sm" id="reloadBtn" style="margin-left:auto">⟳ Atualizar agora</button>
+    <button class="cbtn sm good" id="xlsBtn">⬇ Exportar Excel do consolidado</button>
+    <button class="cbtn sm" id="clearBtn">Limpar</button>
+  </div>
+  <details class="foldbox"><summary>⚙ Conexão e importação manual (opcional)</summary>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">
+      <div class="f" style="flex:1;min-width:260px"><label>Conexão</label><div style="font-size:12.5px;color:var(--muted);padding:6px 0">Ligado ao banco do painel RED 360º (Supabase). Não precisa de URL.</div></div>
+      <button class="cbtn sm" id="impBtn">⬆ Importar JSON (arquivo)</button>
+      <input type="file" id="fileIn" accept="application/json" multiple style="display:none">
+    </div>
+    <div style="font-size:11px;color:var(--faint);margin-top:8px">A importação por arquivo é só um plano B caso a internet falhe.</div>
+  </details>
+  <div id="view"></div>
+  <div class="foot">Painel Gerencial · lê os compromissos enviados pelos líderes · <span id="baseTxt"></span></div>
+</main>
+<div id="presmode" style="position:fixed;inset:0;background:var(--bg);z-index:300;display:none;flex-direction:column;padding:4vh 5vw"><button class="cbtn" id="presExit" style="position:absolute;top:20px;right:24px">✕ Sair</button><div id="presBody"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script>
+
+/* ===== RED 360º · ligação com o banco do painel (Supabase) — substitui o Google Sheets / Apps Script =====
+   Usa o mesmo login do painel (mesmo site), baixa o data.json atualizado e monta a base do mês. */
+const R360_URL='https://yvweqpydwxhtziepemhi.supabase.co',R360_KEY='sb_publishable_I1Pnft0na_kVQ4-3N1DM-g_vBwG3yAd',R360_PAINEL='./';
+const R360_TAB='plano_reversao';
+const R360_MESF=['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const R360_MESC=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const r360MesNome=m=>R360_MESF[((m-1)%12)+1]+'/'+(2026+Math.floor((m-1)/12));
+const R360_SEG={'C&C':'cc','HIPER':'hi','SUPER':'su','AS 3-4':'m34','AS 1-2':'m12','MERCEARIA':'me','LANCHONETE':'la','BOTECO':'bo','PADARIA':'pa','RESTAURANTE':'re','ADEGA':'ad','CONVENIÊNCIA':'co'};
+const R360_PIL={ATIVACAO:{id:'ativacao',label:'Ativação',perg:'Ativação e ponto extra na meta',comp:'Média',cf:1.0,resp:'Trade Marketing',prazo:45},
+  DISPONIBILIDADE:{id:'disponibilidade',label:'Disponibilidade',perg:'Portfólio prioritário sem ruptura',comp:'Média',cf:1.1,resp:'Vendas',prazo:30},
+  GDM:{id:'gdm',label:'GDM',perg:'Cooler puro, posicionado e abastecido',comp:'Alta',cf:1.6,resp:'Equipamentos / Cooler',prazo:90},
+  PRECO:{id:'preco',label:'Preço',perg:'Preço de gôndola no guideline',comp:'Baixa',cf:0.6,resp:'RGM / Comercial',prazo:20},
+  SOVI:{id:'sovi',label:'SOVI',perg:'Share de gôndola e visibilidade',comp:'Média',cf:1.0,resp:'Merchandising',prazo:45}};
+let R360_SB=null,R360_EU=null,R360_MES=null,R360_MESES=[],R360_D=null,R360_PARC=null;
+
+function r360Tela(html){let o=document.getElementById('r360ov');if(!o){o=document.createElement('div');o.id='r360ov';o.style.cssText='position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;background:var(--bg,#0c0f14);color:var(--txt,#e8eef6);font-family:Inter,system-ui,sans-serif;padding:24px;text-align:center';document.body.appendChild(o)}
+  o.innerHTML='<div style="max-width:460px;display:flex;flex-direction:column;gap:14px;align-items:center">'+html+'</div>';o.style.display='flex'}
+function r360Some(){const o=document.getElementById('r360ov');if(o)o.style.display='none'}
+function r360Erro(msg,link){r360Tela(`<div style="font-size:40px">⚠️</div><div style="font-size:16px;font-weight:600">${msg}</div>${link?`<a href="${R360_PAINEL}" style="color:#fff;background:#e8131e;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:700">Abrir o painel e entrar</a>`:''}`)}
+
+async function r360Inicia(perfisOk){
+  r360Tela('<div style="font-size:15px;color:var(--muted,#8a98ab)">Carregando a base do painel…</div><div style="width:220px;height:6px;border-radius:3px;background:var(--panel-2,#1a212d);overflow:hidden"><i id="r360bar" style="display:block;height:100%;width:8%;background:#e8131e;transition:width .3s"></i></div>');
+  const bar=p=>{const b=document.getElementById('r360bar');if(b)b.style.width=p+'%'};
+  if(!window.supabase){r360Erro('Não consegui carregar a conexão. Confira a internet e recarregue.');return false}
+  R360_SB=window.supabase.createClient(R360_URL,R360_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  const {data:ss}=await R360_SB.auth.getSession();
+  if(!ss||!ss.session){r360Erro('Entre no painel RED 360º primeiro. Depois volte para esta página.',true);return false}
+  const email=String(ss.session.user.email||'').toLowerCase();
+  const {data:pf}=await R360_SB.from('perfis').select('perfil,nome').eq('email',email).maybeSingle();
+  const perfil=String(pf&&pf.perfil||'').toLowerCase();
+  if(!perfisOk.includes(perfil)){r360Erro('Seu perfil não tem acesso a esta página. Fale com o administrador.',false);return false}
+  R360_EU={email,perfil,nome:(pf&&pf.nome)||''};bar(25);
+  const {data:su,error}=await R360_SB.storage.from('dados').createSignedUrl('data.json',120);
+  if(error){r360Erro('Não consegui baixar a base do painel: '+error.message,false);return false}
+  const r=await fetch(su.signedUrl,{cache:'no-store'});if(!r.ok){r360Erro('Não consegui baixar a base do painel (HTTP '+r.status+').',false);return false}
+  bar(70);R360_D=await r.json();bar(90);
+  const D=R360_D;R360_PARC=D.meses[D.meses.length-1];
+  const temICE=m=>{for(let i=0;i<D.pm.t.length;i++)if(D.pm.t[i]===0&&D.pm.m[i]===m)return true;return false};
+  R360_MESES=D.meses.filter(temICE).slice(-3).reverse();
+  const q=+new URLSearchParams(location.search).get('mes');R360_MES=R360_MESES.includes(q)?q:R360_MESES[0];
+  return true}
+
+// monta a base no MESMO formato do simulador antigo (LD), a partir do data.json do painel
+function r360MontaLD(D,m){
+  const PM=D.pm,C=D.canais,K=D.kpis,P=D.peso.ICE,N=PM.t.length;
+  const Lst=new Int32Array(N+1).fill(-1);{const Lr=[];let acc=0;for(const d of D.L.row){acc+=d;Lr.push(acc)}for(let i=Lr.length-1;i>=0;i--)Lst[Lr[i]]=i;let nx=Lr.length;Lst[N]=Lr.length;for(let r=N-1;r>=0;r--){if(Lst[r]<0)Lst[r]=nx;nx=Lst[r]}}
+  const ice=segs=>{let num=0,den=0;for(const k in segs){const s=segs[k];if(s.poss<=0)continue;den+=s.peso;num+=s.peso*(s.real/s.poss)}return den>0?Math.min(100,num/den*100):0};
+  const iceRev=(segs,rev)=>{let num=0,den=0;for(const k in segs){const s=segs[k];if(s.poss<=0)continue;den+=s.peso;num+=s.peso*((s.real+((rev&&rev[k])||0))/s.poss)}return den>0?Math.min(100,num/den*100):0};
+  const cid={};(D.base||[]).forEach(b=>{if(!b.ger||!b.cid)return;const o=cid[b.ger]||(cid[b.ger]={});o[b.cid]=(o[b.cid]||0)+1});
+  const nomeG=g=>{const o=cid[g];if(o){const c=Object.entries(o).sort((a,b)=>b[1]-a[1])[0][0];return c.replace(/\S+/g,w=>w.length<=2&&w!==w.toUpperCase()?w:w.charAt(0)+w.slice(1).toLowerCase()).replace(/\b(De|Da|Do|Dos|Das|E)\b/g,s=>s.toLowerCase())}return (D.gerN&&D.gerN[g])||g};
+  const rowsG={},band={};let pesq=0;
+  for(let i=0;i<N;i++){if(PM.t[i]!==0||PM.m[i]!==m)continue;pesq++;const g=D.rk[PM.r[i]].split('|')[0];(rowsG[g]=rowsG[g]||[]).push(i);
+    const k=R360_SEG[C[PM.c[i]]]||('c'+PM.c[i]);const b=band[k]||(band[k]={peso:(P[C[PM.c[i]]]||0)/100,poss:0,real:0});b.poss+=PM.poss[i];b.real+=PM.real[i]}
+  const gcs={};
+  Object.keys(rowsG).sort().forEach(g=>{const rows=rowsG[g],segs={};let pt=0,pd=0;
+    rows.forEach(i=>{const k=R360_SEG[C[PM.c[i]]]||('c'+PM.c[i]);const s=segs[k]||(segs[k]={peso:(P[C[PM.c[i]]]||0)/100,poss:0,real:0});s.poss+=PM.poss[i];s.real+=PM.real[i];pt+=PM.poss[i];pd+=Math.max(0,PM.poss[i]-PM.real[i])});
+    const base=ice(segs);const opps=[];
+    K.forEach((nm,k)=>{const cfg=R360_PIL[nm];if(!cfg)return;let perd=0,poss=0,real=0;const pdvs=[],qt={};
+      rows.forEach(i=>{const kp=PM.kp[k][i],kr=PM.kr[k][i];poss+=kp;real+=kr;const pe=kp-kr;
+        for(let j=Lst[i];j<Lst[i+1];j++){const q=D.L.q[j];if(D.qKpi[q]===k)qt[q]=(qt[q]||0)+D.L.v[j]}
+        if(pe>0.0001){const rk=D.rk[PM.r[i]].split('|');pdvs.push({cod:D.pdv[PM.p[i]],n:D.pdvNome[PM.p[i]]||'',c:C[PM.c[i]],rt:rk[2],sv:rk[1],pe:Math.round(pe*10)/10,po:Math.round(kp*10)/10,sg:R360_SEG[C[PM.c[i]]]||('c'+PM.c[i])});perd+=pe}});
+      if(!pdvs.length)return;pdvs.sort((a,b)=>b.pe-a.pe);
+      const rev={};pdvs.forEach(p=>rev[p.sg]=(rev[p.sg]||0)+p.pe);const ganho=iceRev(segs,rev)-base;
+      const tq=Object.entries(qt).sort((a,b)=>b[1]-a[1])[0];
+      opps.push({pilar:cfg.id,pilarLabel:cfg.label,pergunta:cfg.perg,qreal:tq?String(D.q[tq[0]]).replace(/\t/g,' ').trim():'',perdidos:Math.round(perd),possiveis:Math.round(poss),ganho:Math.round(ganho*100)/100,comp:cfg.comp,cf:cfg.cf,resp:cfg.resp,prazo:cfg.prazo,
+        score:poss?Math.round(real/poss*1000)/10:0,efic:Math.round(ganho/cfg.cf*10000)/10000,pdvs,nPdv:pdvs.length})});
+    opps.sort((a,b)=>b.efic-a.efic);
+    gcs[g]={nome:nomeG(g),ice:Math.round(base*10)/10,clientes:rows.length,poss_total:Math.round(pt),perdidos_total:Math.round(pd),segs,opps}});
+  const trend=D.meses.slice(-6).map(mm=>{const b={};for(let i=0;i<N;i++){if(PM.t[i]!==0||PM.m[i]!==mm)continue;const k=R360_SEG[C[PM.c[i]]]||'x';const o=b[k]||(b[k]={peso:(P[C[PM.c[i]]]||0)/100,poss:0,real:0});o.poss+=PM.poss[i];o.real+=PM.real[i]}return{mes:R360_MESC[((mm-1)%12)+1],ice:Math.round(ice(b)*10)/10}}).filter(x=>x.ice>0);
+  // meta da rede = objetivo ICE BAND do mes (aba OBJETIVO), ponderado pelos canais com pesquisa
+  let w=0,s=0;for(const k in band){const cn=Object.keys(R360_SEG).find(c=>R360_SEG[c]===k);const o=cn&&D.obj&&D.obj[cn];if(o&&o[m]!=null&&band[k].peso>0&&band[k].poss>0){w+=band[k].peso;s+=band[k].peso*o[m]}}
+  return{gcs,pesquisados:pesq,band_ice:Math.round(ice(band)*10)/10,meta_band:w?Math.round(s/w*10)/10:95,trend}}
+
+function r360MesSelect(id){const s=document.getElementById(id);if(!s)return;
+  s.innerHTML=R360_MESES.map(m=>`<option value="${m}" ${m===R360_MES?'selected':''}>${r360MesNome(m)}${m===R360_PARC?' (parcial)':''}</option>`).join('');
+  s.onchange=()=>{const u=new URL(location.href);u.searchParams.set('mes',s.value);location.href=u.toString()}}
+
+// grava o compromisso do líder no banco (um por gerência por mês; o último envio vale)
+async function r360Envia(p){
+  const itens=[];(p.acoes||[]).forEach(a=>(a.clientes||[]).forEach(c=>itens.push({k:R360_D.kpis.indexOf(Object.keys(R360_PIL).find(n=>R360_PIL[n].id===a.pilar)),pilar:a.pilar,pv:c.cod,nome:c.nome,canal:c.canal,rota:c.rota,pts:c.pontos,acao:c.acao,prazo:+c.prazo||null,resp:c.resp||'',obs:c.obs||''})));
+  const by={};itens.forEach(x=>by[x.acao]=(by[x.acao]||0)+1);
+  const row={mes:R360_MES,ger:p.gerencia,ger_nome:p.nome||null,lider:p.lider||null,meta:p.meta,ice_base:p.iceBase,ice_sim:p.iceSim,pontos:p.pontosRevertidos,perdidos:p.perdidosTotal,pdvs:p.clientes,
+    n_clientes:p.clientesComAcao,n_sem:p.clientesSemReversao,resumo:by,itens,payload:Object.assign({},p,{mes:R360_MES})};
+  const {error}=await R360_SB.from(R360_TAB).upsert(row,{onConflict:'mes,ger'});
+  if(error){const m=String(error.message||error);throw new Error(/plano_reversao|payload|schema cache|does not exist/i.test(m)?'falta rodar o supabase_plano_reversao.sql no Supabase':m)}
+  return true}
+// lê os compromissos do mês (para o painel gerencial e para o líder continuar de onde parou)
+async function r360Lista(){const {data,error}=await R360_SB.from(R360_TAB).select('ger,payload,atualizado_em,lider,email').eq('mes',R360_MES);
+  if(error){const m=String(error.message||error);throw new Error(/plano_reversao|payload|schema cache|does not exist/i.test(m)?'falta rodar o supabase_plano_reversao.sql':m)}
+  return (data||[]).filter(r=>r.payload&&r.payload.gerencia).map(r=>Object.assign({},r.payload,{_em:r.atualizado_em,_email:r.email}))}
+
+(async()=>{if(!(await r360Inicia(['master','admin'])))return;
+  window.__LD=r360MontaLD(R360_D,R360_MES);
+  document.getElementById('baseTxt').textContent='base '+r360MesNome(R360_MES)+(R360_MES===R360_PARC?' (parcial)':'')+'.';
+  r360MesSelect('mesSel');r360Some();__inicia();})();
+window.__inicia=function(){
+
+const LD=window.__LD;const GCS=LD.gcs;const META=LD.meta_band;
+// ===== CONEXÃO (Apps Script) — cole a URL /exec aqui; o mediador também pode colar na tela =====
+const SYNC_URL="supabase"; // agora lê do banco do painel (Supabase)
+// =============================================================================================
+const nf=(n,d=1)=>(n==null||isNaN(n))?'—':Number(n).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const ptos=n=>nf(n,0)+' pts';
+const colorFor=s=>s>=85?'var(--good)':s>=70?'var(--warn)':'var(--crit)';
+function gauge(val,sz,target){const R=sz/2-sz*0.08,C=2*Math.PI*R,f=Math.max(0,Math.min(1,val/100)),col=colorFor(val);const tx=target!=null?`<circle cx="${sz/2}" cy="${sz/2}" r="${R}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="3 ${C}" transform="rotate(${-90+target*3.6} ${sz/2} ${sz/2})" opacity=".6"/>`:'';return `<svg viewBox="0 0 ${sz} ${sz}" style="width:100%;height:100%"><circle cx="${sz/2}" cy="${sz/2}" r="${R}" fill="none" stroke="var(--panel-2)" stroke-width="${sz*0.09}"/><circle cx="${sz/2}" cy="${sz/2}" r="${R}" fill="none" stroke="${col}" stroke-width="${sz*0.09}" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-f)}" transform="rotate(-90 ${sz/2} ${sz/2})" style="transition:.6s"/>${tx}</svg>`;}
+
+let subs={};
+let openSubs=new Set();
+function urlEff(){return SYNC_URL;}
+(function(){try{const r=localStorage.getItem('iceConsolV5_'+R360_MES);if(r)subs=JSON.parse(r)||{};}catch(e){}})();
+function saveLocal(){try{localStorage.setItem('iceConsolV5_'+R360_MES,JSON.stringify(subs));}catch(e){}}
+function setConn(state,extra){const d=document.getElementById('dot'),t=document.getElementById('connTxt');if(!d)return;d.className='dot '+(state||'');const n=Object.keys(subs).length;
+  t.textContent=state==='ok'?`conectado · ${n} gerências · ${new Date().toLocaleTimeString('pt-BR')}`:state==='load'?'atualizando…':state==='err'?(extra||'sem conexão — use importação manual'):'aguardando configuração';}
+
+async function loadCloud(silent){const url=urlEff();if(!url){setConn('');return;}if(!silent)setConn('load');
+  try{const arr=await r360Lista();const novo={};arr.forEach(d=>{if(d&&d.gerencia)novo[d.gerencia]=d;});subs=novo;saveLocal();render();setConn('ok');}
+  catch(e){setConn('err',e&&e.message?'sem conexão: '+e.message:'sem conexão');}}
+try{const bc=new BroadcastChannel('ice_consolida');bc.onmessage=e=>{const d=e.data;if(d&&(d.tipo||'').startsWith('ice_lider')){subs[d.gerencia]=d;saveLocal();render();}};}catch(e){}
+
+function consol(){let cli=0,recup=0,perdTot=0,cliAc=0,cliSem=0,metas=0;const agg={};
+  Object.keys(GCS).forEach(g=>{const Gc=GCS[g];cli+=Gc.clientes;perdTot+=Gc.perdidos_total;const s=subs[g];
+    if(s){recup+=(s.pontosRevertidos||0);cliAc+=(s.clientesComAcao||0);cliSem+=(s.clientesSemReversao||0);if(s.metaAtingida)metas++;}
+    const sr=(s&&s.segRev)||{};const segs=Gc.segs||{};
+    for(const k in segs){const x=segs[k];if(!agg[k])agg[k]={peso:x.peso,poss:0,real:0};agg[k].poss+=x.poss;agg[k].real+=x.real+(sr[k]||0);}});
+  let num=0,den=0;for(const k in agg){const a=agg[k];if(a.poss<=0)continue;den+=a.peso;num+=a.peso*(a.real/a.poss);}
+  const ice=den>0?Math.min(100,num/den*100):0;
+  return{ice,recup,perdTot,cliAc,cliSem,metas,nSub:Object.keys(subs).length};}
+function redeAcoes(){const m={};Object.values(subs).forEach(s=>(s.acoes||[]).forEach(a=>{const r=a.acoesResumo||{};for(const k in r)m[k]=(m[k]||0)+r[k];}));return Object.entries(m).sort((a,b)=>b[1]-a[1]);}
+
+function render(){const t=consol();const v=document.getElementById('view');
+  const ranked=Object.keys(GCS).map(g=>{const s=subs[g];return{g,nome:GCS[g].nome,ice:s?s.iceSim:GCS[g].ice,sub:!!s,cliAc:s?s.clientesComAcao:0,meta:s?s.metaAtingida:false};}).sort((a,b)=>b.ice-a.ice);
+  const k=(l,val,s,c)=>`<div class="kc"><div class="l">${l}</div><div class="v" ${c?`style="color:${c}"`:''}>${val}</div><div class="s">${s||''}</div></div>`;
+  const ra=redeAcoes();const maxA=ra.length?ra[0][1]:1;
+  v.innerHTML=`<div class="kpi6">
+    ${k('ICE consolidado',nf(t.ice)+'<small>%</small>','ponderado por segmento (rede)',colorFor(t.ice))}
+    ${k('Gerências enviadas',t.nSub+'<small>/'+Object.keys(GCS).length+'</small>','líderes que enviaram','var(--info)')}
+    ${k('Clientes com ação',nf(t.cliAc,0),'reversões assumidas','var(--good)')}
+    ${k('Pontos revertidos',ptos(t.recup),'de '+ptos(t.perdTot),'var(--good)')}
+    ${k('Sem reversão',nf(t.cliSem,0),'clientes não revertidos','var(--crit)')}
+    ${k('Metas atingidas',t.metas+'<small>/'+t.nSub+'</small>','gerências na meta','var(--good)')}
+  </div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:16px">
+    <div class="card"><h3>Ranking das gerências <span class="eyebrow">ICE simulado · ✓ enviou</span></h3><div id="rank" style="margin-top:10px"></div></div>
+    <div class="card"><h3>Ações de reversão da rede <span class="eyebrow">soma de todos os líderes</span></h3><div id="acoes" style="margin-top:8px">${ra.length?ra.map(([a,n])=>`<div class="actrow"><div>${a}<div class="actbar"><i style="width:${n/maxA*100}%"></i></div></div><div class="num" style="text-align:right">${n}</div></div>`).join(''):'<div class="empty">Aguardando envios dos líderes.</div>'}</div></div>
+  </div>
+  <div class="card"><h3>Envios recebidos</h3><div id="subList" style="margin-top:8px"></div></div>`;
+  const mx=Math.max(...ranked.map(r=>r.ice));
+  document.getElementById('rank').innerHTML=ranked.map((r,i)=>`<div class="gc-row" style="grid-template-columns:30px 1fr 110px 46px"><div class="gnm">${i+1}.</div><div><div style="font-size:12.5px;font-weight:700">${r.g} ${r.sub?'<span style=color:var(--good)>✓</span>':'<span style=color:var(--faint)>·</span>'}</div><div class="bar-track" style="height:8px;margin-top:4px"><div class="now" style="width:${r.ice/mx*100}%;background:${colorFor(r.ice)}"></div></div></div><div style="font-size:10.5px;color:var(--muted);text-align:right">${r.sub?r.cliAc+' clientes':'aguardando'}</div><div class="num" style="text-align:right;color:${colorFor(r.ice)}">${nf(r.ice)}</div></div>`).join('');
+  const arr=Object.values(subs);
+  const detHTML=(s)=>((s.acoes||[]).length?(s.acoes||[]).map(o=>`<div class="subop"><div class="subop-h"><span>${o.label||o.pilar}</span><span class="mut">${o.nClientes||(o.clientes||[]).length} clientes · ${nf(o.pontos||0,0)} pts · +${nf(o.ganhoEfetivo||0,2)} ICE</span></div>${(o.clientes||[]).map(c=>`<div class="scli"><div class="scli-n">${c.nome||c.cod} <span class="mut">${c.cod||''}${c.canal?' · '+c.canal:''}${c.rota?' · '+c.rota:''}</span></div><div class="scli-a">${nf(c.pontos||0,0)} pts · <b>${c.acao||''}</b>${c.prazo?`<span class="pl"> · ${c.prazo}d</span>`:''}${c.resp?`<span class="pl"> · ${c.resp}</span>`:''}${c.obs?`<span class="pl"> · ${c.obs}</span>`:''}</div></div>`).join('')}</div>`).join(''):'<div style="padding:10px 0;color:var(--faint);font-size:11px">Sem clientes revertidos neste envio.</div>');
+  document.getElementById('subList').innerHTML=arr.length?arr.map(s=>{const op=openSubs.has(s.gerencia);return `<div class="subwrap${op?' open':''}"><div class="subhead" data-tg="${s.gerencia}"><div><span class="schev">▶</span><b>${s.gerencia}</b> <span style="color:var(--muted);font-size:11px">— ${s.lider}</span><div style="font-size:11px;color:var(--muted);margin-top:2px;margin-left:19px">ICE ${nf(s.iceBase)}→${nf(s.iceSim)} · ${s.clientesComAcao||0} clientes · ${nf(s.pontosRevertidos||0,0)} pts · ${(s.clientesSemReversao||0)} sem reversão · ${s.metaAtingida?'<span style=color:var(--good)>meta ✓</span>':'<span style=color:var(--crit)>meta ✗</span>'}</div></div><div class="x" data-g="${s.gerencia}">✕</div></div><div class="subdet">${detHTML(s)}</div></div>`;}).join(''):'<div class="empty">Nenhum envio ainda. Assim que um líder clicar "Enviar", aparece aqui.</div>';
+  document.querySelectorAll('#subList .subhead').forEach(h=>h.onclick=(e)=>{if(e.target.closest('.x'))return;const g=h.dataset.tg;if(openSubs.has(g))openSubs.delete(g);else openSubs.add(g);h.parentElement.classList.toggle('open');});
+  document.querySelectorAll('#subList .x').forEach(x=>x.onclick=(e)=>{e.stopPropagation();delete subs[x.dataset.g];openSubs.delete(x.dataset.g);saveLocal();render();});
+}
+function renderPres(){const t=consol();const ranked=Object.keys(GCS).map(g=>{const s=subs[g];return{g,nome:GCS[g].nome,ice:s?s.iceSim:GCS[g].ice,sub:!!s};}).sort((a,b)=>b.ice-a.ice).slice(0,6);const ra=redeAcoes().slice(0,5);
+  document.getElementById('presBody').innerHTML=`<div style="display:flex;gap:5vw;align-items:center;justify-content:center;flex-wrap:wrap"><div style="width:min(32vh,300px);height:min(32vh,300px);position:relative">${gauge(t.ice,300,META)}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><div class="num" style="font-size:clamp(38px,7vw,84px);color:${colorFor(t.ice)}">${nf(t.ice)}</div><div class="eyebrow">ICE consolidado</div></div></div>
+  <div style="display:flex;flex-direction:column;gap:2.4vh"><div><div class="eyebrow">Clientes com ação</div><div class="num" style="font-size:clamp(30px,5vw,60px);color:var(--good)">${nf(t.cliAc,0)}</div></div><div><div class="eyebrow">Pontos revertidos</div><div class="num" style="font-size:clamp(30px,5vw,60px);color:var(--good)">${ptos(t.recup)}</div></div><div><div class="eyebrow">Sem reversão · metas</div><div class="num" style="font-size:clamp(26px,4vw,50px)"><span style="color:var(--crit)">${nf(t.cliSem,0)}</span> · <span style="color:var(--good)">${t.metas}✓</span></div></div></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4vw;margin-top:4vh"><div><h3 style="color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:clamp(12px,1.5vw,18px)">Ranking</h3>${ranked.map((r,i)=>`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:7px 0;font-size:clamp(13px,1.6vw,19px)"><span>${i+1}. ${r.g} ${r.sub?'✓':''}</span><b style="color:${colorFor(r.ice)}">${nf(r.ice)}</b></div>`).join('')}</div>
+  <div><h3 style="color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:clamp(12px,1.5vw,18px)">Ações da rede</h3>${ra.length?ra.map(([a,n])=>`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:7px 0;font-size:clamp(12px,1.4vw,17px)"><span>${a}</span><b>${n}</b></div>`).join(''):'<div style="color:var(--faint)">—</div>'}</div></div>`;}
+
+function exportConsol(){const rows=[['Gerência','Cidade','Líder','Pilar','Código (PV)','Cliente','Canal','Rota','Supervisão','Pontos','Ação de reversão','Prazo (dias)','Responsável','Observação']];
+  Object.values(subs).forEach(s=>(s.acoes||[]).forEach(a=>(a.clientes||[]).forEach(c=>rows.push([s.gerencia,s.nome,s.lider,a.label,c.cod||'',c.nome,c.canal,c.rota,'',nf(c.pontos,0),c.acao,c.prazo,c.resp||'',c.obs||'']))));
+  const t=consol();rows.push([]);rows.push(['CONSOLIDADO DA REDE']);rows.push(['ICE consolidado',nf(t.ice)]);rows.push(['Gerências enviadas',t.nSub]);rows.push(['Clientes com ação',t.cliAc]);rows.push(['Pontos revertidos',nf(t.recup,0)]);rows.push(['Clientes sem reversão',t.cliSem]);
+  rows.push([]);rows.push(['AÇÕES DA REDE']);redeAcoes().forEach(([a,n])=>rows.push([a,n]));
+  const csv='\ufeff'+rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='consolidado_ICE.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);}
+
+function addFile(d){if(d&&d.gerencia&&(d.tipo||'').startsWith('ice_lider')){subs[d.gerencia]=d;saveLocal();render();}}
+document.getElementById('impBtn').onclick=()=>document.getElementById('fileIn').click();
+document.getElementById('fileIn').onchange=e=>{[...e.target.files].forEach(f=>{const rd=new FileReader();rd.onload=()=>{try{addFile(JSON.parse(rd.result));}catch(err){alert('Erro: '+f.name);}};rd.readAsText(f);});};
+document.getElementById('reloadBtn').onclick=()=>loadCloud(false);
+document.getElementById('xlsBtn').onclick=exportConsol;
+document.getElementById('clearBtn').onclick=()=>{if(confirm('Limpar a tela? (não apaga nada no banco; os envios voltam no próximo refresh)')){subs={};saveLocal();render();}};
+document.getElementById('presBtn').onclick=()=>{document.getElementById('presmode').style.display='flex';renderPres();};
+document.getElementById('presExit').onclick=()=>document.getElementById('presmode').style.display='none';
+render();loadCloud(false);
+setInterval(()=>loadCloud(true),15000);
+window.__dbg={subs:()=>subs,consol};
+}
+</script>
+
+</body></html>

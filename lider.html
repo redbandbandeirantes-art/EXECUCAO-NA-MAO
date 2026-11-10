@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ICE · Simulador do Líder</title><meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0f14; --panel:#141923; --panel-2:#1a212d; --line:#283242;
+  --txt:#e8eef6; --muted:#8a98ab; --faint:#5c6878;
+  --brand:#e8131e; --brand-2:#ff4d57;
+  --good:#28d39a; --warn:#f5a623; --crit:#ff5e6c; --info:#4aa8ff;
+  --shadow:0 18px 50px rgba(0,0,0,.45);
+  --r:14px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(232,19,30,.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(40,211,154,.06), transparent 55%),
+    var(--bg);
+  color:var(--txt);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:'Archivo',sans-serif;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:'Archivo',sans-serif;margin:0;letter-spacing:-.02em}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit}
+
+/* ---------- HEADER ---------- */
+header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(12,15,20,.82);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.head-in{max-width:1400px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px}
+.mark{width:42px;height:42px;border-radius:11px;background:linear-gradient(145deg,var(--brand),#a30c14);
+  display:grid;place-items:center;box-shadow:0 6px 18px rgba(232,19,30,.4);flex:none}
+.mark svg{width:24px;height:24px}
+.brand h1{font-size:18px;font-weight:800;line-height:1.05}
+.brand .sub{font-size:11.5px;color:var(--muted);font-weight:500}
+.filters{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap;align-items:center}
+.fld{display:flex;flex-direction:column;gap:3px}
+.fld label{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-family:'IBM Plex Mono',monospace}
+select,.chip-in{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:9px;
+  padding:7px 11px;font-family:inherit;font-size:13px;font-weight:600}
+select:focus,input:focus{outline:2px solid var(--brand-2);outline-offset:1px}
+.userbox{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--panel-2);border:1px solid var(--line);border-radius:30px}
+.avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#3b4a5e,#1d2530);display:grid;place-items:center;font-weight:700;font-size:12px;color:#cdd8e6}
+.userbox .meta{font-size:11px;line-height:1.15}
+.userbox .meta b{font-size:12.5px}
+
+/* ---------- NAV ---------- */
+nav.tabs{max-width:1400px;margin:0 auto;padding:0 28px;display:flex;gap:4px;overflow-x:auto}
+.tab{background:none;border:none;color:var(--muted);padding:13px 16px;font-size:13px;font-weight:600;
+  border-bottom:2px solid transparent;white-space:nowrap;transition:.15s}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--txt);border-bottom-color:var(--brand)}
+
+main{max-width:1400px;margin:0 auto;padding:26px 28px 80px}
+.view{display:none;animation:fade .35s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.sec-h{display:flex;align-items:baseline;gap:14px;margin:6px 0 16px}
+.sec-h h2{font-size:21px;font-weight:800}
+.sec-h .desc{color:var(--muted);font-size:13px}
+.grid{display:grid;gap:16px}
+
+.card{background:linear-gradient(180deg,var(--panel),#11161f);border:1px solid var(--line);
+  border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+.card h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+
+/* ---------- KPI STRIP ---------- */
+.kpis{grid-template-columns:1.4fr 1fr 1fr 1fr 1.2fr}
+.kpi .big{font-size:40px;line-height:1;margin-top:8px}
+.kpi .unit{font-size:18px;color:var(--muted);font-weight:700}
+.kpi .delta{font-size:12px;font-weight:700;margin-top:7px;display:inline-flex;gap:5px;align-items:center}
+.up{color:var(--good)} .down{color:var(--crit)}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+
+/* gauge */
+.gaugewrap{display:flex;align-items:center;gap:18px}
+.gauge{position:relative;width:128px;height:128px;flex:none}
+.gauge .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge .center .v{font-size:30px;line-height:1}
+.gauge .center .l{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+
+/* ---------- SIMULATOR ---------- */
+.sim-grid{grid-template-columns:380px 1fr}
+.seg-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.seg-tab{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600}
+.seg-tab.active{background:var(--brand);border-color:var(--brand);color:#fff}
+.slider-row{margin:15px 0}
+.slider-row .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.slider-row .name{font-weight:600;font-size:13.5px}
+.slider-row .wt{font-size:10.5px;color:var(--faint);font-family:'IBM Plex Mono',monospace;margin-left:6px}
+.slider-row .val{font-family:'Archivo';font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:#fff;border:3px solid var(--brand);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+input[type=range]:disabled{opacity:.35}
+input[type=range]:disabled::-webkit-slider-thumb{border-color:var(--faint)}
+.bar-track{height:8px;border-radius:6px;background:var(--panel-2);overflow:hidden;position:relative}
+.bar-track .now{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .4s ease}
+.bar-track .tgt{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;opacity:.7}
+.row-bar{display:grid;grid-template-columns:120px 1fr 92px;gap:10px;align-items:center;margin:11px 0}
+.row-bar .lab{font-size:12.5px;font-weight:600}
+.row-bar .nums{font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:right}
+.btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--txt);border-radius:9px;padding:9px 14px;font-size:12.5px;font-weight:600;transition:.15s}
+.btn:hover{border-color:var(--brand-2)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.ghost{background:none}
+.assump{background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:12px 14px;margin-top:14px}
+.assump label{display:block;font-size:11px;color:var(--warn);font-weight:700;margin-bottom:6px;letter-spacing:.03em}
+.assump input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 11px;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.assump .hint{font-size:10.5px;color:var(--faint);margin-top:6px}
+
+/* scenario compare */
+.scen{grid-template-columns:repeat(3,1fr)}
+.scen .card{position:relative;overflow:hidden}
+.scen .tagline{position:absolute;top:0;left:0;right:0;height:3px}
+.scen .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.scen .v{font-size:46px;line-height:1;margin:6px 0}
+.scen .meta{font-size:12px;color:var(--muted)}
+.fin-banner{margin-top:16px;background:linear-gradient(110deg,rgba(40,211,154,.12),rgba(74,168,255,.08));
+  border:1px solid rgba(40,211,154,.3);border-radius:var(--r);padding:22px 26px;display:flex;flex-wrap:wrap;gap:30px;align-items:center}
+.fin-banner .blk .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.fin-banner .blk .v{font-size:34px;line-height:1.05;margin-top:4px}
+.fin-banner .blk .v small{font-size:16px;color:var(--muted);font-weight:700}
+
+/* heatmap */
+.heat{width:100%;border-collapse:separate;border-spacing:4px}
+.heat th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:6px;text-align:center}
+.heat th.rowh,.heat td.rowh{text-align:left;font-weight:700;font-size:12.5px;white-space:nowrap;color:var(--txt);text-transform:none;letter-spacing:0;min-width:120px}
+.heat td{text-align:center;border-radius:9px;padding:13px 6px;font-family:'Archivo';font-weight:800;font-size:15px;color:#0c0f14;position:relative}
+.heat td.na{background:var(--panel-2)!important;color:var(--faint)}
+.heat td .pw{display:block;font-size:8.5px;font-weight:600;opacity:.65;font-family:'IBM Plex Mono',monospace}
+.heat td.rowh .pesoseg{display:block;font-size:10px;color:var(--faint);font-weight:500;font-family:'IBM Plex Mono',monospace}
+.legend{display:flex;gap:16px;align-items:center;margin-top:14px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.legend .sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:5px;vertical-align:-2px}
+
+/* ranking */
+.opp{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.opp:last-child{border-bottom:none}
+.opp .rk{font-family:'Archivo';font-weight:800;font-size:18px;color:var(--faint);width:30px;flex:none;text-align:center}
+.opp .info{flex:1;min-width:0}
+.opp .info .t{font-weight:700;font-size:14px}
+.opp .info .s{font-size:12px;color:var(--muted)}
+.opp .mini{flex:1;max-width:200px}
+.opp .imp{text-align:right;flex:none;min-width:150px}
+.opp .imp .pts{font-family:'Archivo';font-weight:800;font-size:18px;color:var(--good)}
+.opp .imp .rs{font-size:11.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+
+/* benchmark + gc */
+.bench-row{display:grid;grid-template-columns:120px 1fr 74px;gap:12px;align-items:center;margin:9px 0}
+.bench-row .nm{font-size:12.5px;font-weight:600}
+.bench-row .nm small{display:block;color:var(--faint);font-size:10px;font-family:'IBM Plex Mono',monospace}
+.gc-row{display:grid;grid-template-columns:60px 1fr 50px;gap:10px;align-items:center;margin:7px 0;font-size:13px}
+.gc-row .gnm{font-weight:700;font-family:'IBM Plex Mono',monospace;font-size:12px}
+
+/* recommendations */
+.rec{display:flex;gap:14px;padding:16px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);margin-bottom:12px}
+.rec .ic{width:40px;height:40px;border-radius:10px;flex:none;display:grid;place-items:center;font-family:'Archivo';font-weight:800;font-size:16px}
+.rec .body{flex:1}
+.rec .body h4{font-size:15px;font-weight:700;margin:0 0 4px;font-family:'Inter'}
+.rec .body p{margin:0;font-size:13px;color:var(--muted)}
+.rec .body .tag{display:inline-block;margin-top:8px;margin-right:6px;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;font-family:'IBM Plex Mono',monospace}
+
+.spark{display:flex;align-items:flex-end;gap:8px;height:70px}
+.spark .b{flex:1;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--brand-2),var(--brand));position:relative;transition:.4s;min-height:6px}
+.spark .b span{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.spark .b em{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:10px;color:var(--faint);font-style:normal}
+
+.note{font-size:11px;color:var(--faint);margin-top:10px;line-height:1.5}
+.foot{text-align:center;color:var(--faint);font-size:11.5px;padding:30px 0 0;border-top:1px solid var(--line);margin-top:40px}
+
+@media(max-width:1080px){.kpis,.scen{grid-template-columns:1fr 1fr}.sim-grid{grid-template-columns:1fr}}
+@media(max-width:680px){.kpis,.scen{grid-template-columns:1fr}.head-in{padding:12px 16px}main{padding:18px 16px 60px}
+  .opp{flex-wrap:wrap}.opp .mini{order:5;max-width:none;width:100%}.heat{font-size:11px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+
+<style>
+.bar2{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:16px}
+.bar2 .f{display:flex;flex-direction:column;gap:3px}.bar2 label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-family:'IBM Plex Mono',monospace}
+.bar2 input,.bar2 select{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 11px;font-weight:600;font-size:13px}
+.cbtn{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:9px 13px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.cbtn:hover{border-color:var(--brand-2)}.cbtn.go{background:linear-gradient(135deg,var(--brand),#a30c14);color:#fff;border:none}.cbtn.good{background:var(--good);color:#06281e;border:none}.cbtn.sm{padding:5px 9px;font-size:11px}
+.kpi6{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px}
+.kc{background:linear-gradient(180deg,var(--panel),#11161f);border:1px solid var(--line);border-radius:13px;padding:14px 15px}
+.kc .l{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;font-family:'IBM Plex Mono',monospace}
+.kc .v{font-family:'Archivo';font-weight:800;font-size:23px;margin-top:6px;line-height:1;transition:color .3s}.kc .v small{font-size:12px;color:var(--muted)}.kc .s{font-size:9.5px;color:var(--faint);margin-top:4px}
+.warnbar{background:rgba(245,76,76,.09);border:1px solid rgba(245,76,76,.3);border-radius:12px;padding:11px 16px;margin-bottom:16px;font-size:13px;display:flex;gap:10px;align-items:center}.warnbar b{color:var(--crit)}
+.opp-layout{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+.pilcard{border:1px solid var(--line);border-radius:13px;margin-bottom:11px;overflow:hidden;background:var(--panel)}.pilcard.open{border-color:var(--brand-2)}
+.pilhead{display:grid;grid-template-columns:150px 1fr 92px 70px 132px 26px;gap:12px;align-items:center;padding:13px 15px;cursor:pointer}.pilhead:hover{background:rgba(255,255,255,.03)}
+.pilhead .pq{font-weight:700;font-size:13px}.pilhead .pq small{display:block;color:var(--faint);font-size:10px;font-weight:500}
+.pilhead .met{text-align:right;font-family:'Archivo';font-weight:800}.pilhead .cm{font-size:11px;text-align:right}
+.chev{transition:.2s;color:var(--muted);text-align:center}.pilcard.open .chev{transform:rotate(90deg)}
+.pilbody{display:none;border-top:1px solid var(--line);background:#0d1117}.pilcard.open .pilbody{display:block}
+.tools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:11px 15px;border-bottom:1px solid var(--line)}
+.tools input{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:6px 9px;font-size:12px;flex:1;min-width:120px}
+.tools .dft{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:6px 9px;font-size:11.5px;font-weight:600}
+.pdvlist{max-height:340px;overflow:auto;padding:4px 0}
+.pdvrow{display:grid;grid-template-columns:1fr 90px 210px;gap:10px;align-items:center;padding:8px 15px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12.5px}
+.pdvrow.on{background:rgba(40,211,154,.08)}
+.pdvrow .nm{font-weight:600}.pdvrow .meta{font-size:10.5px;color:var(--faint)}
+.pdvrow .pe{text-align:right;font-family:'IBM Plex Mono';font-weight:700;color:var(--crit)}.pdvrow .pe.on{color:var(--good)}
+.acaosel{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:6px 7px;font-size:11px;font-weight:600;font-family:inherit}
+.acaosel.on{border-color:var(--good);color:var(--good);background:rgba(40,211,154,.06)}
+.planrow{display:flex;gap:8px;align-items:center;padding:2px 15px 11px 15px;background:rgba(74,168,255,.05);border-bottom:1px solid rgba(255,255,255,.05);flex-wrap:wrap}
+.planrow .pllbl{font-size:10px;color:var(--brand-2);font-weight:700}.planrow .plu{font-size:10.5px;color:var(--faint);margin-left:-4px}
+.pli{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:5px 8px;font-size:11.5px;font-family:inherit}.pli:focus{border-color:var(--brand-2);outline:none}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.plan{background:linear-gradient(180deg,var(--panel),#11161f);border:1px solid var(--line);border-radius:14px;padding:16px;position:sticky;top:16px}
+.plan h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin:0 0 10px}
+.gauge-mid{width:150px;height:150px;position:relative;margin:0 auto}.gauge-mid .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.planitem{padding:9px 0;border-bottom:1px solid var(--line)}.planitem .t{font-size:12px;font-weight:700}.planitem .m{font-size:10.5px;color:var(--muted)}
+.empty{color:var(--faint);font-size:12.5px;text-align:center;padding:18px 0}
+.reco{background:linear-gradient(110deg,rgba(40,211,154,.12),rgba(74,168,255,.07));border:1px solid rgba(40,211,154,.3);border-radius:14px;padding:16px 18px;margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.reco .ic{width:42px;height:42px;border-radius:11px;background:var(--good);display:grid;place-items:center;font-size:20px}.reco .tx{flex:1;min-width:220px}.reco h4{margin:0 0 3px;font-size:14px}.reco p{margin:0;font-size:12.5px;color:var(--muted)}
+@media(max-width:1080px){.kpi6{grid-template-columns:repeat(3,1fr)}.opp-layout{grid-template-columns:1fr}.plan{position:static}.pilhead{grid-template-columns:1fr 80px 24px}.pilhead .pq small,.pilhead .met.gh,.pilhead .esf{display:none}.pdvrow{grid-template-columns:1fr 70px;}.pdvrow .ac{grid-column:1/-1}}
+.pilcompare{display:flex;gap:12px;align-items:center;padding:8px 15px;border-top:1px dashed var(--line);background:rgba(255,255,255,.015)}.pc-bar{flex:1;min-width:80px;height:8px;border-radius:5px;background:var(--panel-2);overflow:hidden}.pc-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--good),#15876a);border-radius:5px;transition:width .4s}.pc-txt{display:flex;gap:14px;align-items:center;font-size:11px;color:var(--muted);white-space:nowrap;flex-wrap:wrap}.pc-txt b{font-family:'Archivo'}.pc-txt .diff{color:var(--warn)}.pc-txt .pct{font-family:'Archivo';font-weight:800;color:var(--good)}
+.cbtn.ins{background:linear-gradient(135deg,#4aa8ff,#2b6fd6);color:#fff;border:none}.inspanel{background:linear-gradient(180deg,rgba(74,168,255,.07),var(--panel));border:1px solid rgba(74,168,255,.3);border-radius:14px;padding:16px 18px;margin-bottom:16px}.inptop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}.inssec{margin-top:12px}.insh{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px}.insgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.inscard{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid;border-radius:10px;padding:12px 14px}.inscard .ih{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:5px}.inscard .imp{font-family:'Archivo';font-weight:800;font-size:13px}.inscard .iw{font-size:11.5px;color:var(--muted);line-height:1.45}.inscard .ia{font-size:11px;color:var(--brand-2);margin-top:6px}.insfoot{margin-top:14px;font-size:11.5px;color:var(--muted);line-height:1.5;background:var(--panel-2);border-radius:10px;padding:11px 14px}@media(max-width:1080px){.insgrid{grid-template-columns:1fr}}
+.cbtn.send{background:linear-gradient(135deg,#28d39a,#129e74);color:#06281e;border:none;font-weight:700}.syncst{font-size:11px;color:var(--faint);font-family:'IBM Plex Mono',monospace;max-width:230px}.syncst.ok{color:var(--good)}.syncst.err{color:var(--crit)}.syncst.load{color:var(--warn)}
+</style>
+
+</head><body>
+
+<header><div class="head-in">
+  <div class="brand"><div class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M3 17l5-6 4 3 5-7 4 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="6" r="2" fill="#fff"/></svg></div>
+  <div><h1>ICE · Simulador do Líder</h1><div class="sub">Bandeirantes — defina a ação de reversão por cliente</div></div></div>
+  <div class="filters"><span class="eyebrow">Abra o pilar e escolha a AÇÃO de cada PDV</span></div>
+</div></header>
+<main>
+  <div class="bar2">
+    <div class="f"><label>Base</label><select id="mesSel"></select></div>
+    <div class="f"><label>Gerência</label><select id="selGC"></select></div>
+    <div class="f"><label>Líder responsável</label><input id="lider" placeholder="Seu nome" style="width:170px"></div>
+    <div class="f"><label>Meta da gerência (%)</label><input type="number" id="meta" value="90" style="width:90px"></div>
+    <button class="cbtn good" id="optBtn" style="align-self:flex-end">⚡ Otimizar</button>
+    <button class="cbtn" id="clrBtn" style="align-self:flex-end">🧹 Limpar</button>
+    <button class="cbtn ins" id="insBtn" style="align-self:flex-end">💡 Insights de prioridade</button>
+    <button class="cbtn send" id="sendBtn" style="align-self:flex-end">📤 Enviar para o painel</button>
+    <button class="cbtn" id="xlsBtn" style="align-self:flex-end">⬇ Exportar Excel</button>
+    <button class="cbtn go" id="expBtn" style="align-self:flex-end">⬇ Exportar JSON</button>
+    <span id="syncStatus" class="syncst" style="align-self:flex-end"></span>
+  </div>
+  <div id="view"></div>
+  <div class="foot">A ação vem da lista padrão da planilha. "SEM REVERSÃO" = cliente não revertido. Qualquer outra ação compromete a reversão dos pontos daquele PDV. <span id="baseTxt"></span></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script>
+
+/* ===== RED 360º · ligação com o banco do painel (Supabase) — substitui o Google Sheets / Apps Script =====
+   Usa o mesmo login do painel (mesmo site), baixa o data.json atualizado e monta a base do mês. */
+const R360_URL='https://yvweqpydwxhtziepemhi.supabase.co',R360_KEY='sb_publishable_I1Pnft0na_kVQ4-3N1DM-g_vBwG3yAd',R360_PAINEL='./';
+const R360_TAB='plano_reversao';
+const R360_MESF=['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const R360_MESC=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const r360MesNome=m=>R360_MESF[((m-1)%12)+1]+'/'+(2026+Math.floor((m-1)/12));
+const R360_SEG={'C&C':'cc','HIPER':'hi','SUPER':'su','AS 3-4':'m34','AS 1-2':'m12','MERCEARIA':'me','LANCHONETE':'la','BOTECO':'bo','PADARIA':'pa','RESTAURANTE':'re','ADEGA':'ad','CONVENIÊNCIA':'co'};
+const R360_PIL={ATIVACAO:{id:'ativacao',label:'Ativação',perg:'Ativação e ponto extra na meta',comp:'Média',cf:1.0,resp:'Trade Marketing',prazo:45},
+  DISPONIBILIDADE:{id:'disponibilidade',label:'Disponibilidade',perg:'Portfólio prioritário sem ruptura',comp:'Média',cf:1.1,resp:'Vendas',prazo:30},
+  GDM:{id:'gdm',label:'GDM',perg:'Cooler puro, posicionado e abastecido',comp:'Alta',cf:1.6,resp:'Equipamentos / Cooler',prazo:90},
+  PRECO:{id:'preco',label:'Preço',perg:'Preço de gôndola no guideline',comp:'Baixa',cf:0.6,resp:'RGM / Comercial',prazo:20},
+  SOVI:{id:'sovi',label:'SOVI',perg:'Share de gôndola e visibilidade',comp:'Média',cf:1.0,resp:'Merchandising',prazo:45}};
+let R360_SB=null,R360_EU=null,R360_MES=null,R360_MESES=[],R360_D=null,R360_PARC=null;
+
+function r360Tela(html){let o=document.getElementById('r360ov');if(!o){o=document.createElement('div');o.id='r360ov';o.style.cssText='position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;background:var(--bg,#0c0f14);color:var(--txt,#e8eef6);font-family:Inter,system-ui,sans-serif;padding:24px;text-align:center';document.body.appendChild(o)}
+  o.innerHTML='<div style="max-width:460px;display:flex;flex-direction:column;gap:14px;align-items:center">'+html+'</div>';o.style.display='flex'}
+function r360Some(){const o=document.getElementById('r360ov');if(o)o.style.display='none'}
+function r360Erro(msg,link){r360Tela(`<div style="font-size:40px">⚠️</div><div style="font-size:16px;font-weight:600">${msg}</div>${link?`<a href="${R360_PAINEL}" style="color:#fff;background:#e8131e;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:700">Abrir o painel e entrar</a>`:''}`)}
+
+async function r360Inicia(perfisOk){
+  r360Tela('<div style="font-size:15px;color:var(--muted,#8a98ab)">Carregando a base do painel…</div><div style="width:220px;height:6px;border-radius:3px;background:var(--panel-2,#1a212d);overflow:hidden"><i id="r360bar" style="display:block;height:100%;width:8%;background:#e8131e;transition:width .3s"></i></div>');
+  const bar=p=>{const b=document.getElementById('r360bar');if(b)b.style.width=p+'%'};
+  if(!window.supabase){r360Erro('Não consegui carregar a conexão. Confira a internet e recarregue.');return false}
+  R360_SB=window.supabase.createClient(R360_URL,R360_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  const {data:ss}=await R360_SB.auth.getSession();
+  if(!ss||!ss.session){r360Erro('Entre no painel RED 360º primeiro. Depois volte para esta página.',true);return false}
+  const email=String(ss.session.user.email||'').toLowerCase();
+  const {data:pf}=await R360_SB.from('perfis').select('perfil,nome').eq('email',email).maybeSingle();
+  const perfil=String(pf&&pf.perfil||'').toLowerCase();
+  if(!perfisOk.includes(perfil)){r360Erro('Seu perfil não tem acesso a esta página. Fale com o administrador.',false);return false}
+  R360_EU={email,perfil,nome:(pf&&pf.nome)||''};bar(25);
+  const {data:su,error}=await R360_SB.storage.from('dados').createSignedUrl('data.json',120);
+  if(error){r360Erro('Não consegui baixar a base do painel: '+error.message,false);return false}
+  const r=await fetch(su.signedUrl,{cache:'no-store'});if(!r.ok){r360Erro('Não consegui baixar a base do painel (HTTP '+r.status+').',false);return false}
+  bar(70);R360_D=await r.json();bar(90);
+  const D=R360_D;R360_PARC=D.meses[D.meses.length-1];
+  const temICE=m=>{for(let i=0;i<D.pm.t.length;i++)if(D.pm.t[i]===0&&D.pm.m[i]===m)return true;return false};
+  R360_MESES=D.meses.filter(temICE).slice(-3).reverse();
+  const q=+new URLSearchParams(location.search).get('mes');R360_MES=R360_MESES.includes(q)?q:R360_MESES[0];
+  return true}
+
+// monta a base no MESMO formato do simulador antigo (LD), a partir do data.json do painel
+function r360MontaLD(D,m){
+  const PM=D.pm,C=D.canais,K=D.kpis,P=D.peso.ICE,N=PM.t.length;
+  const Lst=new Int32Array(N+1).fill(-1);{const Lr=[];let acc=0;for(const d of D.L.row){acc+=d;Lr.push(acc)}for(let i=Lr.length-1;i>=0;i--)Lst[Lr[i]]=i;let nx=Lr.length;Lst[N]=Lr.length;for(let r=N-1;r>=0;r--){if(Lst[r]<0)Lst[r]=nx;nx=Lst[r]}}
+  const ice=segs=>{let num=0,den=0;for(const k in segs){const s=segs[k];if(s.poss<=0)continue;den+=s.peso;num+=s.peso*(s.real/s.poss)}return den>0?Math.min(100,num/den*100):0};
+  const iceRev=(segs,rev)=>{let num=0,den=0;for(const k in segs){const s=segs[k];if(s.poss<=0)continue;den+=s.peso;num+=s.peso*((s.real+((rev&&rev[k])||0))/s.poss)}return den>0?Math.min(100,num/den*100):0};
+  const cid={};(D.base||[]).forEach(b=>{if(!b.ger||!b.cid)return;const o=cid[b.ger]||(cid[b.ger]={});o[b.cid]=(o[b.cid]||0)+1});
+  const nomeG=g=>{const o=cid[g];if(o){const c=Object.entries(o).sort((a,b)=>b[1]-a[1])[0][0];return c.replace(/\S+/g,w=>w.length<=2&&w!==w.toUpperCase()?w:w.charAt(0)+w.slice(1).toLowerCase()).replace(/\b(De|Da|Do|Dos|Das|E)\b/g,s=>s.toLowerCase())}return (D.gerN&&D.gerN[g])||g};
+  const rowsG={},band={};let pesq=0;
+  for(let i=0;i<N;i++){if(PM.t[i]!==0||PM.m[i]!==m)continue;pesq++;const g=D.rk[PM.r[i]].split('|')[0];(rowsG[g]=rowsG[g]||[]).push(i);
+    const k=R360_SEG[C[PM.c[i]]]||('c'+PM.c[i]);const b=band[k]||(band[k]={peso:(P[C[PM.c[i]]]||0)/100,poss:0,real:0});b.poss+=PM.poss[i];b.real+=PM.real[i]}
+  const gcs={};
+  Object.keys(rowsG).sort().forEach(g=>{const rows=rowsG[g],segs={};let pt=0,pd=0;
+    rows.forEach(i=>{const k=R360_SEG[C[PM.c[i]]]||('c'+PM.c[i]);const s=segs[k]||(segs[k]={peso:(P[C[PM.c[i]]]||0)/100,poss:0,real:0});s.poss+=PM.poss[i];s.real+=PM.real[i];pt+=PM.poss[i];pd+=Math.max(0,PM.poss[i]-PM.real[i])});
+    const base=ice(segs);const opps=[];
+    K.forEach((nm,k)=>{const cfg=R360_PIL[nm];if(!cfg)return;let perd=0,poss=0,real=0;const pdvs=[],qt={};
+      rows.forEach(i=>{const kp=PM.kp[k][i],kr=PM.kr[k][i];poss+=kp;real+=kr;const pe=kp-kr;
+        for(let j=Lst[i];j<Lst[i+1];j++){const q=D.L.q[j];if(D.qKpi[q]===k)qt[q]=(qt[q]||0)+D.L.v[j]}
+        if(pe>0.0001){const rk=D.rk[PM.r[i]].split('|');pdvs.push({cod:D.pdv[PM.p[i]],n:D.pdvNome[PM.p[i]]||'',c:C[PM.c[i]],rt:rk[2],sv:rk[1],pe:Math.round(pe*10)/10,po:Math.round(kp*10)/10,sg:R360_SEG[C[PM.c[i]]]||('c'+PM.c[i])});perd+=pe}});
+      if(!pdvs.length)return;pdvs.sort((a,b)=>b.pe-a.pe);
+      const rev={};pdvs.forEach(p=>rev[p.sg]=(rev[p.sg]||0)+p.pe);const ganho=iceRev(segs,rev)-base;
+      const tq=Object.entries(qt).sort((a,b)=>b[1]-a[1])[0];
+      opps.push({pilar:cfg.id,pilarLabel:cfg.label,pergunta:cfg.perg,qreal:tq?String(D.q[tq[0]]).replace(/\t/g,' ').trim():'',perdidos:Math.round(perd),possiveis:Math.round(poss),ganho:Math.round(ganho*100)/100,comp:cfg.comp,cf:cfg.cf,resp:cfg.resp,prazo:cfg.prazo,
+        score:poss?Math.round(real/poss*1000)/10:0,efic:Math.round(ganho/cfg.cf*10000)/10000,pdvs,nPdv:pdvs.length})});
+    opps.sort((a,b)=>b.efic-a.efic);
+    gcs[g]={nome:nomeG(g),ice:Math.round(base*10)/10,clientes:rows.length,poss_total:Math.round(pt),perdidos_total:Math.round(pd),segs,opps}});
+  const trend=D.meses.slice(-6).map(mm=>{const b={};for(let i=0;i<N;i++){if(PM.t[i]!==0||PM.m[i]!==mm)continue;const k=R360_SEG[C[PM.c[i]]]||'x';const o=b[k]||(b[k]={peso:(P[C[PM.c[i]]]||0)/100,poss:0,real:0});o.poss+=PM.poss[i];o.real+=PM.real[i]}return{mes:R360_MESC[((mm-1)%12)+1],ice:Math.round(ice(b)*10)/10}}).filter(x=>x.ice>0);
+  // meta da rede = objetivo ICE BAND do mes (aba OBJETIVO), ponderado pelos canais com pesquisa
+  let w=0,s=0;for(const k in band){const cn=Object.keys(R360_SEG).find(c=>R360_SEG[c]===k);const o=cn&&D.obj&&D.obj[cn];if(o&&o[m]!=null&&band[k].peso>0&&band[k].poss>0){w+=band[k].peso;s+=band[k].peso*o[m]}}
+  return{gcs,pesquisados:pesq,band_ice:Math.round(ice(band)*10)/10,meta_band:w?Math.round(s/w*10)/10:95,trend}}
+
+function r360MesSelect(id){const s=document.getElementById(id);if(!s)return;
+  s.innerHTML=R360_MESES.map(m=>`<option value="${m}" ${m===R360_MES?'selected':''}>${r360MesNome(m)}${m===R360_PARC?' (parcial)':''}</option>`).join('');
+  s.onchange=()=>{const u=new URL(location.href);u.searchParams.set('mes',s.value);location.href=u.toString()}}
+
+// grava o compromisso do líder no banco (um por gerência por mês; o último envio vale)
+async function r360Envia(p){
+  const itens=[];(p.acoes||[]).forEach(a=>(a.clientes||[]).forEach(c=>itens.push({k:R360_D.kpis.indexOf(Object.keys(R360_PIL).find(n=>R360_PIL[n].id===a.pilar)),pilar:a.pilar,pv:c.cod,nome:c.nome,canal:c.canal,rota:c.rota,pts:c.pontos,acao:c.acao,prazo:+c.prazo||null,resp:c.resp||'',obs:c.obs||''})));
+  const by={};itens.forEach(x=>by[x.acao]=(by[x.acao]||0)+1);
+  const row={mes:R360_MES,ger:p.gerencia,ger_nome:p.nome||null,lider:p.lider||null,meta:p.meta,ice_base:p.iceBase,ice_sim:p.iceSim,pontos:p.pontosRevertidos,perdidos:p.perdidosTotal,pdvs:p.clientes,
+    n_clientes:p.clientesComAcao,n_sem:p.clientesSemReversao,resumo:by,itens,payload:Object.assign({},p,{mes:R360_MES})};
+  const {error}=await R360_SB.from(R360_TAB).upsert(row,{onConflict:'mes,ger'});
+  if(error){const m=String(error.message||error);throw new Error(/plano_reversao|payload|schema cache|does not exist/i.test(m)?'falta rodar o supabase_plano_reversao.sql no Supabase':m)}
+  return true}
+// lê os compromissos do mês (para o painel gerencial e para o líder continuar de onde parou)
+async function r360Lista(){const {data,error}=await R360_SB.from(R360_TAB).select('ger,payload,atualizado_em,lider,email').eq('mes',R360_MES);
+  if(error){const m=String(error.message||error);throw new Error(/plano_reversao|payload|schema cache|does not exist/i.test(m)?'falta rodar o supabase_plano_reversao.sql':m)}
+  return (data||[]).filter(r=>r.payload&&r.payload.gerencia).map(r=>Object.assign({},r.payload,{_em:r.atualizado_em,_email:r.email}))}
+
+(async()=>{if(!(await r360Inicia(['master','admin','gerente'])))return;
+  window.__LD=r360MontaLD(R360_D,R360_MES);
+  if(!Object.keys(window.__LD.gcs).length){r360Erro('Ainda não há pesquisas ICE em '+r360MesNome(R360_MES)+'.',false);return}
+  try{const L=await r360Lista();window.__REMOTO={};L.forEach(p=>window.__REMOTO[p.gerencia]=p)}catch(e){window.__REMOTO={}}
+  document.getElementById('baseTxt').textContent='Base '+r360MesNome(R360_MES)+(R360_MES===R360_PARC?' (parcial)':'')+' · atualizada todo dia com o painel RED 360º.';
+  r360MesSelect('mesSel');r360Some();__inicia();})();
+window.__inicia=function(){
+
+const LD=window.__LD;const GCS=LD.gcs;
+const ACOES=["SEM REVERSÃO","MULTIRÃO DE MERCHANDISING","KIT ATIVAÇÃO/COMUNICAÇÃO","COMPRAR PONTO EXTRA VIA SCANNTECH","COMPRAR PONTO EXTRA VIA CONTRATO","UTILIZAR PAC","INSTALAR RACK","INSTALAR GELADEIRA KO","INSTALAR PONTA DE GÔNDOLA","VENDER EM TABELAS ESPECIAIS","REALIZAR VENDA","CADASTRAR PRODUTOS"];
+const DFT={ativacao:"INSTALAR PONTA DE GÔNDOLA",disponibilidade:"REALIZAR VENDA",gdm:"INSTALAR GELADEIRA KO",preco:"VENDER EM TABELAS ESPECIAIS",sovi:"MULTIRÃO DE MERCHANDISING"};
+const SEM="SEM REVERSÃO";
+// ===== CONEXÃO COM O PAINEL (Apps Script) — cole a URL /exec aqui; vazio = modo offline =====
+const SYNC_URL="supabase"; // agora grava no banco do painel (Supabase)
+const SYNC_TOKEN="";
+// ==========================================================================================
+const nf=(n,d=1)=>(n==null||isNaN(n))?'—':Number(n).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const ptos=n=>nf(n,0)+' pts';
+const colorFor=s=>s>=85?'var(--good)':s>=70?'var(--warn)':'var(--crit)';
+const compColor=c=>c==='Baixa'?'var(--good)':c==='Média'?'var(--warn)':'var(--crit)';
+function gauge(val,sz,target){const R=sz/2-sz*0.08,C=2*Math.PI*R,f=Math.max(0,Math.min(1,val/100)),col=colorFor(val);const tx=target!=null?`<circle cx="${sz/2}" cy="${sz/2}" r="${R}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="3 ${C}" transform="rotate(${-90+target*3.6} ${sz/2} ${sz/2})" opacity=".6"/>`:'';return `<svg viewBox="0 0 ${sz} ${sz}" style="width:100%;height:100%"><circle cx="${sz/2}" cy="${sz/2}" r="${R}" fill="none" stroke="var(--panel-2)" stroke-width="${sz*0.09}"/><circle cx="${sz/2}" cy="${sz/2}" r="${R}" fill="none" stroke="${col}" stroke-width="${sz*0.09}" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-f)}" transform="rotate(-90 ${sz/2} ${sz/2})" style="transition:stroke-dashoffset .7s,stroke .4s"/>${tx}</svg>`;}
+
+let curGC=Object.keys(GCS)[0],lider='',meta=LD.meta_band||90,openP={},filt={},showIns=false;
+let acao={},plano={};
+const LSK='iceLiderAcao2_'+R360_MES;
+function codOf(pilar,i){const o=G().opps.find(x=>x.pilar===pilar);return o&&o.pdvs[i]?o.pdvs[i].cod:String(i);}
+Object.keys(GCS).forEach(g=>{acao[g]={};plano[g]={};GCS[g].opps.forEach(o=>acao[g][o.pilar]={});});
+(function(){try{const r=localStorage.getItem(LSK);if(r){const o=JSON.parse(r);if(o.lider)lider=o.lider;if(o.meta)meta=o.meta;if(o.curGC&&GCS[o.curGC])curGC=o.curGC;if(o.acao)for(const g in o.acao){if(acao[g])for(const p in o.acao[g])if(acao[g][p])acao[g][p]=o.acao[g][p];}if(o.plano)for(const g in o.plano)if(plano[g])plano[g]=o.plano[g];}}catch(e){}})();
+(function(){const R=window.__REMOTO||{};for(const g in R){if(!acao[g])continue;const tem=Object.values(acao[g]).some(o=>Object.keys(o).length);if(tem)continue;const p=R[g];(p.acoes||[]).forEach(a=>{if(!acao[g][a.pilar])return;(a.clientes||[]).forEach(c=>{if(!c.cod||!c.acao)return;acao[g][a.pilar][c.cod]=c.acao;plano[g][a.pilar+'|'+c.cod]={prazo:c.prazo,resp:c.resp||'',obs:c.obs||''};});});if(p.lider&&!lider)lider=p.lider;if(p.meta&&g===curGC)meta=p.meta;}})();
+function save(){try{localStorage.setItem(LSK,JSON.stringify({lider,meta,curGC,acao,plano}));}catch(e){}}
+
+function G(){return GCS[curGC];}
+function segReverted(){const g=G();const rev={};g.opps.forEach(o=>committedIdx(o).forEach(i=>{const s=o.pdvs[i].sg;if(s)rev[s]=(rev[s]||0)+o.pdvs[i].pe;}));return rev;}
+function iceWeighted(rev){const g=G();if(!g.segs)return g.ice;let num=0,den=0;for(const k in g.segs){const s=g.segs[k];if(s.poss<=0)continue;den+=s.peso;num+=s.peso*((s.real+((rev&&rev[k])||0))/s.poss);}return den>0?Math.min(100,num/den*100):g.ice;}
+function pilarSegRev(o,all){const rev={};const idx=all?o.pdvs.map((_,i)=>i):committedIdx(o);idx.forEach(i=>{const s=o.pdvs[i].sg;if(s)rev[s]=(rev[s]||0)+o.pdvs[i].pe;});return rev;}
+function iceGainPillar(o,all){return iceWeighted(pilarSegRev(o,all))-G().ice;}
+function icePotencial(){const g=G();const fr={};g.opps.forEach(o=>o.pdvs.forEach(p=>{if(p.sg)fr[p.sg]=(fr[p.sg]||0)+p.pe;}));return iceWeighted(fr);}
+function getAc(pilar,i){return acao[curGC][pilar][codOf(pilar,i)]||SEM;}
+function setAc(pilar,i,v){const c=codOf(pilar,i);if(v===SEM)delete acao[curGC][pilar][c];else acao[curGC][pilar][c]=v;}
+function isOn(pilar,i){return getAc(pilar,i)!==SEM;}
+function committedIdx(o){return o.pdvs.map((_,i)=>i).filter(i=>isOn(o.pilar,i));}
+function pilarPts(o){return committedIdx(o).reduce((s,i)=>s+o.pdvs[i].pe,0);}
+function committedPts(){return G().opps.reduce((s,o)=>s+pilarPts(o),0);}
+function nameKey(p){return p.n+'|'+p.rt;}
+function committedNames(){const s=new Set();G().opps.forEach(o=>committedIdx(o).forEach(i=>s.add(nameKey(o.pdvs[i]))));return s;}
+function lossNames(){const s=new Set();G().opps.forEach(o=>o.pdvs.forEach(p=>s.add(nameKey(p))));return s;}
+function totals(){const g=G();const cp=committedPts();const ice=iceWeighted(segReverted());const cn=committedNames().size,ln=lossNames().size;return{cp,ice,base:g.ice,cn,ln,naoRev:ln-cn,perdTot:g.perdidos_total};}
+function getPlan(pilar,i){const k=pilar+'|'+codOf(pilar,i);if(!plano[curGC][k]){const o=G().opps.find(x=>x.pilar===pilar);plano[curGC][k]={prazo:o?o.prazo:30,resp:o?o.resp:'',obs:''};}return plano[curGC][k];}
+
+function insightsPanel(){const g=G();const t=totals();
+  const data=g.opps.map(o=>{const cp=pilarPts(o);const rem=Math.max(0,o.perdidos-cp);const remIce=Math.max(0,o.ganho-iceGainPillar(o,false));const ci=committedIdx(o).length;return {o,cp,rem,remIce,ci,done:rem<=0.5};});
+  const pot=icePotencial();
+  const open=data.filter(d=>!d.done),done=data.filter(d=>d.done);
+  const protect=open.filter(d=>d.o.score>=90).sort((a,b)=>b.rem-a.rem);
+  const act=open.filter(d=>d.o.score<90).sort((a,b)=>b.rem-a.rem);
+  const crit=act.slice(0,2),alta=act.slice(2);
+  const card=(d,kind)=>{const o=d.o;const cor=kind==='crit'?'var(--crit)':kind==='alta'?'var(--warn)':'var(--info)';
+    let why;if(kind==='crit')why=`Maior gap em aberto: <b>${nf(d.rem,0)} pts</b> ainda perdidos${d.ci?` · ${d.ci} já com ação`:''}, a ${nf(o.score)}% de execução. Recuperar aqui rende mais ICE. Comece pelos PDVs de maior perda ("Top 10").`;
+    else if(kind==='alta')why=`Faltam <b>${nf(d.rem,0)} pts</b> (${nf(o.score)}%)${d.ci?` · ${d.ci} já com ação`:''}. Bom retorno depois dos críticos.`;
+    else why=`Execução já em <b>${nf(o.score)}%</b> — perto do teto. Restam ${nf(d.rem,0)} pts; foque em <b>não regredir</b> e use como referência.`;
+    return `<div class="inscard" style="border-left-color:${cor}"><div class="ih"><b>${o.pilarLabel}</b><span class="imp" style="color:${kind==='manut'?'var(--info)':'var(--good)'}">${kind==='manut'?'proteger':'+'+nf(d.remIce,2)+' ICE'}</span></div><div class="iw">${why}</div><div class="ia">Ação típica: <b>${DFT[o.pilar]}</b></div></div>`;};
+  const sec=(tt,arr,kind)=>arr.length?`<div class="inssec"><div class="insh" style="color:${kind==='crit'?'var(--crit)':kind==='alta'?'var(--warn)':'var(--info)'}">${tt}</div><div class="insgrid">${arr.map(d=>card(d,kind)).join('')}</div></div>`:'';
+  const doneHTML=done.length?`<div class="inssec"><div class="insh" style="color:var(--good)">✅ JÁ ENDEREÇADO</div><div class="insgrid">${done.map(d=>`<div class="inscard" style="border-left-color:var(--good)"><div class="ih"><b>${d.o.pilarLabel}</b><span class="imp" style="color:var(--good)">${nf(d.cp,0)} pts ✓</span></div><div class="iw">Todos os pontos perdidos deste pilar já têm ação de reversão definida.</div></div>`).join('')}</div></div>`:'';
+  const faltam=Math.max(0,g.perdidos_total-t.cp);
+  const allDone=open.length===0;
+  return `<div class="inspanel"><div class="inptop"><div><div class="eyebrow">Cenário da gerência — já considerando o seu preenchimento</div><div style="font-family:Archivo;font-weight:800;font-size:20px">${nf(g.ice)}% <span style="color:var(--muted)">→</span> <span style="color:${colorFor(t.ice)}">${nf(t.ice)}%</span> <span style="font-size:12px;color:var(--muted)">simulado</span> <span style="color:var(--muted)">→</span> <span style="color:var(--good)">${nf(pot)}%</span> <span style="font-size:12px;color:var(--muted)">potencial</span></div><div style="font-size:12px;color:var(--muted)">já revertido <b style="color:var(--good)">${nf(t.cp,0)} pts</b> · faltam <b style="color:var(--warn)">${nf(faltam,0)} pts</b> para o potencial</div></div><div style="display:flex;gap:8px"><button class="cbtn good" id="insApply">⚡ Aplicar prioridades</button><button class="cbtn" id="insClose">✕</button></div></div>
+    ${allDone?'<div class="insfoot" style="color:var(--good)">🎉 Todos os pontos perdidos da gerência já têm ação de reversão definida.</div>':''}
+    ${sec('🔴 Prioridade crítica — onde está o maior ganho restante',crit,'crit')}
+    ${sec('🟡 Alta prioridade — próximos passos',alta,'alta')}
+    ${sec('🔵 Manutenção — proteja o que já está bom',protect,'manut')}
+    ${doneHTML}
+    <div class="insfoot">📚 <b>Como priorizar (a lógica que o time deve aprender):</b> 1) onde se perde mais pontos, recuperar rende mais ICE; 2) ataque primeiro <b>alto impacto + menor esforço</b>; 3) proteja o que já está no alvo. O "Otimizar" aplica essa regra automaticamente — mas <b>em quais clientes agir é decisão do líder</b>.</div></div>`;}
+function bindInsights(){const ia=document.getElementById('insApply');if(ia)ia.onclick=()=>{showIns=false;optimize();};const ic=document.getElementById('insClose');if(ic)ic.onclick=()=>{showIns=false;render();};}
+function refreshInsights(){if(!showIns)return;const ip=document.querySelector('.inspanel');if(!ip)return;const w=document.createElement('div');w.innerHTML=insightsPanel();ip.replaceWith(w.firstElementChild);bindInsights();}
+function fill(){document.getElementById('selGC').innerHTML=Object.keys(GCS).map(g=>`<option value="${g}">${g}</option>`).join('');document.getElementById('selGC').value=curGC;document.getElementById('lider').value=lider;document.getElementById('meta').value=meta;}
+function render(){
+  const g=G(),t=totals();const v=document.getElementById('view');
+  let best=null;g.opps.forEach(o=>{const rem=o.perdidos-pilarPts(o);if(rem>0&&(!best||rem>best.rem))best={o,rem};});
+  const k=(l,val,s,c,id)=>`<div class="kc"><div class="l">${l}</div><div class="v" ${id?`id="${id}"`:''} ${c?`style="color:${c}"`:''}>${val}</div><div class="s">${s||''}</div></div>`;
+  v.innerHTML=`
+  <div class="reco"><div class="ic">💡</div><div class="tx"><h4>Onde focar a reversão</h4>
+    <p>${best?`<b>${best.o.pilarLabel}</b> ainda tem <b>${ptos(best.rem)}</b> perdidos sem ação definida. Abra o pilar e atribua a ação aos PDVs prioritários.`:'Todos os pontos perdidos já têm ação de reversão. 👏'}</p></div></div>
+  ${showIns?insightsPanel():''}
+  <div class="kpi6">
+    ${k('ICE gerência',nf(g.ice)+'<small>%</small>','hoje',colorFor(g.ice))}
+    ${k('ICE simulado',nf(t.ice)+'<small>%</small>','com reversões',colorFor(t.ice),'kIce')}
+    ${k('Gap p/ meta',((t.ice-meta)>=0?'+':'')+nf(t.ice-meta)+'<small> pts</small>','meta '+meta,(t.ice-meta)>=0?'var(--good)':'var(--warn)','kGap')}
+    ${k('Pontos revertidos',ptos(t.cp),'de '+ptos(t.perdTot),'var(--good)','kCp')}
+    ${k('Clientes com ação',t.cn,'de '+t.ln+' com perda','var(--brand-2)','kCn')}
+    ${k('Sem reversão',t.naoRev,'clientes sem ação','var(--crit)','kNr')}
+  </div>
+  <div id="warn"></div>
+  <div class="opp-layout">
+    <div><div class="sec-h" style="margin-bottom:10px"><h2 style="font-size:16px">${curGC} · ${g.nome} — pontos perdidos por pilar</h2><span class="desc">Abra cada pilar e defina a ação de reversão de cada cliente.</span></div>
+      <div id="pils"></div></div>
+    <div class="plan"><h3>Compromisso · ${curGC}</h3><div class="gauge-mid" id="gg"></div>
+      <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted)"><b style="color:var(--good)">${t.cn}</b> clientes · <b style="color:var(--good)">${ptos(t.cp)}</b></div>
+      <div id="planList" style="margin-top:12px"></div></div>
+  </div>`;
+  document.getElementById('gg').innerHTML=gauge(t.ice,150,meta)+`<div class="center"><div class="num" style="font-size:30px;color:${colorFor(t.ice)}">${nf(t.ice)}</div><div class="eyebrow">simulado</div></div>`;
+  drawWarn();drawPils();drawPlan();
+  bindInsights();
+}
+function drawWarn(){const t=totals();const el=document.getElementById('warn');el.innerHTML=(t.naoRev>0&&t.cn>0)?`<div class="warnbar">⚠ <span><b>${t.naoRev} clientes</b> seguem SEM REVERSÃO — <b>${ptos(t.perdTot-t.cp)}</b> continuam perdidos. Defina a ação para comprometê-los.</span></div>`:'';}
+function drawPils(){const g=G();
+  document.getElementById('pils').innerHTML=g.opps.map(o=>{const cidx=committedIdx(o);const cp=pilarPts(o);const op=openP[curGC]===o.pilar;
+    return `<div class="pilcard ${op?'open':''}" data-p="${o.pilar}">
+      <div class="pilhead" data-tg="${o.pilar}">
+        <div><span class="tag" style="background:var(--panel-2);color:var(--muted)">${o.pilarLabel}</span></div>
+        <div class="pq">${o.pergunta}<small>${o.nPdv} clientes perdendo · ex.: ${o.qreal}</small></div>
+        <div class="met" style="color:var(--crit)">${nf(o.perdidos,0)}<div style="font-size:9px;color:var(--faint);font-weight:500">perdidos</div></div>
+        <div class="met gh" style="color:var(--good)">+${nf(o.ganho,2)}<div style="font-size:9px;color:var(--faint);font-weight:500">ICE máx</div></div>
+        <div class="cm esf"><span class="tag" style="background:${compColor(o.comp)}22;color:${compColor(o.comp)}">${o.comp}</span><div style="margin-top:4px;color:${cidx.length?'var(--good)':'var(--faint)'}">${cidx.length}/${o.nPdv} · ${nf(cp,0)} pts</div></div>
+        <div class="chev">▶</div>
+      </div>
+      <div class="pilcompare" data-cmp="${o.pilar}">${compareHTML(o)}</div>
+      <div class="pilbody">
+        <div class="tools"><span style="font-size:10px;color:var(--faint);font-family:'IBM Plex Mono'">AÇÃO PADRÃO</span><select class="dft" data-dft="${o.pilar}">${ACOES.filter(a=>a!==SEM).map(a=>`<option ${a===DFT[o.pilar]?'selected':''}>${a}</option>`).join('')}</select><button class="cbtn sm" data-all="${o.pilar}">Aplicar a todos</button><button class="cbtn sm" data-top="${o.pilar}">Top 10 perdas</button><button class="cbtn sm" data-clr="${o.pilar}">Limpar</button><input placeholder="filtrar cliente / rota / supervisão" data-flt="${o.pilar}" value="${(filt[o.pilar]||'')}"></div>
+        <div class="pdvlist" data-list="${o.pilar}"></div>
+      </div></div>`;}).join('');
+  document.querySelectorAll('.pilhead').forEach(h=>h.onclick=e=>{if(e.target.closest('button,input,select'))return;const p=h.dataset.tg;openP[curGC]=openP[curGC]===p?null:p;drawPils();});
+  g.opps.forEach(o=>{if(openP[curGC]===o.pilar)drawPdvList(o);});
+  const dftOf=p=>{const s=document.querySelector(`[data-dft="${p}"]`);return s?s.value:DFT[p];};
+  document.querySelectorAll('[data-all]').forEach(b=>b.onclick=()=>{const o=g.opps.find(x=>x.pilar===b.dataset.all),a=dftOf(b.dataset.all);o.pdvs.forEach((_,i)=>setAc(o.pilar,i,a));save();render();});
+  document.querySelectorAll('[data-top]').forEach(b=>b.onclick=()=>{const o=g.opps.find(x=>x.pilar===b.dataset.top),a=dftOf(b.dataset.top);o.pdvs.slice(0,10).forEach((_,i)=>setAc(o.pilar,i,a));save();render();});
+  document.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{const o=g.opps.find(x=>x.pilar===b.dataset.clr);acao[curGC][o.pilar]={};save();render();});
+  document.querySelectorAll('[data-flt]').forEach(inp=>inp.oninput=()=>{filt[inp.dataset.flt]=inp.value;drawPdvList(g.opps.find(x=>x.pilar===inp.dataset.flt));});
+}
+function drawPdvList(o){const el=document.querySelector(`[data-list="${o.pilar}"]`);if(!el)return;const f=(filt[o.pilar]||'').toLowerCase();
+  el.innerHTML=o.pdvs.map((p,i)=>{if(f&&!(`${p.n} ${p.c} ${p.rt} ${p.sv}`.toLowerCase().includes(f)))return '';const cur=getAc(o.pilar,i),on=cur!==SEM;
+    let row=`<div class="pdvrow ${on?'on':''}"><div><div class="nm">${p.n}</div><div class="meta">cód ${p.cod} · ${p.c} · rota ${p.rt} · ${p.sv}</div></div><div class="pe ${on?'on':''}">${on?'+':''}${nf(p.pe,0)} pts</div><div class="ac"><select class="acaosel ${on?'on':''}" data-pl="${o.pilar}" data-i="${i}">${ACOES.map(a=>`<option ${a===cur?'selected':''}>${a}</option>`).join('')}</select></div></div>`;
+    if(on){const pl=getPlan(o.pilar,i);const esc=v=>String(v==null?'':v).replace(/"/g,'&quot;');row+=`<div class="planrow"><span class="pllbl">📋</span><input class="pli" data-fld="prazo" data-pl="${o.pilar}" data-i="${i}" type="number" value="${esc(pl.prazo)}" style="width:60px"><span class="plu">dias</span><input class="pli" data-fld="resp" data-pl="${o.pilar}" data-i="${i}" value="${esc(pl.resp)}" placeholder="responsável" style="width:140px"><input class="pli" data-fld="obs" data-pl="${o.pilar}" data-i="${i}" value="${esc(pl.obs)}" placeholder="detalhe da execução neste cliente" style="flex:1;min-width:150px"></div>`;}
+    return row;}).join('')||'<div class="empty">Nenhum cliente para este filtro.</div>';
+  el.querySelectorAll('.acaosel').forEach(s=>s.onchange=()=>{setAc(s.dataset.pl,parseInt(s.dataset.i),s.value);save();drawPdvList(o);updateKpis();drawPilHeadMeta(o);updateCompare(o);drawPlan();drawWarn();refreshInsights();});
+  el.querySelectorAll('.pli').forEach(inp=>inp.oninput=()=>{const pl=getPlan(inp.dataset.pl,parseInt(inp.dataset.i));pl[inp.dataset.fld]=inp.value;save();drawPlan();});
+}
+function compareHTML(o){const g=G();const cp=pilarPts(o);const pct=o.perdidos>0?Math.min(100,cp/o.perdidos*100):0;const iceC=iceGainPillar(o,false);const fp=o.perdidos-cp;const fi=o.ganho-iceC;
+  return `<div class="pc-bar"><i style="width:${pct}%"></i></div><div class="pc-txt"><span>Revertido <b style="color:var(--good)">${nf(cp,0)}</b> / ${nf(o.perdidos,0)} pts</span><span>ICE <b style="color:var(--good)">+${nf(iceC,2)}</b> / +${nf(o.ganho,2)}</span><span class="diff">${cp>0?'faltam '+nf(fp,0)+' pts · +'+nf(fi,2)+' ICE':'nenhuma reversão ainda'}</span><span class="pct">${nf(pct,0)}%</span></div>`;}
+function updateCompare(o){const el=document.querySelector(`[data-cmp="${o.pilar}"]`);if(el)el.innerHTML=compareHTML(o);}
+function drawPilHeadMeta(o){const c=document.querySelector(`.pilcard[data-p="${o.pilar}"] .cm`);if(c){const ci=committedIdx(o);const d=c.querySelector('div');d.style.color=ci.length?'var(--good)':'var(--faint)';d.textContent=`${ci.length}/${o.nPdv} · ${nf(pilarPts(o),0)} pts`;}}
+function updateKpis(){const t=totals();const set=(id,v,c)=>{const e=document.getElementById(id);if(e){e.innerHTML=v;if(c)e.style.color=c;}};
+  set('kIce',nf(t.ice)+'<small>%</small>',colorFor(t.ice));set('kGap',((t.ice-meta)>=0?'+':'')+nf(t.ice-meta)+'<small> pts</small>',(t.ice-meta)>=0?'var(--good)':'var(--warn)');set('kCp',ptos(t.cp));set('kCn',t.cn);set('kNr',t.naoRev);
+  document.getElementById('gg').innerHTML=gauge(t.ice,150,meta)+`<div class="center"><div class="num" style="font-size:30px;color:${colorFor(t.ice)}">${nf(t.ice)}</div><div class="eyebrow">simulado</div></div>`;}
+function drawPlan(){const g=G();const items=g.opps.filter(o=>committedIdx(o).length>0).sort((a,b)=>pilarPts(b)-pilarPts(a));const el=document.getElementById('planList');
+  if(!items.length){el.innerHTML='<div class="empty">Defina ações de reversão nos pilares.</div>';return;}
+  el.innerHTML=items.map(o=>{const ci=committedIdx(o);const byA={};ci.forEach(i=>{const a=getAc(o.pilar,i);byA[a]=(byA[a]||0)+1;});const br=Object.entries(byA).map(([a,n])=>`${n}× ${a.toLowerCase()}`).join(' · ');
+    return `<div class="planitem"><div class="t">${o.pilarLabel} — ${ci.length} clientes</div><div class="m">+${nf(iceGainPillar(o,false),2)} ICE · ${nf(pilarPts(o),0)} pts</div><div class="m" style="color:var(--brand-2)">${br}</div></div>`;}).join('');}
+function optimize(){const g=G();g.opps.forEach(o=>acao[curGC][o.pilar]={});
+  let flat=[];g.opps.forEach(o=>o.pdvs.forEach((p,i)=>flat.push({pl:o.pilar,i,pe:p.pe})));flat.sort((a,b)=>b.pe-a.pe);
+  for(const x of flat){if(iceWeighted(segReverted())>=meta)break;setAc(x.pl,x.i,DFT[x.pl]);}save();render();}
+function exportExcel(){const g=G(),t=totals();
+  if(t.cn===0){alert('Defina ao menos uma ação de reversão antes de exportar.');return;}
+  const head=['Gerência','Cidade','Líder','Pilar','Pergunta / Padrão','Código (PV)','Cliente (PDV)','Canal','Rota','Supervisão','Pontos perdidos','Ação de reversão','Prazo (dias)','Responsável','Observação / execução'];
+  const rows=[head];
+  g.opps.forEach(o=>committedIdx(o).forEach(i=>{const p=o.pdvs[i],pl=getPlan(o.pilar,i);rows.push([curGC,g.nome,lider||'',o.pilarLabel,o.pergunta,p.cod||'',p.n,p.c,p.rt,p.sv,nf(p.pe,0),getAc(o.pilar,i),pl.prazo,pl.resp||'',pl.obs||'']);}));
+  rows.push([]);rows.push(['RESUMO DO COMPROMISSO']);rows.push(['Gerência',curGC+' · '+g.nome]);rows.push(['Líder',lider||'']);rows.push(['Meta (%)',meta]);rows.push(['ICE atual',nf(g.ice)]);rows.push(['ICE simulado',nf(t.ice)]);rows.push(['Pontos perdidos (total)',nf(g.perdidos_total,0)]);rows.push(['Pontos revertidos',nf(t.cp,0)]);rows.push(['Clientes com ação',t.cn]);rows.push(['Clientes sem reversão',t.naoRev]);rows.push(['Gerado em',new Date().toLocaleString('pt-BR')]);
+  const csv='\ufeff'+rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='compromisso_'+curGC.replace(/[^A-Za-z0-9]/g,'')+'_'+(lider||'lider').replace(/[^A-Za-z0-9]/g,'')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);}
+function buildPayload(){const g=G(),t=totals();const acoes=g.opps.filter(o=>committedIdx(o).length>0).map(o=>{const ci=committedIdx(o);const byA={};ci.forEach(i=>{const a=getAc(o.pilar,i);byA[a]=(byA[a]||0)+1;});
+    return {pilar:o.pilar,label:o.pilarLabel,perdidos:Math.round(o.perdidos),pontos:Math.round(pilarPts(o)),nClientes:ci.length,ganhoEfetivo:+(iceGainPillar(o,false)).toFixed(2),acoesResumo:byA,clientes:ci.map(i=>{const pl=getPlan(o.pilar,i);return {cod:o.pdvs[i].cod,nome:o.pdvs[i].n,rota:o.pdvs[i].rt,canal:o.pdvs[i].c,pontos:o.pdvs[i].pe,acao:getAc(o.pilar,i),prazo:pl.prazo,resp:pl.resp,obs:pl.obs};})};});
+  return {tipo:'ice_lider_v4',gerencia:curGC,nome:g.nome,lider:lider||'(sem nome)',ts:new Date().toISOString(),meta,iceBase:g.ice,iceSim:+t.ice.toFixed(2),clientes:g.clientes,perdidosTotal:g.perdidos_total,pontosRevertidos:Math.round(t.cp),clientesComAcao:t.cn,clientesSemReversao:t.naoRev,ganho:+(t.ice-g.ice).toFixed(2),metaAtingida:t.ice>=meta,segRev:segReverted(),token:SYNC_TOKEN,acoes};}
+function exportJSON(){const data=buildPayload();const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='ice_'+curGC.replace(/[^A-Za-z0-9]/g,'')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);
+  try{const bc=new BroadcastChannel('ice_consolida');bc.postMessage(data);bc.close();}catch(e){}
+  try{localStorage.setItem('iceSub_'+curGC,JSON.stringify(data));}catch(e){}}
+function setSync(msg,cls){const el=document.getElementById('syncStatus');if(el){el.textContent=msg;el.className='syncst '+(cls||'');}}
+async function sendToCloud(){const t=totals();if(t.cn===0){alert('Defina ao menos uma ação de reversão antes de enviar.');return;}
+  if(!SYNC_URL){alert('Conexão com o painel ainda não configurada. Use Exportar JSON por enquanto.');return;}
+  const data=buildPayload();setSync('enviando…','load');
+  try{await r360Envia(data);setSync('✓ enviado às '+new Date().toLocaleTimeString('pt-BR'),'ok');}
+  catch(e){setSync('⚠ não enviou: '+(e.message||'confira a internet (ou use Exportar JSON)'),'err');}
+  try{const bc=new BroadcastChannel('ice_consolida');bc.postMessage(data);bc.close();}catch(e){}
+  try{localStorage.setItem('iceSub_'+curGC,JSON.stringify(data));}catch(e){}}
+document.getElementById('selGC').onchange=e=>{curGC=e.target.value;save();render();};
+document.getElementById('lider').oninput=e=>{lider=e.target.value;save();};
+document.getElementById('meta').oninput=e=>{meta=parseFloat(e.target.value)||0;save();render();};
+document.getElementById('optBtn').onclick=optimize;
+document.getElementById('clrBtn').onclick=()=>{const g=G();let has=g.opps.some(o=>committedIdx(o).length>0);if(has&&!confirm('Limpar todas as ações e voltar ao ICE atual?'))return;g.opps.forEach(o=>acao[curGC][o.pilar]={});save();render();};
+document.getElementById('insBtn').onclick=()=>{showIns=!showIns;render();if(showIns)window.scrollTo({top:0,behavior:'smooth'});};document.getElementById('sendBtn').onclick=sendToCloud;document.getElementById('xlsBtn').onclick=exportExcel;document.getElementById('expBtn').onclick=exportJSON;
+fill();render();
+window.__dbg={GCS,totals,getMeta:()=>meta};
+}
+</script>
+
+</body></html>
