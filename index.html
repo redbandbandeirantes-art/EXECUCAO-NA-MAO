@@ -4684,4 +4684,8 @@ sb.auth.getSession().then(({data})=>{
 </script>
 <!-- =================== FIM DO LOGIN =================== -->
 
-</body></html>
+<script>
+// links das páginas Plano/Gerencial: ./?abrir=gestao|simulador|telegram|atualizar|fotos abre a função depois do login
+(function(){const q=new URLSearchParams(location.search).get('abrir');if(!q)return;const id={gestao:'updBtn',simulador:'simBtn',telegram:'tgBtn',atualizar:'buscaBtn',fotos:'fotoBtn'}[q];const limpa=()=>{try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}};if(!id)return limpa();const t0=Date.now();
+  const tenta=()=>{const b=document.getElementById(id);if(b&&document.documentElement.classList.contains('authed')){limpa();setTimeout(()=>b.click(),400);return}if(Date.now()-t0<45000)setTimeout(tenta,400);else limpa()};tenta()})();
+</script></body></html>
