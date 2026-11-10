@@ -1403,7 +1403,9 @@ function simPanel(){
   const fonte=(()=>{const on=simOnline(t),outroM=SIMON&&SIMON.m!==PARC;
     return`<div class="sim-fonte"><span class="small">Base</span>
       <div class="seg" role="group" aria-label="Base da simulação"><button type="button" class="btn${R.B.fonte==='painel'?' on':''}" data-simf="painel">Painel (oficial)</button><button type="button" class="btn${R.B.fonte==='online'?' on':''}${on&&pr?'':' vazio'}" data-simf="online" title="${on&&pr?'Usar a nota online':'Clique para importar o arquivo da nota online'}">Nota online</button></div>
-      ${SIM_ADM()?`<label class="btn sim-imp">${SIMON?'Trocar arquivo da nota online':'Importar nota online'}<input type="file" id="simArq" accept=".xlsx,.xls" hidden></label>`:''}
+      ${SIM_ADM()?`<button type="button" class="btn sim-imp" id="simBusca" title="O robô baixa agora a pesquisa completa (GPS) do iRED360 e publica para todos. Ele também faz isso sozinho todo dia às 14h e às 17h.">🤖 Buscar agora do iRED360</button><label class="btn sim-imp">${SIMON?'Trocar arquivo da nota online':'Importar nota online'}<input type="file" id="simArq" accept=".xlsx,.xls" hidden></label>`:''}
+      ${SIMON&&SIM_ADM()?(()=>{const T0=SIMON.t||{},hj=new Date().toDateString()===new Date(SIMON.em).toDateString();
+        return `<span class="updpor sim-onq">${SIMON.por?'🤖 <b>Robô iRED360</b> '+(SIMON.via==='agora'?'buscou agora (pedido no painel)':'buscou na rodada das '+(SIMON.turno||14)+'h'):'👤 <b>Importada à mão</b>'} · ${hj?'✅ hoje':'🕒'} ${esc(dmH(SIMON.em))}${T0[0]?` · ICE ${(+T0[0].n).toLocaleString('pt-BR')} PDVs até ${esc(dmH(T0[0].ate))}`:''}${T0[1]?` · RED ${(+T0[1].n).toLocaleString('pt-BR')} PDVs até ${esc(dmH(T0[1].ate))}`:''} · automático às 14h e 17h</span>`})():''}
       ${SIMON?`<span class="small">Nota online de <b>${dmH(SIMON.em)}</b>${SIMON.classes&&SIMON.classes.length?' · '+esc(SIMON.classes.join(', ')):''}${outroM?` · <span class="dn">é de outro mês (${MESN[SIMON.m]||'?'}), não entra na simulação</span>`:''}${SIM_ADM()?` · ${esc(SIMON.arq)} · <button type="button" class="linkb" id="simRem">remover para todos</button>`:''}</span>`
         :`<span class="small">${SIMNUV.carregado?'Ainda não há nota online publicada.':'Buscando a nota online…'}</span>`}
       ${SIM_ADM()?(SIMNUV.pend?`<span class="sim-pend">${SIMNUV.pend} pedido${SIMNUV.pend>1?'s':''} de atualização esperando</span>`:'')
@@ -1580,6 +1582,15 @@ function simBind(){const c=S.sim[S.t];
   on('simPedir','click',async()=>{const b=$('simPedir'),m=$('simMsg');b.disabled=true;if(m)m.textContent='Enviando…';
     try{await window.r360Nuvem.pedir(($('simObs')||{}).value||'');SIMNUV.meu=await window.r360Nuvem.meuPedido();simRedraw();const mm=$('simMsg');if(mm)mm.innerHTML='<span class="up">Pedido enviado! O administrador recebe o aviso no Telegram.</span>'}
     catch(er){b.disabled=false;const t=String(er&&er.message||er);if(m)m.innerHTML='<span class="dn">'+esc(/ja pediu|já pediu/i.test(t)?'Você já pediu há pouco. Aguarde o administrador atualizar.':/relation|does not exist|not found/i.test(t)?'O pedido ainda não está ativado no Supabase. Avise o administrador.':'Não consegui enviar: '+t)+'</span>'}});
+  on('simBusca','click',async()=>{const b=$('simBusca'),m=$('simMsg'),N=window.r360Nuvem;if(!N||!N.buscarAgora)return;b.disabled=true;b.textContent='⏳ Pedindo ao robô…';
+    const t0=Date.now(),fim=msg=>{const mm=$('simMsg');if(mm)mm.innerHTML=msg;const bb=$('simBusca');if(bb){bb.disabled=false;bb.textContent='🤖 Buscar agora do iRED360'}};
+    try{await N.buscarAgora()}catch(er){const t=String(er&&er.message||er);return fim('<span class="dn">'+esc(/r360_painel_nota_online|function|schema cache/i.test(t)?'Falta rodar no Supabase o arquivo supabase_nota_online.sql.':t)+'</span>')}
+    if(m)m.textContent='O robô está baixando a pesquisa completa do iRED360 (leva 1 a 2 minutos)…';b.textContent='⏳ Buscando no iRED360…';
+    for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,6000));
+      const st=await N.status();if(st&&st.em>t0&&!st.ok)return fim('<span class="dn">Não consegui: '+esc(st.msg||'erro')+'. Nada foi trocado.</span>');
+      const x=await N.baixar();if(x&&x.v===1&&x.em>t0){SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}S.simFonte='online';SIMNUV.pend=0;simRedraw();const T0=x.t||{};
+        return fim(`<span class="up">Nota online atualizada pelo robô e publicada para todos: ${T0[0]?`ICE ${T0[0].n} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${T0[1].n} PDVs até ${dmH(T0[1].ate)}`:''}</span>`)}}
+    fim('<span class="dn">O robô não respondeu em 4 minutos (o GitHub pode estar atrasado). Confira o Telegram ou tente de novo.</span>')});
   on('simArq','change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const m=$('simMsg');if(m)m.textContent='Lendo o arquivo…';
     try{const r=await simImporta(f);let pub='';try{if(m)m.textContent='Publicando para todos…';await window.r360Nuvem.publicar(r.out);pub=' · publicada para todos ✓';SIMNUV.pend=0}catch(e2){console.warn(e2);pub=' · ficou só neste aparelho (não consegui publicar: '+esc(e2.message||e2)+')'}
       simRedraw();const mm=$('simMsg');const T0=r.out.t;if(mm)mm.innerHTML=`<span class="up">Nota online carregada${pub}: ${T0[0]?`ICE ${T0[0].n} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${T0[1].n} PDVs até ${dmH(T0[1].ate)}`:''}${r.out.classes.length?` · classificação: ${esc(r.out.classes.join(', '))}`:''}${r.semCanal?` · ${r.semCanal} linhas sem canal ficaram de fora`:''}</span>`}
@@ -2279,6 +2290,15 @@ try{const U=Object.assign({},D.upd||{});if(!U.hr&&window.R360_UPD_EM){const t=ne
   $('updBox').innerHTML=['master','admin'].includes(window.R360_PERFIL)?`${U.por?`<span class="updpor" title="${esc(U.porEmail||'')}">${U.porVia==='automatico'?'🤖':'👤'} <b>${esc(U.por)}</b> ${U.porVia==='automatico'?'atualizou sozinho (iRED360)':'atualizou '+(U.porVia==='telegram'?'pelo Telegram':'pelo painel')}</span><br>`:''}${U.dt?(HOJE_UPD?'✅ ':'🕒 ')+'Atualizado em <b>'+U.dt+(U.hr?' às '+U.hr:'')+'</b><br>':''}RED até ${U.red||'–'} · ICE LATAM até ${U.ice||'–'}<br>* ${mf} parcial`:(U.dt?`<span class="updflag${HOJE_UPD?'':' velho'}">${HOJE_UPD?'✅':'🕒'} Atualizado ${HOJE_UPD?'hoje':'em'} <b>${esc(U.dt.slice(0,5))}</b></span>`:'');
   $('updFoot').innerHTML=`<b>${Mf} (*)</b> é parcial: RED até ${U.red||'–'} (${nf(nR)} PDVs) e ICE LATAM até ${U.ice||'–'} (${nf(nI)} PDVs)${U.arq?', arquivos iRED360 de '+U.arq:''}.`;
   $('updSrc').textContent=U.arq?U.arq.slice(0,5):(U.ice||'')}catch(e){}
+
+// ---------------- PLANO DE REVERSÃO (páginas próprias no GitHub: lider.html e gerencial.html, ligadas ao banco do painel) ----------------
+(function(){const pf=window.R360_PERFIL;if(!['master','admin','gerente'].includes(pf)||!window.r360RailAdd)return;
+  const mk=(id,txt,tit,href,svg)=>{const a=document.createElement('a');a.id=id;a.className='rail-btn';a.href=href;a.target='_blank';a.rel='noopener';a.title=tit;a.style.textDecoration='none';
+    a.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+svg+'</svg><span class="rail-txt">'+txt+'</span>';window.r360RailAdd(a,false)};
+  mk('prBtn','Plano','Simulador do Líder: plano de reversão da gerência (abre em outra aba)','lider.html','<path d="M4 19V5M4 19h16"/><path d="M7 15l4-4 3 3 5-6"/><path d="M15 8h4v4"/>');
+  if(pf==='master'||pf==='admin')mk('pgBtn','Gerencial','Painel Gerencial: compromissos de todos os líderes (abre em outra aba)','gerencial.html','<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15v-3M11 15V9M15 15v-5M19 15v-2"/>');
+})();
+
 buildFilters();render();
 })();
 
@@ -2440,6 +2460,7 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 .rail.lado .rail-btn{width:100%;height:44px;padding:0 14px;font-size:17px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 @media print{.rail{display:none}}
 .dcard.simc{width:min(1100px,100%)}
+.sim-onq{display:inline-block;white-space:normal;line-height:1.35;margin:4px 0}
 .dcard .panel.sim{border:0;background:none;padding:0;margin:0;box-shadow:none}
 .sim-hd{display:flex;gap:8px;align-items:center}
 .sim-hd .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
@@ -2680,9 +2701,19 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 #auth{background:linear-gradient(90deg,rgba(20,0,0,0) 0%,rgba(20,0,0,.15) 40%,rgba(25,0,4,.82) 66%,rgba(25,0,4,.92) 100%),var(--login-fundo) left center/cover no-repeat #1a0003;place-items:center end;padding-right:7vw}
 #auth .card{background:color-mix(in srgb,var(--surface) 95%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:0;border-top:4px solid #C8102E;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
 #auth .go{background:#C8102E;color:#fff}
+#auth .card{max-width:440px}
+#auth .head{gap:12px}
+#auth .head>div{flex:1;min-width:0}
+#auth .head .t1{white-space:nowrap}
+#auth .solic-top{margin-left:auto;align-self:center;font:inherit;font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.03em;padding:8px 12px;border:1.5px solid #C8102E;border-radius:8px;background:none;color:#C8102E;cursor:pointer;white-space:nowrap}
+#auth .solic-top:hover{background:#C8102E;color:#fff}
+#auth .solic-top:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+#auth:has(#fLogin[hidden]) .solic-top{display:none}
+@media (max-width:420px){#auth .head{gap:8px}#auth .head img{width:36px}#auth .head .t1{font-size:25px}#auth .head .t2{font-size:12px}#auth .solic-top{font-size:11.5px;padding:6px 8px;letter-spacing:.02em}}
 @media (max-width:760px){#auth{display:flex;flex-direction:column;justify-content:center;padding:clamp(90px,20vh,180px) 16px 32px;place-items:normal;
 background:linear-gradient(180deg,rgba(26,0,3,0) 0%,rgba(26,0,3,.15) 18%,rgba(26,0,3,.55) 40%,rgba(26,0,3,.5) 80%,rgba(26,0,3,.25) 100%),var(--login-fundo) 24% center/cover no-repeat #1a0003}
 #auth .card{width:auto;margin:0}}
+
 </style>
 
 <div id="auth">
@@ -2690,6 +2721,7 @@ background:linear-gradient(180deg,rgba(26,0,3,0) 0%,rgba(26,0,3,.15) 18%,rgba(26
     <div class="head">
       <img id="authLogo" alt="" width="52" height="62">
       <div><div class="t1">RED 360º</div><div class="t2">Execução · Merchandising BAND</div></div>
+      <button class="solic-top" type="button" id="aSolic">Solicitar acesso</button>
     </div>
 
     <!-- Entrar -->
@@ -2702,8 +2734,6 @@ background:linear-gradient(180deg,rgba(26,0,3,0) 0%,rgba(26,0,3,.15) 18%,rgba(26
       <div class="pw"><input id="lSenha" type="password" autocomplete="current-password" required><button type="button" data-ver="lSenha">Mostrar</button></div>
       <button class="go" type="submit">Entrar</button>
       <button class="link" type="button" id="aEsqueci">Esqueci minha senha</button>
-      <div class="ou"><span>Ainda não tem acesso?</span></div>
-      <button class="alt" type="button" id="aSolic">Solicitar acesso</button>
     </form>
 
     <!-- Solicitar acesso -->
@@ -2982,6 +3012,20 @@ details[open]>summary::before{content:'▾ '}
 .dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:10px 0;font-size:14.5px}
 .dl dt{color:var(--mut)}.dl dd{margin:0;overflow-wrap:anywhere}
 .ia{background:var(--chip);border-radius:10px;padding:8px 10px;margin-top:10px}
+.ia .iatop{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.ia .iak{display:inline-flex;gap:4px;align-items:baseline;border-radius:8px;padding:3px 8px;background:var(--card,#fff);font-size:12.5px}
+.ia .iak b{font-size:14px}
+.ia .iak.ko b{color:#C8102E}
+.ia ol.ialist{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:46vh;overflow:auto}
+.ia ol.ialist li{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;background:var(--card,#fff);border-radius:8px;padding:6px 8px}
+.ia .iad{width:9px;height:9px;border-radius:50%;background:#9a948f}
+.ia li.ko .iad{background:#C8102E}
+.ia .ian{font-weight:700;line-height:1.25}
+.ia .ian small{display:block;font-weight:400;color:var(--mut)}
+.ia .iaf{font-weight:800;font-size:15px;text-align:right;white-space:nowrap}
+.ia .iaf small{display:block;font-weight:400;font-size:11px;color:var(--mut)}
+.ia .iabt{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ia .iaw{color:var(--warn);font-weight:700}
 #toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9;background:#1D1B19;color:#fff;border-radius:12px;padding:11px 16px;max-width:calc(100% - 32px);font-size:15px;box-shadow:0 4px 16px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s}
 #toast.on{opacity:1}
 `;
@@ -3291,7 +3335,7 @@ async function processaFila(){
   if(ENVIANDO||!EU.uid||!sb)return;ENVIANDO=true;let enviou=0;
   try{await atualizaFila();const itens=FILA.filter(f=>f.uid===EU.uid).sort((a,b)=>a.id<b.id?-1:1);
     for(const it of itens){if(!navigator.onLine)break;
-      try{const srv=await enviaItem(it);await IDB.del(it.id);enviou++;
+      try{const srv=await enviaItem(it);await IDB.del(it.id);enviou++;if(srv&&srv.id)iaPede(srv.id);
         const row=Object.assign({},it);delete row.full;delete row.mini;delete row.uid;delete row.tentativas;delete row.erro;
         row.id=srv&&srv.id||('env:'+it.id);row.criado_em=srv&&srv.criado_em||new Date().toISOString();row.ia_status='aguardando';MINHAS.unshift(row)}
       catch(e){it.tentativas=(it.tentativas||0)+1;it.erro=traduz(e);await IDB.put(it);if(ehRede(e)||faltaSQL(e))break}}}
@@ -3342,9 +3386,10 @@ function verFoto(f,depois){
       ${f.obs?`<dt>Observação</dt><dd>${esc(f.obs)}</dd>`:''}
     </dl>
     <div class="acts">${f.lat!=null?`<a class="btn sm" href="${mapsUrl(f.lat,f.lon)}" target="_blank" rel="noopener">📍 Onde a foto foi tirada</a>`:''}${f.pdv_lat!=null?`<a class="btn sm" href="${mapsUrl(f.pdv_lat,f.pdv_lon)}" target="_blank" rel="noopener">🏪 PDV no mapa</a>`:''}</div>
-    <div class="ia small">🤖 <b>Reconhecimento por IA:</b> ${f.ia&&f.ia.resumo?esc(f.ia.resumo):'fase 2 — frentes Coca-Cola x concorrência, para comparar com o SOVI da pesquisa do comercial.'}</div>
+    <div class="ia small" id="mIa">${iaHTML(f)}</div>
     ${podeApagar(f)?`<div class="acts"><button class="btn danger" id="mDel" type="button">${f._fila?'Descartar foto':'Apagar foto'}</button></div>`:''}
   </div>`);
+  iaLiga(f);
   const img=$('mImg');
   if(f._fila&&f.full){MODAL_URL=URL.createObjectURL(f.full);img.src=MODAL_URL}
   else{img.src=urlDe(f.miniatura)||'';assina([f.arquivo]).then(()=>{const u=urlDe(f.arquivo);if(u&&$('mImg')===img)img.src=u}).catch(e=>toast('Não consegui abrir a foto: '+traduz(e),5000))}
@@ -3356,6 +3401,54 @@ function verFoto(f,depois){
         const {error}=await sb.from(TAB_FOTOS).delete().eq('id',f.id);if(error)throw error;MINHAS=MINHAS.filter(x=>x.id!==f.id)}
       fechaModal(false);toast('Foto apagada');if(depois)depois(f);if(S.aba==='pdv')pintaMinhasPdv()}
     catch(e){del.disabled=false;toast('Não consegui apagar: '+traduz(e),5000)}}}}
+
+/* ---------- RECONHECIMENTO DE PRODUTOS POR IA (função fotos-ia no Supabase, Google Gemini) ---------- */
+const IA_FUNC='fotos-ia';
+const nfmt=v=>String(v).replace('.',',');
+async function iaChama(body){
+  const {data,error}=await sb.functions.invoke(IA_FUNC,{body});
+  if(error){let m=error.message||String(error);try{const j=await error.context.json();if(j&&j.erro)m=j.erro}catch(e){}
+    if(/Failed to send|not found|404|FunctionsFetchError/i.test(m))m='a função fotos-ia ainda não foi publicada no Supabase';throw new Error(m)}
+  if(data&&data.erro)throw new Error(data.erro);return (data&&data.resultados)||[]}
+function iaAplica(id,r){const marca=x=>{if(!x||x.id!==id)return;if(r.ok){x.ia=r.ia;x.ia_status='ok'}else{x.ia={erro:r.erro};x.ia_status='erro'}};
+  MINHAS.forEach(marca);if(typeof PDATA!=='undefined'&&PDATA&&PDATA.rows)PDATA.rows.forEach(marca)}
+function iaPede(id){iaChama({id}).then(rs=>{const r=rs[0];if(r)iaAplica(id,r)}).catch(()=>{})}
+function iaTexto(f){const a=f.ia;return (f.nome||'PDV '+f.pv)+' ('+f.pv+') · '+new Date(f.tirada_em).toLocaleDateString('pt-BR')+'\n'+
+  a.itens.map(x=>`${x.coca?'🔴':'⚪'} ${x.produto} · ${x.frentes} frente${x.frentes===1?'':'s'}${x.local?' · '+x.local:''}`).join('\n')+
+  (a.frentes_bebidas?`\nCoca-Cola: ${a.frentes_coca} de ${a.frentes_bebidas} frentes de bebida (${nfmt(a.share_coca)}%)`:'')}
+function iaHTML(f){
+  const tit='🤖 <b>Produtos reconhecidos pela IA</b>';
+  if(f._fila||String(f.id).startsWith('env:'))return tit+'<div class="mut">A IA lê a foto assim que ela chegar no servidor.</div>';
+  const a=f.ia;
+  if(a&&Array.isArray(a.itens)){
+    const q=a.qualidade==='ruim'?'<div class="iaw">⚠ Foto ruim (escura, borrada ou longe): a lista pode estar incompleta.</div>':'';
+    const lista=a.itens.length?`<ol class="ialist">${a.itens.map(x=>`<li class="${x.coca?'ko':''}"><span class="iad" title="${x.coca?'Coca-Cola':'Concorrência / outros'}"></span>
+      <span class="ian">${esc(x.produto)}<small>${esc([x.fabricante,x.local].filter(Boolean).join(' · '))}</small></span>
+      <span class="iaf">${x.frentes}<small>frente${x.frentes===1?'':'s'}</small></span></li>`).join('')}</ol>`:'<div class="mut">Nenhum produto reconhecido nesta foto.</div>';
+    return `${tit}${a.resumo?`<div style="margin-top:4px">${esc(a.resumo)}</div>`:''}${q}
+      <div class="iatop"><span class="iak"><b>${a.total_produtos}</b> produtos</span><span class="iak"><b>${a.frentes_bebidas}</b> frentes de bebida</span>
+      <span class="iak ko"><b>${a.frentes_coca}</b> Coca-Cola${a.share_coca!=null?` (${nfmt(a.share_coca)}%)`:''}</span><span class="iak"><b>${a.frentes_conc}</b> concorrência</span></div>
+      ${lista}
+      <div class="iabt"><button class="btn sm" id="mIaCopia" type="button">📋 Copiar lista</button><button class="btn sm" id="mIaBtn" type="button">🔄 Ler de novo</button></div>
+      <div class="mut" style="margin-top:6px;font-size:11.5px">Lido por IA (${esc(a.modelo||'Gemini')}) em ${fmtDH(a.em)}. A IA pode errar: confira na foto.</div>`}
+  if(a&&a.erro)return `${tit}<div class="iaw" style="margin-top:4px">Não consegui ler: ${esc(a.erro)}</div><div class="iabt"><button class="btn sm" id="mIaBtn" type="button">🔄 Tentar de novo</button></div>`;
+  const lendo=(f.ia_status==='lendo'||f.ia_status==='aguardando');
+  return `${tit}<div class="mut" style="margin-top:4px">${lendo?'⏳ A IA está lendo esta foto…':'Esta foto ainda não foi lida.'}</div><div class="iabt"><button class="btn sm pri" id="mIaBtn" type="button">🤖 Reconhecer produtos</button></div>`}
+function iaLiga(f){
+  const box=$('mIa');if(!box)return;
+  const pinta=()=>{if($('mIa')!==box)return;box.innerHTML=iaHTML(f);iaLiga(f)};
+  const cp=$('mIaCopia');if(cp)cp.onclick=async()=>{try{await navigator.clipboard.writeText(iaTexto(f));toast('Lista copiada ✓ (cole no WhatsApp ou no Excel)')}catch(e){toast('Não consegui copiar: '+traduz(e),4000)}};
+  const bt=$('mIaBtn');
+  if(bt)bt.onclick=async()=>{bt.disabled=true;bt.textContent='⏳ Lendo a foto… (uns 10 segundos)';
+    try{const r=(await iaChama({id:f.id}))[0];if(!r)throw new Error('sem resposta');iaAplica(f.id,r);if(r.ok){f.ia=r.ia;f.ia_status='ok'}else{f.ia={erro:r.erro};f.ia_status='erro'}}
+    catch(e){f.ia={erro:traduz(e)};f.ia_status='erro'}
+    pinta()};
+  // foto que acabou de subir: espera a leitura automática terminar
+  if(!f.ia&&(f.ia_status==='aguardando'||f.ia_status==='lendo')&&!String(f.id).startsWith('env:')&&!f._polling){f._polling=1;let n=0;
+    const olha=async()=>{if($('mIa')!==box){f._polling=0;return}
+      try{const {data}=await sb.from(TAB_FOTOS).select('ia,ia_status').eq('id',f.id).maybeSingle();if(data&&data.ia){f.ia=data.ia;f.ia_status=data.ia_status;f._polling=0;return pinta()}}catch(e){}
+      if(++n<8)setTimeout(olha,5000);else f._polling=0};
+    setTimeout(olha,4000)}}
 
 /* ---------- ROTEIRO: programação do dia em ordem (1º, 2º, 3º…) ---------- */
 const RT={dia:hoje(),email:'',lista:[],orig:[],sujo:false,f:GSR_VAZIO(),q:'',F:[],carregado:''};
@@ -3480,7 +3573,7 @@ function renderPortal(){
     <div class="grid3"><select id="pLocal" aria-label="Local"><option value="">Todas as fotos</option><option value="ok">Só no PDV</option><option value="fora">Só fora do local</option><option value="sem">Sem GPS</option></select>
       <select id="pBase" aria-label="Base"><option value="todos">Cobertura sobre: todos os PDVs</option><option value="p1">Cobertura sobre: prioridade ICE 1</option><option value="ice">Cobertura sobre: base ICE</option><option value="red">Cobertura sobre: base RED</option></select>
       <input type="search" id="pQ" placeholder="Buscar PDV ou pessoa" value="${esc(P.q)}"></div></details>
-    <div class="row" style="margin-top:8px"><button class="btn sm" id="pAtual" type="button">↻ Atualizar</button><button class="btn sm" id="pLimpa" type="button">✕ Limpar filtros</button><button class="btn sm" id="pCsv" type="button">⬇ Baixar planilha</button><span class="small mut" id="pInfo" style="flex:1 1 200px"></span></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="pAtual" type="button">↻ Atualizar</button><button class="btn sm" id="pLimpa" type="button">✕ Limpar filtros</button><button class="btn sm" id="pCsv" type="button">⬇ Baixar planilha</button>${ADMIN()?'<button class="btn sm" id="pIa" type="button">🤖 Ler fotos sem IA</button>':''}<span class="small mut" id="pInfo" style="flex:1 1 200px"></span></div>
   </div>
   <div id="pRes"><div class="card vazio">Carregando as fotos…</div></div>`;
   qa('#pPer [data-per]').forEach(b=>b.onclick=()=>{P.per=b.dataset.per;P.mostra=40;renderPortal()});
@@ -3489,6 +3582,11 @@ function renderPortal(){
   $('pLocal').onchange=e=>{P.local=e.target.value;desenhaPortal()};$('pBase').onchange=e=>{P.base=e.target.value;desenhaPortal()};
   let tq=0;$('pQ').oninput=e=>{const v0=e.target.value;clearTimeout(tq);tq=setTimeout(()=>{P.q=v0;P.mostra=40;desenhaPortal()},200)};
   $('pAtual').onclick=()=>carregaPortal(true);$('pCsv').onclick=baixaCsv;
+  if($('pIa'))$('pIa').onclick=async()=>{const b=$('pIa');b.disabled=true;let tot=0,ok=0;
+    try{for(let v=0;v<10;v++){b.textContent=`⏳ Lendo… ${ok} prontas`;const rs=await iaChama({pendentes:true});if(!rs.length)break;rs.forEach(r=>{tot++;if(r.ok)ok++;iaAplica(r.id,r)});if(rs.every(r=>!r.ok))break}
+      toast(tot?`IA leu ${ok} de ${tot} foto${tot===1?'':'s'}`+(ok<tot?' (veja o erro na foto)':''):'Todas as fotos já foram lidas ✓',6000)}
+    catch(e){toast('IA: '+traduz(e),6000)}
+    b.disabled=false;b.textContent='🤖 Ler fotos sem IA'};
   $('pLimpa').onclick=()=>{Object.assign(P,{ger:'',sup:'',rota:'',local:'',base:'todos',q:'',mostra:40});$('pQ').value='';$('pLocal').value='';$('pBase').value='todos';poeSelects();desenhaPortal();toast('Filtros limpos')};
   poeSelects();carregaPortal(true)}
 function poeSelects(){
@@ -3569,7 +3667,8 @@ function desenhaPortal(){
   pintaImgs(el)}
 function baixaCsv(){const rows=filtraRows();if(!rows.length)return toast('Nada para baixar nesse filtro.');
   const cols=[['Data',r=>new Date(r.tirada_em).toLocaleDateString('pt-BR')],['Hora',r=>fmtHora(r.tirada_em)],['PV',r=>r.pv],['Nome',r=>r.nome],['Canal',r=>r.canal],['Gerência',r=>rowRef(r).ger],['Supervisão',r=>rowRef(r).sup],['Rota',r=>rowRef(r).rota],
-    ['Pessoa',r=>r.email],['Local',r=>LOCAL_ROT[r.local]||r.local],['Distância (m)',r=>r.dist_m],['Precisão GPS (m)',r=>r.precisao_m],['Latitude',r=>r.lat],['Longitude',r=>r.lon],['Observação',r=>r.obs],['Arquivo',r=>r.arquivo]];
+    ['Pessoa',r=>r.email],['Local',r=>LOCAL_ROT[r.local]||r.local],['Distância (m)',r=>r.dist_m],['Precisão GPS (m)',r=>r.precisao_m],['Latitude',r=>r.lat],['Longitude',r=>r.lon],['Observação',r=>r.obs],['Arquivo',r=>r.arquivo],
+    ['IA · produtos',r=>r.ia&&r.ia.itens?r.ia.itens.map(x=>x.produto+' ('+x.frentes+')').join(' | '):''],['IA · frentes Coca-Cola',r=>r.ia&&r.ia.itens?r.ia.frentes_coca:''],['IA · frentes concorrência',r=>r.ia&&r.ia.itens?r.ia.frentes_conc:''],['IA · % Coca-Cola',r=>r.ia&&r.ia.itens?r.ia.share_coca:'']];
   const cel=v=>{if(v==null)return'';let s=typeof v==='number'?String(v).replace('.',','):String(v);if(/[;"\n\r]/.test(s))s='"'+s.replace(/"/g,'""')+'"';return s};
   const txt='﻿'+cols.map(c=>c[0]).join(';')+'\r\n'+rows.map(r=>cols.map(c=>cel(c[1](r))).join(';')).join('\r\n');
   const [de,ate]=periodo();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));a.download=`fotos-pdv_${de}_a_${ate}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
@@ -3862,11 +3961,14 @@ function abreBusca(){let o=$('buscaDlg');
   o.hidden=false;document.body.classList.add('dlock');if(BUSCA.id)acompanhaBusca();else telaBusca0()}
 function fechaBusca(){const o=$('buscaDlg');if(o)o.hidden=true;document.body.classList.remove('dlock')}
 function telaBusca0(msgTxt){const B=$('buscaBody');
+  const MN=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'],hj=new Date(),mAt=MN[hj.getMonth()],mAn=MN[(hj.getMonth()+11)%12];
   B.innerHTML=`<p>O robô entra no iRED360, baixa agora as exportações completas <b>ICE LATAM</b> e <b>RED</b> e mostra o resumo. Nada é publicado sem você confirmar.</p>
-    ${msgTxt||''}<div class="tg-pe"><button type="button" class="btn pri" id="buscaGo">Buscar agora</button></div>`;
-  $('buscaGo').onclick=async()=>{const bt=$('buscaGo');bt.disabled=true;bt.textContent='Pedindo ao robô…';
-    try{const {data,error}=await sb.rpc('r360_painel_buscar');if(error)throw error;BUSCA.id=data;acompanhaBusca()}
-    catch(e){const m=String(e&&e.message||e);telaBusca0(`<div class="umsg err">${/r360_painel_buscar|function|schema cache/i.test(m)?'Falta rodar no Supabase o arquivo supabase_painel_atualizar.sql.':escA(m)}</div>`)}}}
+    <p class="small" style="opacity:.85;margin-top:-4px"><b>Mês passado</b> atualiza só as notas de ${mAn} (pesquisas que entraram atrasadas ou foram corrigidas no iRED360). A base de clientes e o mês atual não mudam.</p>
+    ${msgTxt||''}<div class="tg-pe" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="btn" id="buscaAnt">Buscar mês passado (${mAn})</button><button type="button" class="btn pri" id="buscaGo">Buscar mês atual (${mAt})</button></div>`;
+  const vai=async(qual)=>{const bt=$(qual==='anterior'?'buscaAnt':'buscaGo');$('buscaAnt').disabled=true;$('buscaGo').disabled=true;bt.textContent='Pedindo ao robô…';
+    try{const r=qual==='anterior'?await sb.rpc('r360_painel_buscar_mes',{p_mes:'anterior'}):await sb.rpc('r360_painel_buscar');if(r.error)throw r.error;BUSCA.id=r.data;acompanhaBusca()}
+    catch(e){const m=String(e&&e.message||e);telaBusca0(`<div class="umsg err">${/r360_painel_buscar_mes/i.test(m)||(qual==='anterior'&&/function|schema cache/i.test(m))?'Falta rodar no Supabase o arquivo supabase_mes_passado.sql.':/r360_painel_buscar|function|schema cache/i.test(m)?'Falta rodar no Supabase o arquivo supabase_painel_atualizar.sql.':escA(m)}</div>`)}};
+  $('buscaGo').onclick=()=>vai('atual');$('buscaAnt').onclick=()=>vai('anterior')}
 function acompanhaBusca(){const B=$('buscaBody');clearTimeout(BUSCA.timer);const t0=Date.now();let alvo=3,mostra=0,txt='Ligando o robô no GitHub',tEtapa=Date.now(),fase='';
   const fmtT=ms=>{const t=Math.round(ms/1000);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
   // barra estilo cópia do Windows: anda até a etapa que o robô informou e continua devagar até a próxima
@@ -4063,6 +4165,8 @@ window.r360Nuvem={
     try{await sb.from('pedidos_atualizacao').update({atendido:true,atendido_em:new Date().toISOString()}).eq('atendido',false)}catch(e){}},
   pedir:async obs=>{const {data:u}=await sb.auth.getUser();const email=((u&&u.user&&u.user.email)||'').toLowerCase();const {error}=await sb.from('pedidos_atualizacao').insert({email,obs:obs||null});if(error)throw error},
   meuPedido:async()=>{try{const {data:u}=await sb.auth.getUser();const email=((u&&u.user&&u.user.email)||'').toLowerCase();const {data}=await sb.from('pedidos_atualizacao').select('criado_em,atendido,atendido_em').eq('email',email).order('criado_em',{ascending:false}).limit(1);return data&&data[0]||null}catch(e){return null}},
+  status:async()=>{try{const {data,error}=await sb.storage.from(BUCKET).createSignedUrl('nota-online-status.json',60);if(error||!data)return null;const r=await fetch(data.signedUrl,{cache:'no-store'});return r.ok?await r.json():null}catch(e){return null}},
+  buscarAgora:async()=>{const {error}=await sb.rpc('r360_painel_nota_online');if(error)throw error;return true},
   pendentes:async()=>{try{const {count,error}=await sb.from('pedidos_atualizacao').select('id',{count:'exact',head:true}).eq('atendido',false);return error?null:count}catch(e){return null}}
 };
 window.r360LeArquivo=async f=>{await carregaXLSX();const wb=await lePlanilha(f,{cellDates:true});return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null})};
@@ -4089,7 +4193,7 @@ function telaAtualizar(B){
   const f2=v=>v==null?'–':v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const MES=mesProxyG(['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']),TN=['ICE LATAM','RED'];
   let res=null;
-  const tela0=()=>{B.innerHTML=`<label class="udrop" id="uDrop"><input type="file" id="uFile" multiple accept=".xlsx,.xls,.xlsm,.csv" hidden><b><span class="lg">Arraste aqui as exportações do iRED360</span><span class="sm">Toque para escolher as exportações do iRED360</span></b><span class="small">ICE LATAM e RED (iRED360-complete-…xlsx), ou clique para escolher. Pode mandar só uma delas.</span></label>
+  const tela0=()=>{B.innerHTML=`<label class="udrop" id="uDrop"><input type="file" id="uFile" multiple accept=".xlsx,.xls,.xlsm,.csv" hidden><b><span class="lg">Arraste aqui as exportações do iRED360</span><span class="sm">Toque para escolher as exportações do iRED360</span></b><span class="small">ICE LATAM e RED (iRED360-complete-…xlsx), ou clique para escolher. Pode mandar só uma delas. Serve também para o <b>mês passado</b>: o painel coloca cada pesquisa no mês da data dela.</span></label>
     <button type="button" class="usolav" id="solAviso" hidden><b></b><span>Ver em Usuários →</span></button>
     <p class="note">O painel lê os arquivos aqui no seu aparelho, troca o mês que vier neles e mantém o resto. Antes de publicar você vê o resumo, e a versão anterior fica guardada como backup.</p><div id="uMsg"></div>`;
     const av=$('solAviso');if(av)av.onclick=()=>mostraTab('usr');marcaSolic(SOL_PEND);
