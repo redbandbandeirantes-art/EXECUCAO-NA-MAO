@@ -1582,15 +1582,23 @@ function simBind(){const c=S.sim[S.t];
   on('simPedir','click',async()=>{const b=$('simPedir'),m=$('simMsg');b.disabled=true;if(m)m.textContent='Enviando…';
     try{await window.r360Nuvem.pedir(($('simObs')||{}).value||'');SIMNUV.meu=await window.r360Nuvem.meuPedido();simRedraw();const mm=$('simMsg');if(mm)mm.innerHTML='<span class="up">Pedido enviado! O administrador recebe o aviso no Telegram.</span>'}
     catch(er){b.disabled=false;const t=String(er&&er.message||er);if(m)m.innerHTML='<span class="dn">'+esc(/ja pediu|já pediu/i.test(t)?'Você já pediu há pouco. Aguarde o administrador atualizar.':/relation|does not exist|not found/i.test(t)?'O pedido ainda não está ativado no Supabase. Avise o administrador.':'Não consegui enviar: '+t)+'</span>'}});
-  on('simBusca','click',async()=>{const b=$('simBusca'),m=$('simMsg'),N=window.r360Nuvem;if(!N||!N.buscarAgora)return;b.disabled=true;b.textContent='⏳ Pedindo ao robô…';
-    const t0=Date.now(),fim=msg=>{const mm=$('simMsg');if(mm)mm.innerHTML=msg;const bb=$('simBusca');if(bb){bb.disabled=false;bb.textContent='🤖 Buscar agora do iRED360'}};
+  on('simBusca','click',async()=>{const b=$('simBusca'),N=window.r360Nuvem;if(!N||!N.buscarAgora)return;b.disabled=true;b.textContent='⏳ Pedindo ao robô…';
+    const t0=Date.now();let alvo=3,mostra=0,txt='Ligando o robô no GitHub',tEtapa=Date.now(),vivo=true,tk=null;
+    const fmtT=ms=>{const t=Math.round(ms/1000);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
+    const fim=msg=>{vivo=false;clearTimeout(tk);const mm=$('simMsg');if(mm)mm.innerHTML=msg;const bb=$('simBusca');if(bb){bb.disabled=false;bb.textContent='🤖 Buscar agora do iRED360'}};
+    // barra estilo cópia do Windows (igual ao ATUALIZAR): anda até a etapa que o robô informou e segue devagar até a próxima
+    const barra=()=>{const mm=$('simMsg');if(!mm||!vivo)return;const teto=Math.min(alvo+14,97),dt=(Date.now()-tEtapa)/1000;mostra=Math.max(mostra,Math.min(teto,alvo+dt*0.35));const p=Math.floor(mostra);
+      mm.innerHTML=`<div class="sim-pgb"><div class="pb-top"><b>${esc(txt)}…</b><span>${p}%</span></div><div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" aria-label="${esc(txt)}"><i style="width:${p}%"></i></div><div class="pb-pe"><span>Tempo: ${fmtT(Date.now()-t0)}</span><span>costuma levar de 1 a 2 minutos</span></div></div>`};
+    const tick=()=>{if(!vivo)return;barra();tk=setTimeout(tick,1000)};
     try{await N.buscarAgora()}catch(er){const t=String(er&&er.message||er);return fim('<span class="dn">'+esc(/r360_painel_nota_online|function|schema cache/i.test(t)?'Falta rodar no Supabase o arquivo supabase_nota_online.sql.':t)+'</span>')}
-    if(m)m.textContent='O robô está baixando a pesquisa completa do iRED360 (leva 1 a 2 minutos)…';b.textContent='⏳ Buscando no iRED360…';
-    for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,6000));
-      const st=await N.status();if(st&&st.em>t0&&!st.ok)return fim('<span class="dn">Não consegui: '+esc(st.msg||'erro')+'. Nada foi trocado.</span>');
-      const x=await N.baixar();if(x&&x.v===1&&x.em>t0){SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}S.simFonte='online';SIMNUV.pend=0;simRedraw();const T0=x.t||{};
-        return fim(`<span class="up">Nota online atualizada pelo robô e publicada para todos: ${T0[0]?`ICE ${T0[0].n} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${T0[1].n} PDVs até ${dmH(T0[1].ate)}`:''}</span>`)}}
-    fim('<span class="dn">O robô não respondeu em 4 minutos (o GitHub pode estar atrasado). Confira o Telegram ou tente de novo.</span>')});
+    b.textContent='⏳ Buscando no iRED360…';tick();
+    for(let i=0;i<80&&vivo;i++){await new Promise(r=>setTimeout(r,3000));
+      const st=await N.status();
+      if(st&&st.em>t0){if(st.ok===false)return fim('<span class="dn">Não consegui: '+esc(st.msg||'erro')+'. Nada foi trocado.</span>');if(st.pct!=null&&st.pct>alvo){alvo=st.pct;txt=st.txt||txt;tEtapa=Date.now()}}
+      if(st&&st.em>t0&&st.ok===true||i%2===1){const x=await N.baixar();if(x&&x.v===1&&x.em>t0){vivo=false;clearTimeout(tk);const mm=$('simMsg');if(mm)mm.innerHTML=`<div class="sim-pgb"><div class="pb-top"><b>Pronto</b><span>100%</span></div><div class="pbar ok"><i style="width:100%"></i></div></div>`;
+        await new Promise(r=>setTimeout(r,900));SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}S.simFonte='online';SIMNUV.pend=0;simRedraw();const T0=x.t||{};
+        return fim(`<span class="up">✅ Nota online atualizada pelo robô e publicada para todos: ${T0[0]?`ICE ${(+T0[0].n).toLocaleString('pt-BR')} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${(+T0[1].n).toLocaleString('pt-BR')} PDVs até ${dmH(T0[1].ate)}`:''}</span>`)}}}
+    if(vivo)fim('<span class="dn">O robô não respondeu em 4 minutos (o GitHub pode estar atrasado). Confira o Telegram ou tente de novo.</span>')});
   on('simArq','change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const m=$('simMsg');if(m)m.textContent='Lendo o arquivo…';
     try{const r=await simImporta(f);let pub='';try{if(m)m.textContent='Publicando para todos…';await window.r360Nuvem.publicar(r.out);pub=' · publicada para todos ✓';SIMNUV.pend=0}catch(e2){console.warn(e2);pub=' · ficou só neste aparelho (não consegui publicar: '+esc(e2.message||e2)+')'}
       simRedraw();const mm=$('simMsg');const T0=r.out.t;if(mm)mm.innerHTML=`<span class="up">Nota online carregada${pub}: ${T0[0]?`ICE ${T0[0].n} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${T0[1].n} PDVs até ${dmH(T0[1].ate)}`:''}${r.out.classes.length?` · classificação: ${esc(r.out.classes.join(', '))}`:''}${r.semCanal?` · ${r.semCanal} linhas sem canal ficaram de fora`:''}</span>`}
@@ -2293,10 +2301,10 @@ try{const U=Object.assign({},D.upd||{});if(!U.hr&&window.R360_UPD_EM){const t=ne
 
 // ---------------- PLANO DE REVERSÃO (páginas próprias no GitHub: lider.html e gerencial.html, ligadas ao banco do painel) ----------------
 (function(){const pf=window.R360_PERFIL;if(!['master','admin','gerente'].includes(pf)||!window.r360RailAdd)return;
-  const mk=(id,txt,tit,href,svg)=>{const a=document.createElement('a');a.id=id;a.className='rail-btn';a.href=href;a.target='_blank';a.rel='noopener';a.title=tit;a.style.textDecoration='none';
+  const mk=(id,txt,tit,href,svg)=>{const a=document.createElement('a');a.id=id;a.className='rail-btn';a.href=href;a.title=tit;a.style.textDecoration='none';
     a.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+svg+'</svg><span class="rail-txt">'+txt+'</span>';window.r360RailAdd(a,false)};
-  mk('prBtn','Plano','Simulador do Líder: plano de reversão da gerência (abre em outra aba)','lider.html','<path d="M4 19V5M4 19h16"/><path d="M7 15l4-4 3 3 5-6"/><path d="M15 8h4v4"/>');
-  if(pf==='master'||pf==='admin')mk('pgBtn','Gerencial','Painel Gerencial: compromissos de todos os líderes (abre em outra aba)','gerencial.html','<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15v-3M11 15V9M15 15v-5M19 15v-2"/>');
+  mk('prBtn','Plano','Simulador do Líder: plano de reversão da gerência','lider.html','<path d="M4 19V5M4 19h16"/><path d="M7 15l4-4 3 3 5-6"/><path d="M15 8h4v4"/>');
+  if(pf==='master'||pf==='admin')mk('pgBtn','Gerencial','Painel Gerencial: compromissos de todos os líderes','gerencial.html','<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15v-3M11 15V9M15 15v-5M19 15v-2"/>');
 })();
 
 buildFilters();render();
@@ -2461,6 +2469,17 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 @media print{.rail{display:none}}
 .dcard.simc{width:min(1100px,100%)}
 .sim-onq{display:inline-block;white-space:normal;line-height:1.35;margin:4px 0}
+.sim-pgb{width:560px;max-width:100%;margin-top:6px}
+.sim-pgb .pb-top{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:14px}
+.sim-pgb .pb-top span{font-variant-numeric:tabular-nums;font-weight:700}
+.sim-pgb .pbar{position:relative;height:20px;border:1px solid #9bc59b;background:#e9ece9;border-radius:3px;overflow:hidden}
+.sim-pgb .pbar i{position:relative;display:block;height:100%;background:linear-gradient(#7be07b,#06b025 55%,#05a321);transition:width .9s ease;overflow:hidden}
+.sim-pgb .pbar i::after{content:'';position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:simpbbrilho 1.8s linear infinite}
+.sim-pgb .pbar.ok i::after{display:none}
+@keyframes simpbbrilho{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+@media (prefers-reduced-motion:reduce){.sim-pgb .pbar i::after{animation:none}}
+.sim-pgb .pb-pe{display:flex;justify-content:space-between;font-size:12px;color:var(--fg-3);margin:6px 0 2px}
+.sim-fonte #simMsg:has(.sim-pgb){flex:1 1 100%;display:block}
 .dcard .panel.sim{border:0;background:none;padding:0;margin:0;box-shadow:none}
 .sim-hd{display:flex;gap:8px;align-items:center}
 .sim-hd .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
@@ -4120,6 +4139,13 @@ function r360Merge(D0,files){
   {const h0=new Date(),zz=n=>String(n).padStart(2,'0');D.upd=Object.assign({},D.upd,{red:ateDe(1)||(D.upd&&D.upd.red)||'',ice:ateDe(0)||(D.upd&&D.upd.ice)||'',dt:hj,hr:`${zz(h0.getHours())}:${zz(h0.getMinutes())}`,arq:arq||hj})}
   // relatório
   troca.forEach(k=>{const [t,m]=k.split('|').map(Number);const dep=band(pm,t,m,Array.from({length:pm.t.length},(_,i)=>i));rel.pesq[k]={t,m,antes:antes[k],depois:dep}});
+  // TRAVA: não deixa publicar arquivo que derruba a nota de repente (pontos zerados, arquivo pela metade, queda grande)
+  {const TNM=['ICE LATAM','RED'],MN=['dez','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'],fx=v=>v==null?'–':(Math.round(v*100)/100).toFixed(2).replace('.',','),bloq=[];
+    Object.values(rel.pesq).forEach(p=>{const nm=TNM[p.t]+' de '+MN[((p.m-1)%12)+1],A=p.antes,Dp=p.depois;
+      if(Dp.n>0&&(Dp.v==null||Dp.v<1))bloq.push(`TRAVA: ${nm} ficaria com nota ${fx(Dp.v)} (antes ${fx(A.v)}). O arquivo veio com os pontos realizados zerados ou sem canal com peso. Baixe de novo o relatório completo do iRED360. Nada foi publicado. Ignorado.`);
+      else if(A.v!=null&&A.n>=30&&Dp.v!=null&&A.v-Dp.v>15)bloq.push(`TRAVA: ${nm} cairia de ${fx(A.v)} para ${fx(Dp.v)} (−${fx(A.v-Dp.v)} pontos de uma vez). Isso não acontece num dia normal: confira se é o arquivo certo e do mês certo. Nada foi publicado. Ignorado.`);
+      if(A.n>=50&&Dp.n<A.n*0.7)bloq.push(`TRAVA: ${nm} tem ${A.n} PDVs no painel e o arquivo trouxe só ${Dp.n}. Parece um arquivo incompleto ou de outro filtro. Baixe de novo o relatório completo (todas as gerências). Nada foi publicado. Ignorado.`)});
+    if(bloq.length){rel.avisos.unshift(...bloq);return{D:D0,rel,ok:false}}}
   if(rel.mesNovo.length)rel.avisos.push(`Mês novo nas exportações (${rel.mesNovo.join(', ')}) e a virada de mês ainda não foi feita. As pesquisas entram, mas a base de prioridades, os objetivos e a estrutura continuam os do mês anterior. Faça a virada em Gestão → Virada de mês.`);
   return{D,rel,ok:true}}
 
