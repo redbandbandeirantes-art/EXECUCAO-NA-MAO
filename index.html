@@ -1256,8 +1256,8 @@ function simFaltam(t,m,A,B){if(m!==PARC)return[];
   const notaCanal=c=>{const o=A.ch[c];return o&&o.pct!=null?o.pct:A.score};
   const exp=(c,h)=>cfg.regra==='fixo'?+cfg.fixo:cfg.regra==='canal'?notaCanal(c):(h!=null?h:notaCanal(c));
   let L;
-  if(t===0)L=oList().filter(b=>b.iceOut==null&&!feitos.has(b.pv)).map(b=>({pv:b.pv,c:b.c,v:exp(b.c,cfg.regra==='hist'?oProj(b).v:null)}));
-  else{const U=redUlt(m);L=(D.redb||[]).filter(r=>inRedb(r)&&!feitos.has(r[0])).map(r=>{const u=U.get(r[0]);return{pv:r[0],c:r[2],v:exp(r[2],u?u.v:null)}})}
+  if(t===0)L=oList().filter(b=>b.iceOut==null&&!feitos.has(b.pv)).map(b=>({pv:b.pv,c:b.c,v:exp(b.c,cfg.regra==='hist'?oProj(b).v:null),nome:b.nome||'',rota:b.rota||'',sup:b.sup||'',sem:b.sem||'',dia:b.dia||''}));
+  else{const U=redUlt(m);L=(D.redb||[]).filter(r=>inRedb(r)&&!feitos.has(r[0])).map(r=>{const u=U.get(r[0]);return{pv:r[0],c:r[2],v:exp(r[2],u?u.v:null),nome:r[1]||'',sup:r[4]||'',rota:r[5]||''}})}
   return L.filter(x=>x.v!=null&&!isNaN(x.v))}
 function simCalc(t,m){
   const B=simBase(t,m),A=aggRows(t,B.rows),cfg=S.sim[t],P=D.peso[T[t]];
@@ -1267,9 +1267,10 @@ function simCalc(t,m){
   let nexc=0;for(const r of B.rows){if(!exc.has(r.pv))continue;const x=get(r.c);x.nx++;x.r0-=r.real;x.p0-=r.poss;nexc++}
   const avgP=x=>{const o=A.ch[x.c];return o&&o.n?o.poss/o.n:100};
   let F=[];
-  if(cfg.proj&&m===PARC){F=simFaltam(t,m,A,B).filter(f=>!exc.has(f.pv));const k=Math.max(0,Math.min(100,+cfg.cob||0))/100;const porC={};
+  const PP=cfg.porPdv||{},notaPP=pv=>{const o=PP[pv];return o&&o.nota!=null&&o.nota!==''&&!isNaN(+o.nota)?+o.nota:null};let nFora=0;
+  if(cfg.proj&&m===PARC){F=simFaltam(t,m,A,B).filter(f=>!exc.has(f.pv)).filter(f=>{if(PP[f.pv]&&PP[f.pv].fora){nFora++;return false}return true});const k=Math.max(0,Math.min(100,+cfg.cob||0))/100;const porC={};
     F.forEach(f=>{(porC[f.c]||(porC[f.c]=[])).push(f)});
-    for(const c in porC){const arr=porC[c],x=get(c),q=Math.round(arr.length*k),ap=avgP(x);const ov=cfg.porCanal&&cfg.porCanal[c]!=null?+cfg.porCanal[c]:null;const media=ov!=null?ov:arr.reduce((s,f)=>s+f.v,0)/arr.length;
+    for(const c in porC){const arr=porC[c],x=get(c),q=Math.round(arr.length*k),ap=avgP(x);const ov=cfg.porCanal&&cfg.porCanal[c]!=null?+cfg.porCanal[c]:null;const media=arr.reduce((s,f)=>{const np=notaPP(f.pv);return s+(np!=null?np:ov!=null?ov:f.v)},0)/arr.length;
       x.nfTot=arr.length;x.nf=q;x.pf=q*ap;x.rf=q*ap*media/100;x.mf=media}}
   for(const c in cfg.inc){const v=cfg.inc[c];if(!v||!(+v.n>0))continue;const x=get(c),ap=avgP(x);
     const nota=v.nota!==''&&v.nota!=null&&!isNaN(+v.nota)?+v.nota:(x.p0>0?x.r0/x.p0*100:(A.score||0));x.ni=+v.n;x.pi=x.ni*ap;x.ri=x.pi*nota/100;x.notaI=nota}
@@ -1284,7 +1285,7 @@ function simCalc(t,m){
   let obj=null;if(t===0){let w=0,o=0;for(const x of rows){const ob=D.obj[C[x.c]];if(ob&&ob[m]!=null&&x.w>0&&x.n>0){w+=x.w;o+=x.w*ob[m]}}obj=w?o/w:null}
   const outro=aggRows(1-t,simBase(1-t,m).rows).score;
   const mediaF=nF?rows.reduce((a,x)=>a+(x.nf?x.nf*x.mf:0),0)/nF:null;
-  return{A,B,mediaF,rows:rows.filter(x=>x.w>0||x.n>0).sort((a,b)=>b.w-a.w),score:sc,obj,nF,nFTot:F.length,nexc,excN:exc.size,precisa,outro,final:sc!=null&&outro!=null?(sc+outro)/2:sc}}
+  return{A,B,mediaF,nFora,rows:rows.filter(x=>x.w>0||x.n>0).sort((a,b)=>b.w-a.w),score:sc,obj,nF,nFTot:F.length,nexc,excN:exc.size,precisa,outro,final:sc!=null&&outro!=null?(sc+outro)/2:sc}}
 // ---- desenho do simulador em formato de dashboard ----
 const SIM_ABREV={'RESTAURANTE':'REST.','LANCHONETE':'LANCH.','MERCEARIA':'MERC.','PADARIA':'PAD.','CONVENIÊNCIA':'CONV.'};
 const simAb=c=>SIM_ABREV[c]||c;
@@ -1459,8 +1460,37 @@ function simPanel(){
   </tbody></table></div>
   <p class="small">A conta é a do simulador em Excel: nota do canal = realizados ÷ possíveis; nota ${T[t]} = média dos canais pelo peso ${T[t]}, só com canais que têm PDV. Cada PDV incluído entra com a média de pontos possíveis do canal. Faixas: abaixo de 60 = 0%; 60 a 69,99 = 50%; 70 a 74,99 = 70%; 75 ou mais = 100%.</p>
   </details>
+  ${pr?(()=>{const PP=cfg.porPdv||{},nAj=Object.values(PP).filter(o=>o&&(o.fora||(o.nota!=null&&o.nota!==''))).length,tot=R.nFTot+(R.nFora||0);
+    return`<details class="sim-aj" id="simPdvD"${S.simPdvOpen?' open':''}><summary>Cliente por cliente · os ${tot.toLocaleString('pt-BR')} que faltam${nAj?` · <b>${nAj} ajustado${nAj>1?'s':''}</b>`:''}</summary><div id="simPdvBody">${S.simPdvOpen?simPdvHTML(R):''}</div></details>`})():''}
   `}
   </div>`}
+// lista cliente por cliente dos que faltam: nota esperada de cada um e se vai ser pesquisado
+function simPdvHTML(R){const t=S.t,m=S.mes,cfg=S.sim[t],PP=cfg.porPdv||(cfg.porPdv={});
+  const exc=new Set(String(cfg.exc||'').split(/[^0-9]+/).filter(Boolean));
+  const L=simFaltam(t,m,R.A,R.B).filter(f=>!exc.has(f.pv));if(!L.length)return'<p class="small">Nenhum cliente faltando neste filtro.</p>';
+  const q=String(S.simPdvQ||'').trim().toLowerCase(),lim=S.simPdvLim||150,ov=c=>cfg.porCanal&&cfg.porCanal[c]!=null?+cfg.porCanal[c]:null;
+  const F=L.filter(f=>!q||`${f.pv} ${f.nome} ${C[f.c]} ${f.rota} ${f.sup}`.toLowerCase().includes(q)).map(f=>({...f,base:ov(f.c)!=null?ov(f.c):f.v,aj:PP[f.pv]||null})).sort((a,b)=>a.base-b.base);
+  const nAj=Object.values(PP).filter(o=>o&&(o.fora||(o.nota!=null&&o.nota!==''))).length;
+  return`<div class="sim-pdvtop"><input type="search" id="simPdvQ" placeholder="buscar código, nome, canal ou rota" value="${esc(S.simPdvQ||'')}"><span class="small">${F.length.toLocaleString('pt-BR')} cliente${F.length===1?'':'s'}${q?' encontrados':''} · ordenados pela nota esperada (os que mais puxam para baixo primeiro)</span>${nAj?`<button type="button" class="btn" id="simPdvLimpa">Limpar ${nAj} ajuste${nAj>1?'s':''}</button>`:''}</div>
+  <p class="small">Em branco, o cliente entra com a nota da regra (histórico ou canal). Digite a nota que você espera dele ou desmarque <b>Vai ser pesquisado</b> para tirá-lo da projeção.</p>
+  <div class="tw"><table class="simcan sim-pdvt"><thead><tr><th>Cliente</th><th>Canal</th><th>Rota</th>${t===0?'<th>Semana</th>':''}<th class="n">Nota da regra</th><th class="n">Sua nota</th><th class="n">Vai ser pesquisado</th></tr></thead><tbody>
+  ${F.slice(0,lim).map(f=>{const fora=!!(f.aj&&f.aj.fora),nt=f.aj&&f.aj.nota!=null&&f.aj.nota!==''?f.aj.nota:'';
+    return`<tr class="${fora?'sim-fora':''}${nt!==''?' sim-ajt':''}"><td><b>${esc(f.nome||'PDV '+f.pv)}</b><small>${esc(f.pv)}</small></td><td>${esc(C[f.c])}</td><td>${esc(f.rota)}<small>${esc(f.sup)}</small></td>${t===0?`<td>${esc(f.sem&&f.sem!=='-'?f.sem:'–')}${f.dia&&f.dia!=='-'?`<small>${esc(f.dia)}</small>`:''}</td>`:''}
+      <td class="n"><span class="pill ${scoreCls(f.base)}">${fmt(f.base,1)}</span></td>
+      <td class="n"><input class="simin" type="number" inputmode="decimal" min="0" max="110" step="0.1" data-pdvn="${esc(f.pv)}" value="${nt!==''?esc(String(nt)):''}" placeholder="${fmt(f.base,1)}"${fora?' disabled':''}></td>
+      <td class="n"><label class="sim-pdvchk"><input type="checkbox" data-pdvf="${esc(f.pv)}"${fora?'':' checked'}> ${fora?'não':'sim'}</label></td></tr>`}).join('')}
+  </tbody></table></div>${F.length>lim?`<button type="button" class="btn" id="simPdvMais">Mostrar mais ${Math.min(150,F.length-lim)} (de ${(F.length-lim).toLocaleString('pt-BR')} restantes)</button>`:''}`}
+function simPdvLiga(box){const c=S.sim[S.t];
+  const d=box.querySelector('#simPdvD');if(!d)return;
+  d.addEventListener('toggle',()=>{S.simPdvOpen=d.open;if(d.open){const b=$('simPdvBody');if(b&&!b.innerHTML.trim()){b.innerHTML=simPdvHTML(simCalc(S.t,S.mes))}}});
+  const q=d.querySelector('#simPdvQ');let tq=null;
+  d.addEventListener('input',e=>{if(e.target.id!=='simPdvQ')return;S.simPdvQ=e.target.value;S.simPdvLim=150;clearTimeout(tq);tq=setTimeout(()=>{const b=$('simPdvBody');if(!b)return;const pos=e.target.selectionStart;b.innerHTML=simPdvHTML(simCalc(S.t,S.mes));const n=$('simPdvQ');if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}},250)});
+  d.addEventListener('change',e=>{const el=e.target,PP=c.porPdv||(c.porPdv={});
+    if(el.dataset.pdvn!=null){const pv=el.dataset.pdvn,v=String(el.value).replace(',','.').trim();const o=PP[pv]||{};if(v===''||isNaN(+v))delete o.nota;else o.nota=Math.max(0,Math.min(110,+v));if(o.fora||o.nota!=null)PP[pv]=o;else delete PP[pv];c.proj=true;simRedraw()}
+    else if(el.dataset.pdvf!=null){const pv=el.dataset.pdvf,o=PP[pv]||{};o.fora=!el.checked;if(!o.fora)delete o.fora;if(o.fora||o.nota!=null)PP[pv]=o;else delete PP[pv];c.proj=true;simRedraw()}});
+  d.addEventListener('click',e=>{if(e.target.id==='simPdvMais'){S.simPdvLim=(S.simPdvLim||150)+150;const b=$('simPdvBody');if(b)b.innerHTML=simPdvHTML(simCalc(S.t,S.mes))}
+    else if(e.target.id==='simPdvLimpa'){c.porPdv={};simRedraw()}});
+  d.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.pdvn!=null){e.preventDefault();e.target.blur()}})}
 // limite do que a projeção alcança: nota com os que faltam tirando 0 (mínimo) e 110 (máximo)
 function simLimites(R){if(!R||!R.nF||typeof R.precisa!=='function')return null;const inv=alvo=>{let a=-60,b=220;for(let i=0;i<60;i++){const mm=(a+b)/2,p=R.precisa(mm);if(p==null||isNaN(p))return null;if(p<alvo)a=mm;else b=mm}return(a+b)/2};
   const hi=inv(110),lo=inv(0);return hi==null||lo==null?null:{lo,hi,R}}
@@ -1537,8 +1567,8 @@ function simRealHTML(){const t=S.t,m=S.mes,pr=m===PARC;
       <div><b class="num ${clsD(dl)}">${sinal(dl)}</b><span>no total</span><em>${fmt(sOF,2)} → ${fmt(sON,2)}</em></div>
     </div></div>
   <div class="sim-rtg">
-    <div class="simc"><div class="simc-t">Por canal</div><div class="tw"><table class="simcan"><thead><tr><th>Canal</th><th class="n">Oficial</th><th class="n">Online</th><th class="n">Diferença</th><th class="n">PDVs</th></tr></thead><tbody>
-      ${canais.map(c=>{const o=R.aOF.ch[c],n=R.aON.ch[c],d=o&&n&&o.pct!=null&&n.pct!=null?n.pct-o.pct:null;return`<tr><td><b>${C[c]}</b></td><td class="n">${o&&o.pct!=null?fmt(o.pct):'–'}</td><td class="n">${n&&n.pct!=null?`<span class="pill ${scoreCls(n.pct)}">${fmt(n.pct)}</span>`:'–'}</td><td class="n ${clsD(d)}">${sinal(d)}</td><td class="n">${o?o.n:0} → ${n?n.n:0}</td></tr>`}).join('')}
+    <div class="simc"><div class="simc-t">Por canal <span class="small">· clique no canal para ver os PDVs</span></div><div class="tw"><table class="simcan"><thead><tr><th>Canal</th><th class="n">Oficial</th><th class="n">Online</th><th class="n">Diferença</th><th class="n">PDVs</th></tr></thead><tbody>
+      ${canais.map(c=>{const o=R.aOF.ch[c],n=R.aON.ch[c],d=o&&n&&o.pct!=null&&n.pct!=null?n.pct-o.pct:null,ab=SIMCANAB.has(c);return`<tr class="sim-cr${ab?' ab':''}" data-c="${c}" tabindex="0" aria-expanded="${ab}" title="Clique para ver os PDVs pesquisados"><td><b><span class="sim-car">${ab?'▾':'▸'}</span> ${C[c]}</b></td><td class="n">${o&&o.pct!=null?fmt(o.pct):'–'}</td><td class="n">${n&&n.pct!=null?`<span class="pill ${scoreCls(n.pct)}">${fmt(n.pct)}</span>`:'–'}</td><td class="n ${clsD(d)}">${sinal(d)}</td><td class="n">${o?o.n:0} → ${n?n.n:0}</td></tr>${ab?simCanDetHTML(R,c):''}`}).join('')}
     </tbody></table></div></div>
     ${R.nivel?`<div class="simc"><div class="simc-t">Por ${NV[R.nivel].toLowerCase()} <span class="small">· clique para filtrar</span></div><div class="tw"><table class="simcan"><thead><tr><th>${NV[R.nivel]}</th><th class="n">Oficial</th><th class="n">Online</th><th class="n">Diferença</th><th class="n">Novas</th></tr></thead><tbody>
       ${R.grupos.map(g=>{const d=g.on!=null&&g.of!=null?g.on-g.of:null;return`<tr class="sim-gr" data-nivel="${R.nivel}" data-k="${esc(g.k)}" tabindex="0"><td><b>${esc(R.nivel==='rota'?'Rota '+g.k:g.k)}</b></td><td class="n">${fmt(g.of)}</td><td class="n">${g.on!=null?`<span class="pill ${scoreCls(g.on)}">${fmt(g.on)}</span>`:'–'}</td><td class="n ${clsD(d)}">${sinal(d)}</td><td class="n">${g.nov||'–'}</td></tr>`}).join('')}
@@ -1549,7 +1579,18 @@ function simRealHTML(){const t=S.t,m=S.mes,pr=m===PARC;
       ${R.novos.map(r=>({...r,v:notaPV(r)})).sort((a,b)=>(a.v??0)-(b.v??0)).slice(0,60).map(r=>`<tr><td><b>${esc(r.pv)}</b> <span class="small">${esc(nomePV(r.pv))}</span></td><td>${C[r.c]}</td><td>${esc(r.rota)}</td><td class="n">${r.v!=null?`<span class="pill ${scoreCls(r.v)}">${fmt(r.v)}</span>`:'–'}</td></tr>`).join('')}
     </tbody></table></div>${R.novos.length>60?`<p class="small">Mostrando 60 de ${R.novos.length}. Use os filtros para ver os outros.</p>`:''}`:'<p class="small">Nenhuma pesquisa nova neste filtro.</p>'}
   </div>`}
-function simRealLiga(box){box.querySelectorAll('.sim-gr').forEach(tr=>{const vai=()=>{const k=tr.dataset.k,nv=tr.dataset.nivel;pushH();
+const SIMCANAB=new Set();
+function simCanDetHTML(R,c){const nota=r=>r&&r.poss?r.real/r.poss*100:null,mOF=new Map(R.OF.map(r=>[r.pv,r]));
+  const L=R.ON.filter(r=>r.c===c).map(r=>{const o=mOF.get(r.pv),v=nota(r),vo=nota(o);return{...r,v,vo,tag:!o?'nova':vo!=null&&v!=null&&Math.abs(v-vo)>0.01?'revisada':''}}).sort((a,b)=>(a.v??0)-(b.v??0));
+  const sai=R.sumidos.filter(r=>r.c===c).length;
+  return`<tr class="sim-cdet"><td colspan="5"><div class="sim-cdw">${L.length?`<table class="simcan"><thead><tr><th>PDV</th><th>Rota</th><th class="n">Oficial</th><th class="n">Online</th></tr></thead><tbody>
+    ${L.map(r=>`<tr><td><b>${esc(r.pv)}</b> <span class="small">${esc(nomePV(r.pv))}</span>${r.tag?` <span class="sim-tag ${r.tag}">${r.tag}</span>`:''}</td><td>${esc(r.rota||'-')}</td><td class="n">${r.vo!=null?fmt(r.vo):'–'}</td><td class="n">${r.v!=null?`<span class="pill ${scoreCls(r.v)}">${fmt(r.v)}</span>`:'–'}</td></tr>`).join('')}
+  </tbody></table>`:'<p class="small">Nenhum PDV pesquisado neste canal com este filtro.</p>'}<p class="small">${L.length} PDV${L.length===1?'':'s'} pesquisado${L.length===1?'':'s'} · piores primeiro${sai?` · ${sai} saíram da nota online`:''}</p></div></td></tr>`}
+function simRealLiga(box){box.querySelectorAll('.sim-cr').forEach(tr=>{const vai=()=>{const c=+tr.dataset.c,nx=tr.nextElementSibling,ab=!SIMCANAB.has(c);
+    if(ab)SIMCANAB.add(c);else SIMCANAB.delete(c);tr.classList.toggle('ab',ab);tr.setAttribute('aria-expanded',ab);const ca=tr.querySelector('.sim-car');if(ca)ca.textContent=ab?'▾':'▸';
+    if(nx&&nx.classList.contains('sim-cdet'))nx.remove();if(ab)tr.insertAdjacentHTML('afterend',simCanDetHTML(simRealDados(S.t),c))};
+    tr.addEventListener('click',vai);tr.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();vai()}})});
+  box.querySelectorAll('.sim-gr').forEach(tr=>{const vai=()=>{const k=tr.dataset.k,nv=tr.dataset.nivel;pushH();
     if(nv==='ger'){S.ger=k;S.sup='';S.rota=''}else if(nv==='sup'){S.sup=k;S.rota='';const r=RK.find(r=>r.sup===k);if(r)S.ger=r.ger}else{S.rota=k;const r=RK.find(r=>r.rota===k&&(!S.sup||r.sup===S.sup));if(r){S.ger=r.ger;S.sup=r.sup}}
     buildFilters();render();simRedraw()};tr.addEventListener('click',vai);tr.addEventListener('keydown',e=>{if(e.key==='Enter')vai()})})}
 
@@ -1565,7 +1606,7 @@ function simBind(){const c=S.sim[S.t];
   on('simProj','change',e=>{c.proj=e.target.checked;simRedraw()});on('simRegra','change',e=>{c.regra=e.target.value;simRedraw()});
   on('simFixo','change',e=>{c.fixo=e.target.value;simRedraw()});on('simCob','change',e=>{c.cob=e.target.value;simRedraw()});
   on('simExc','change',e=>{c.exc=e.target.value;simRedraw()});
-  on('simLimpa','click',()=>{c.inc={};c.exc='';c.proj=true;c.regra='hist';c.cob=100;c.porCanal={};simRedraw()});
+  on('simLimpa','click',()=>{c.inc={};c.exc='';c.proj=true;c.regra='hist';c.cob=100;c.porCanal={};c.porPdv={};simRedraw()});
   const box=$('simBox');if(!box)return;
   box.querySelectorAll('[data-aba]').forEach(b=>b.addEventListener('click',()=>{S.simAba=b.dataset.aba;simRedraw()}));
   simRealLiga(box);
@@ -1576,7 +1617,8 @@ function simBind(){const c=S.sim[S.t];
   box.addEventListener('click',e=>{const ch=e.target.closest('[data-alvo]');if(ch)simGaugeAplica('nota',+ch.dataset.alvo)});
   simGaugeLiga(box);S.simGaugeMsg='';
   on('simVolta','click',()=>{c.regra='hist';c.cob=100;c.proj=true;simRedraw()});
-  {const aj=box.querySelector('.sim-aj');if(aj)aj.addEventListener('toggle',()=>{S.simAjOpen=aj.open})}
+  {const aj=box.querySelector('.sim-aj:not(#simPdvD)');if(aj)aj.addEventListener('toggle',()=>{S.simAjOpen=aj.open})}
+  simPdvLiga(box);
   // filtros: copiam as opções do topo da página e mudam o mesmo filtro (o painel por trás acompanha)
   box.querySelectorAll('[data-pg]').forEach(sel=>{const pg=$(sel.dataset.pg);if(!pg)return;sel.innerHTML=pg.innerHTML;sel.value=pg.value;
     sel.addEventListener('change',()=>{pg.value=sel.value;pg.dispatchEvent(new Event('change'));simRedraw()})});
@@ -2480,7 +2522,7 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 .rail.lado .rail-btn{width:100%;height:44px;padding:0 14px;font-size:17px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 @media print{.rail{display:none}}
 .dcard.simc{width:min(1100px,100%)}
-.sim-onq{display:inline-block;white-space:normal;line-height:1.35;margin:4px 0}
+.sim-cr{cursor:pointer}.sim-cr:hover td,.sim-cr.ab td{background:color-mix(in srgb,var(--sim-navy2) 8%,transparent)}.sim-car{display:inline-block;width:12px;color:var(--sim-navy2)}.sim-cdet>td{padding:0 0 8px!important;background:color-mix(in srgb,var(--sim-navy2) 4%,transparent)}.sim-cdw{max-height:360px;overflow:auto;padding:4px 10px 0 22px;border-left:3px solid var(--sim-navy2)}.sim-cdw .simcan{font-size:12.5px}.sim-cdw p.small{margin:6px 0 2px}.sim-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:999px;vertical-align:middle}.sim-tag.nova{background:var(--good-bg);color:var(--good)}.sim-tag.revisada{background:var(--warn-bg);color:var(--warn)} .sim-onq{display:inline-block;white-space:normal;line-height:1.35;margin:4px 0;background:color-mix(in srgb,var(--sim-navy2) 10%,transparent);border-color:color-mix(in srgb,var(--sim-navy2) 40%,transparent)}
 .sim-pgb{width:560px;max-width:100%;margin-top:6px}
 .sim-pgb .pb-top{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:14px}
 .sim-pgb .pb-top span{font-variant-numeric:tabular-nums;font-weight:700}
@@ -2529,12 +2571,12 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 .sim-pend{font-size:13px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--warn-bg);color:var(--fg)}
 @media (max-width:700px){.sim-pedir input{font-size:16px}.sim-pedir .btn{width:100%;justify-content:center}}
 /* simulador · layout dashboard */
-:root{--sim-navy:#1f3b63;--sim-navy2:#2e5a8f;--sim-z1:#cfdcee;--sim-z2:#9fb8dc;--sim-z3:#5f86bf;--sim-z4:#1f3b63;--sim-r0:#1f3b63;--sim-r1:#3f6aa3;--sim-r2:#6f93c6;--sim-r3:#a7c0e2;--sim-r4:#d6e2f2}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--sim-navy:#24466f;--sim-navy2:#3a6ba3;--sim-z1:#3a4a60;--sim-z2:#4d6b94;--sim-z3:#6b92c7;--sim-z4:#9cc0ee;--sim-r0:#9cc0ee;--sim-r1:#6b92c7;--sim-r2:#4d6b94;--sim-r3:#3a5578;--sim-r4:#2c3b50}}
-:root[data-theme=dark]{--sim-navy:#24466f;--sim-navy2:#3a6ba3;--sim-z1:#3a4a60;--sim-z2:#4d6b94;--sim-z3:#6b92c7;--sim-z4:#9cc0ee;--sim-r0:#9cc0ee;--sim-r1:#6b92c7;--sim-r2:#4d6b94;--sim-r3:#3a5578;--sim-r4:#2c3b50}
+:root{--sim-navy:#C8102E;--sim-navy2:#A50D25;--sim-z1:#EDE3DA;--sim-z2:#CDBFB2;--sim-z3:#E07A86;--sim-z4:#C8102E;--sim-r0:#C8102E;--sim-r1:#DB4A5A;--sim-r2:#E88A94;--sim-r3:#F2BCC2;--sim-r4:#F8E2E4}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--sim-navy:#B30E29;--sim-navy2:#F06A76;--sim-z1:#3D3733;--sim-z2:#5E5550;--sim-z3:#B8505C;--sim-z4:#F06A76;--sim-r0:#F06A76;--sim-r1:#C84A57;--sim-r2:#8E3E47;--sim-r3:#5A3236;--sim-r4:#3A2A2C}}
+:root[data-theme=dark]{--sim-navy:#B30E29;--sim-navy2:#F06A76;--sim-z1:#3D3733;--sim-z2:#5E5550;--sim-z3:#B8505C;--sim-z4:#F06A76;--sim-r0:#F06A76;--sim-r1:#C84A57;--sim-r2:#8E3E47;--sim-r3:#5A3236;--sim-r4:#3A2A2C}
 .dcard.simc{width:min(1320px,100%);background:var(--bg)}
 .simdash{display:flex;flex-direction:column;gap:12px}
-.sim-top{display:flex!important;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;background:var(--sim-navy);color:#fff;border-radius:10px;padding:10px 14px}
+.sim-top{display:flex!important;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;background:var(--sim-navy);color:#fff;border-radius:10px;padding:10px 14px;border-left:5px solid #7A0A1C}
 .sim-tit h3{color:#fff!important;font-family:var(--display);font-size:24px;letter-spacing:.04em;margin:0}
 .sim-tit span{font-size:12px;opacity:.85}
 .sim-top .sim-hd{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -2618,13 +2660,20 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 .sim-hcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sim-gmsg{grid-column:1/-1;padding:10px 14px;border-radius:10px;border:1px solid color-mix(in srgb,var(--warn) 55%,transparent);background:color-mix(in srgb,var(--warn) 14%,transparent);font-size:13.5px;line-height:1.45}
 .sim-gmsg[hidden]{display:none}
+.sim-pdvtop{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:8px 0}
+.sim-pdvtop input[type=search]{flex:1 1 260px;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+.sim-pdvt td small{display:block;color:var(--fg-3);font-size:11.5px}
+.sim-pdvt .simin{width:78px}
+.sim-pdvt tr.sim-fora td{opacity:.5}
+.sim-pdvt tr.sim-ajt td:first-child{box-shadow:inset 3px 0 0 var(--ice)}
+.sim-pdvchk{display:inline-flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap}
 .sim-hc{background:var(--surface-2);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
 .sim-hc span{font-family:var(--display);font-weight:700;font-size:15px;color:var(--fg-2)}
 .sim-hc b.num{font-family:var(--display);font-size:38px;line-height:1;color:var(--fg)}.sim-hc em{font-style:normal;font-size:12px;color:var(--fg-3)}
 .sim-ctrl2{display:grid;grid-template-columns:1fr 1fr auto;gap:12px 20px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
 .sim-rg{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--fg-2)}.sim-rg span{display:flex;justify-content:space-between;gap:8px}
 .sim-rg b{font-size:18px;color:var(--fg)}
-.sim-rg input[type=range],.sim-crg input[type=range]{width:100%;accent-color:var(--ice);cursor:pointer}
+.sim-rg input[type=range],.sim-crg input[type=range]{width:100%;accent-color:var(--sim-navy2);cursor:pointer}
 .sim-prec2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--fg-2)}
 .sim-chip{font:inherit;font-size:13px;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--fg-2);border-radius:999px;padding:6px 12px;cursor:pointer}
 .sim-chip:hover{border-color:var(--ice);color:var(--fg)}.sim-chip.ok b.num{color:var(--good)}.sim-chip.ruim b.num{color:var(--crit)}
@@ -2640,14 +2689,14 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 /* nota em tempo real */
 .sim-abas{display:flex;gap:4px;border-bottom:2px solid var(--line)}
 .sim-abas button{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:.03em;padding:8px 14px;border:0;background:none;color:var(--fg-3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
-.sim-abas button.on{color:var(--fg);border-bottom-color:var(--ice)}
+.sim-abas button.on{color:var(--fg);border-bottom-color:var(--sim-navy2)}
 .aba-real .sim-fonte .seg{display:none}
 .sim-rt{display:grid;grid-template-columns:1fr 1.3fr 1fr 1fr;gap:10px}
 .sim-rtc{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
-.sim-rtc.destaque{border:2px solid var(--ice)}
+.sim-rtc.destaque{border:2px solid var(--sim-navy2)}
 .sim-rtc span{font-family:var(--display);font-weight:700;font-size:15px;color:var(--fg-2)}
 .sim-rtc b.num{font-family:var(--display);font-size:40px;line-height:1;color:var(--fg)}.sim-rtc.destaque b.num{font-size:52px}
-.sim-rtc em{font-style:normal;font-size:12px;color:var(--fg-3)}.sim-prev{color:var(--ice)!important;font-weight:600}
+.sim-rtc em{font-style:normal;font-size:12px;color:var(--fg-3)}.sim-prev{color:var(--sim-navy2)!important;font-weight:600}
 .sim-mud{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sim-mud>div{background:var(--surface-2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .sim-mud b.num{font-family:var(--display);font-size:30px;line-height:1.05;color:var(--fg)}.sim-mud span{font-size:13px;color:var(--fg-2)}.sim-mud em{font-style:normal;font-size:12px;color:var(--fg-3)}
