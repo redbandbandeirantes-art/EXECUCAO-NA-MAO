@@ -375,7 +375,8 @@ jobs:
           }
 
           // ---------------- nota online do Simulador (pesquisa completa GPS), todo dia às 14h e pelo botão do painel ----------------
-          async function gravaStatusOnline(ok, msg) { try { await store.gravar('nota-online-status.json', JSON.stringify({ em: Date.now(), ok, msg })); } catch (e) { log('status online:', e.message); } }
+          async function gravaStatusOnline(ok, msg, pct, txt) { try { await store.gravar('nota-online-status.json', JSON.stringify({ em: Date.now(), ok, msg, pct: pct == null ? null : pct, txt: txt || null })); } catch (e) { log('status online:', e.message); } }
+          const passoOnline = (pct, txt) => gravaStatusOnline(null, 'andamento', pct, txt); // barra de progresso do Simulador
           async function notaOnlineAuto(modo) {
             if (!TOKEN || !SB || !KEY) throw new Error('faltam os Secrets R360_TELEGRAM_TOKEN / R360_SUPABASE_SECRET');
             const hojeBR = () => new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -387,13 +388,17 @@ jobs:
             }
             const quando = modo === 'agora' ? 'pedida no painel' : `das ${turno}h`;
             try {
+              await passoOnline(10, 'Robô ligado, preparando');
               const ctx = carregaCore();
               const dataBuf = await store.baixar('data.json'); if (!dataBuf) throw new Error('não achei o data.json no Supabase');
               const D = JSON.parse(dataBuf.toString('utf8'));
+              await passoOnline(20, 'Entrando no iRED360');
               const tok = await iredLogin();
               const dhp = await iredGet(tok, '/user/dhp-current.json');
               if (!dhp || !dhp.month || !dhp.year) throw new Error('o iRED360 não informou o mês atual');
+              await passoOnline(35, 'Baixando a pesquisa completa (GPS)');
               const bytes = await iredGet(tok, `/red-light/export-complete-search-red?month=${+dhp.month}&year=${+dhp.year}`, 'bin');
+              await passoOnline(70, 'Lendo ICE LATAM 2026 e RED 2026');
               const abas = lerPlanilha(ctx, bytes, { cellDates: true });
               const aba = abas.find(ehPesquisaCompleta);
               if (!aba) throw new Error('o portal não devolveu o relatório "pesquisa completa" (GPS)');
@@ -401,8 +406,9 @@ jobs:
               const info = lerNotaOnline(aba, nome, D);
               if (info.out.m !== info.PARC) throw new Error(`o relatório é de ${MESN(info.out.m)} e o painel está em ${MESN(info.PARC)}`);
               info.out.por = 'Robô iRED360'; info.out.via = modo; info.out.turno = modo === 'agora' ? null : turno;
+              await passoOnline(90, 'Publicando para todos');
               const r = await publicaNotaOnline(info.out, null);
-              await gravaStatusOnline(true, 'ok');
+              await gravaStatusOnline(true, 'ok', 100, 'Pronto');
               const T = info.out.t, lin = [0, 1].map(t => T[t] ? `• ${TN[t]}: nota BAND ${nf(notaBand(D, t, T[t].rows))} · ${T[t].n.toLocaleString('pt-BR')} PDVs · até ${dmH(T[t].ate)}` : `• ${TN[t]}: não veio no relatório`);
               await avisarAdmins(`📱 Nota online do Simulador atualizada (${quando}, ${dmH(Date.now())}).\n` + lin.join('\n') + (r.pend.length ? `\n${r.pend.length} pedido${r.pend.length > 1 ? 's' : ''} de atualização atendido${r.pend.length > 1 ? 's' : ''}.` : ''));
               log('nota online publicada', modo);
