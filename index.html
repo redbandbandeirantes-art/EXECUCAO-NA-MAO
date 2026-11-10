@@ -1204,7 +1204,7 @@ let SIMNUV={carregado:false,meu:null,pend:null};
 async function simSincroniza(){const N=window.r360Nuvem;if(!N)return;
   const x=await N.baixar();if(x&&x.v===1){if(!x.t||(!x.t[0]&&!x.t[1])){SIMON=null;try{localStorage.removeItem(SIMON_K)}catch(e){}}
     else if(!SIMON||!SIMON.em||x.em>=SIMON.em){SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}}}
-  SIMNUV.carregado=true;if(SIM_ADM()){SIMNUV.pend=await N.pendentes();simBadge(SIMNUV.pend)}else SIMNUV.meu=await N.meuPedido();
+  SIMNUV.carregado=true;if(SIM_ADM()){SIMNUV.pend=await N.pendentes();simBadge(SIMNUV.pend);SIMNUV.pendL=N.pedidosPend?await N.pedidosPend():null}else SIMNUV.meu=await N.meuPedido();
   if(S.simOpen)simRedraw()}
 function simOnline(t){return SIMON&&SIMON.m===PARC&&SIMON.t&&SIMON.t[t]&&SIMON.t[t].rows.length?SIMON.t[t]:null}
 async function simImporta(file){
@@ -1408,7 +1408,7 @@ function simPanel(){
         return `<span class="updpor sim-onq">${SIMON.por?'🤖 <b>Robô iRED360</b> '+(SIMON.via==='agora'?'buscou agora (pedido no painel)':'buscou na rodada das '+(SIMON.turno||14)+'h'):'👤 <b>Importada à mão</b>'} · ${hj?'✅ hoje':'🕒'} ${esc(dmH(SIMON.em))}${T0[0]?` · ICE ${(+T0[0].n).toLocaleString('pt-BR')} PDVs até ${esc(dmH(T0[0].ate))}`:''}${T0[1]?` · RED ${(+T0[1].n).toLocaleString('pt-BR')} PDVs até ${esc(dmH(T0[1].ate))}`:''} · automático às 14h e 17h</span>`})():''}
       ${SIMON?`<span class="small">Nota online de <b>${dmH(SIMON.em)}</b>${SIMON.classes&&SIMON.classes.length?' · '+esc(SIMON.classes.join(', ')):''}${outroM?` · <span class="dn">é de outro mês (${MESN[SIMON.m]||'?'}), não entra na simulação</span>`:''}${SIM_ADM()?` · ${esc(SIMON.arq)} · <button type="button" class="linkb" id="simRem">remover para todos</button>`:''}</span>`
         :`<span class="small">${SIMNUV.carregado?'Ainda não há nota online publicada.':'Buscando a nota online…'}</span>`}
-      ${SIM_ADM()?(SIMNUV.pend?`<span class="sim-pend">${SIMNUV.pend} pedido${SIMNUV.pend>1?'s':''} de atualização esperando</span>`:'')
+      ${SIM_ADM()?(SIMNUV.pend?`<span class="sim-pend" title="${esc((SIMNUV.pendL||[]).map(x=>x.nome+' ('+x.email+')'+(x.obs?' · '+x.obs:'')).join('\n'))}">${SIMNUV.pend} pedido${SIMNUV.pend>1?'s':''} de atualização esperando${SIMNUV.pendL&&SIMNUV.pendL.length?': '+SIMNUV.pendL.slice(0,4).map(x=>`<b>${esc(x.nome)}</b> <small>${x.em?esc(dmH(Date.parse(x.em))):''}${x.obs?' · “'+esc(String(x.obs).slice(0,60))+'”':''}</small>`).join(', ')+(SIMNUV.pendL.length>4?` e mais ${SIMNUV.pendL.length-4}`:''):''}</span>`:'')
         :`<div class="sim-pedir"><input id="simObs" type="text" maxlength="200" placeholder="Recado (opcional): ex.: estou na rota 131"><button type="button" class="btn pri" id="simPedir">Pedir atualização da nota</button>
           ${SIMNUV.meu?`<span class="small">Seu último pedido: ${dmH(new Date(SIMNUV.meu.criado_em).getTime())} · ${SIMNUV.meu.atendido?'<span class="up">atendido</span>':'aguardando o administrador'}</span>`:''}</div>`}
       <span id="simMsg" class="small"></span></div>`})();
@@ -1596,11 +1596,11 @@ function simBind(){const c=S.sim[S.t];
       const st=await N.status();
       if(st&&st.em>t0){if(st.ok===false)return fim('<span class="dn">Não consegui: '+esc(st.msg||'erro')+'. Nada foi trocado.</span>');if(st.pct!=null&&st.pct>alvo){alvo=st.pct;txt=st.txt||txt;tEtapa=Date.now()}}
       if(st&&st.em>t0&&st.ok===true||i%2===1){const x=await N.baixar();if(x&&x.v===1&&x.em>t0){vivo=false;clearTimeout(tk);const mm=$('simMsg');if(mm)mm.innerHTML=`<div class="sim-pgb"><div class="pb-top"><b>Pronto</b><span>100%</span></div><div class="pbar ok"><i style="width:100%"></i></div></div>`;
-        await new Promise(r=>setTimeout(r,900));SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}S.simFonte='online';SIMNUV.pend=0;simBadge(0);simRedraw();const T0=x.t||{};
+        await new Promise(r=>setTimeout(r,900));SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}S.simFonte='online';SIMNUV.pend=0;SIMNUV.pendL=[];simBadge(0);simRedraw();const T0=x.t||{};
         return fim(`<span class="up">✅ Nota online atualizada pelo robô e publicada para todos: ${T0[0]?`ICE ${(+T0[0].n).toLocaleString('pt-BR')} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${(+T0[1].n).toLocaleString('pt-BR')} PDVs até ${dmH(T0[1].ate)}`:''}</span>`)}}}
     if(vivo)fim('<span class="dn">O robô não respondeu em 4 minutos (o GitHub pode estar atrasado). Confira o Telegram ou tente de novo.</span>')});
   on('simArq','change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const m=$('simMsg');if(m)m.textContent='Lendo o arquivo…';
-    try{const r=await simImporta(f);let pub='';try{if(m)m.textContent='Publicando para todos…';await window.r360Nuvem.publicar(r.out);pub=' · publicada para todos ✓';SIMNUV.pend=0;simBadge(0)}catch(e2){console.warn(e2);pub=' · ficou só neste aparelho (não consegui publicar: '+esc(e2.message||e2)+')'}
+    try{const r=await simImporta(f);let pub='';try{if(m)m.textContent='Publicando para todos…';await window.r360Nuvem.publicar(r.out);pub=' · publicada para todos ✓';SIMNUV.pend=0;SIMNUV.pendL=[];simBadge(0)}catch(e2){console.warn(e2);pub=' · ficou só neste aparelho (não consegui publicar: '+esc(e2.message||e2)+')'}
       simRedraw();const mm=$('simMsg');const T0=r.out.t;if(mm)mm.innerHTML=`<span class="up">Nota online carregada${pub}: ${T0[0]?`ICE ${T0[0].n} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${T0[1].n} PDVs até ${dmH(T0[1].ate)}`:''}${r.out.classes.length?` · classificação: ${esc(r.out.classes.join(', '))}`:''}${r.semCanal?` · ${r.semCanal} linhas sem canal ficaram de fora`:''}</span>`}
     catch(er){console.error(er);const mm=$('simMsg');if(mm)mm.innerHTML='<span class="dn">Não consegui ler: '+esc(er.message||er)+'</span>'}});
   box.querySelectorAll('[data-simt]').forEach(b=>b.addEventListener('click',()=>{const v=+b.dataset.simt;if(S.t===v)return;S.t=v;buildFilters();render();simRedraw()}));
@@ -4196,6 +4196,12 @@ window.r360Nuvem={
   meuPedido:async()=>{try{const {data:u}=await sb.auth.getUser();const email=((u&&u.user&&u.user.email)||'').toLowerCase();const {data}=await sb.from('pedidos_atualizacao').select('criado_em,atendido,atendido_em').eq('email',email).order('criado_em',{ascending:false}).limit(1);return data&&data[0]||null}catch(e){return null}},
   status:async()=>{try{const {data,error}=await sb.storage.from(BUCKET).createSignedUrl('nota-online-status.json',60);if(error||!data)return null;const r=await fetch(data.signedUrl,{cache:'no-store'});return r.ok?await r.json():null}catch(e){return null}},
   buscarAgora:async()=>{const {error}=await sb.rpc('r360_painel_nota_online');if(error)throw error;return true},
+  // pedidos esperando, com o nome de quem pediu (adm_listar > perfis.nome > parte do e-mail)
+  pedidosPend:async()=>{try{const {data,error}=await sb.from('pedidos_atualizacao').select('email,obs,criado_em').eq('atendido',false).order('criado_em',{ascending:true}).limit(50);if(error)return null;const L=data||[];if(!L.length)return [];
+    const nomes={};try{const r=await sb.rpc('adm_listar');(r.data||[]).forEach(u=>{if(u&&u.email&&u.nome)nomes[String(u.email).toLowerCase()]=String(u.nome).trim()})}catch(e){}
+    const falta=[...new Set(L.map(x=>String(x.email||'').toLowerCase()))].filter(e=>e&&!nomes[e]);
+    if(falta.length){try{const {data:pp}=await sb.from(TAB_PERFIS).select('email,nome').in('email',falta);(pp||[]).forEach(u=>{if(u&&u.nome)nomes[String(u.email).toLowerCase()]=String(u.nome).trim()})}catch(e){}}
+    return L.map(x=>{const e=String(x.email||'').toLowerCase();return{email:e,nome:nomes[e]||(e.split('@')[0].split(/[._-]+/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(' ')||e),obs:x.obs||'',em:x.criado_em}})}catch(e){return null}},
   pendentes:async()=>{try{const {count,error}=await sb.from('pedidos_atualizacao').select('id',{count:'exact',head:true}).eq('atendido',false);return error?null:count}catch(e){return null}}
 };
 window.r360LeArquivo=async f=>{await carregaXLSX();const wb=await lePlanilha(f,{cellDates:true});return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null})};
