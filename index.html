@@ -1249,6 +1249,10 @@ let RED_ULT=null;
 function redUlt(m){if(RED_ULT&&RED_ULT.m===m)return RED_ULT.map;const map=new Map();
   for(let i=0;i<PM.t.length;i++){if(PM.t[i]!==1||PM.m[i]>=m||!PM.poss[i])continue;const pv=D.pdv[PM.p[i]],o=map.get(pv);if(!o||PM.m[i]>o.m)map.set(pv,{m:PM.m[i],v:PM.real[i]/PM.poss[i]*100})}
   RED_ULT={m,map};return map}
+let ICE_ULT=null;
+function iceUlt(m){if(ICE_ULT&&ICE_ULT.m===m)return ICE_ULT.map;const map=new Map();
+  for(let i=0;i<PM.t.length;i++){if(PM.t[i]!==0||PM.m[i]>=m||!PM.poss[i])continue;const pv=D.pdv[PM.p[i]],o=map.get(pv);if(!o||PM.m[i]>o.m)map.set(pv,{m:PM.m[i],v:PM.real[i]/PM.poss[i]*100})}
+  ICE_ULT={m,map};return map}
 const inRedb=r=>(!S.ger||r[3]===S.ger)&&(!S.sup||r[4]===S.sup)&&(!S.rota||r[5]===S.rota)&&(S.canal===''||r[2]==+S.canal);
 // PDVs que ainda faltam pesquisar no mês aberto, com a nota esperada de cada um
 function simFaltam(t,m,A,B){if(m!==PARC)return[];
@@ -1256,8 +1260,8 @@ function simFaltam(t,m,A,B){if(m!==PARC)return[];
   const notaCanal=c=>{const o=A.ch[c];return o&&o.pct!=null?o.pct:A.score};
   const exp=(c,h)=>cfg.regra==='fixo'?+cfg.fixo:cfg.regra==='canal'?notaCanal(c):(h!=null?h:notaCanal(c));
   let L;
-  if(t===0)L=oList().filter(b=>b.iceOut==null&&!feitos.has(b.pv)).map(b=>({pv:b.pv,c:b.c,v:exp(b.c,cfg.regra==='hist'?oProj(b).v:null),nome:b.nome||'',rota:b.rota||'',sup:b.sup||'',sem:b.sem||'',dia:b.dia||''}));
-  else{const U=redUlt(m);L=(D.redb||[]).filter(r=>inRedb(r)&&!feitos.has(r[0])).map(r=>{const u=U.get(r[0]);return{pv:r[0],c:r[2],v:exp(r[2],u?u.v:null),nome:r[1]||'',sup:r[4]||'',rota:r[5]||''}})}
+  if(t===0){const UI=iceUlt(m);L=oList().filter(b=>b.iceOut==null&&!feitos.has(b.pv)).map(b=>({pv:b.pv,c:b.c,v:exp(b.c,cfg.regra==='hist'?oProj(b).v:null),nome:b.nome||'',rota:b.rota||'',sup:b.sup||'',sem:b.sem||'',dia:b.dia||'',ult:b.ice!=null&&b.iceMes?{m:b.iceMes,v:b.ice}:(UI.get(b.pv)||null)}))}
+  else{const U=redUlt(m);L=(D.redb||[]).filter(r=>inRedb(r)&&!feitos.has(r[0])).map(r=>{const u=U.get(r[0]);return{pv:r[0],c:r[2],v:exp(r[2],u?u.v:null),nome:r[1]||'',sup:r[4]||'',rota:r[5]||'',ult:u||null}})}
   return L.filter(x=>x.v!=null&&!isNaN(x.v))}
 function simCalc(t,m){
   const B=simBase(t,m),A=aggRows(t,B.rows),cfg=S.sim[t],P=D.peso[T[t]];
@@ -1417,7 +1421,7 @@ function simPanel(){
       <span id="simMsg" class="small"></span></div>`})();
   const kpi=(ico,rot,v,sub,cls)=>`<div class="simk${cls?' '+cls:''}"><div class="simk-r"><span>${rot}</span>${simIco(ico)}</div><b class="num">${v}</b><div class="simk-s">${sub}</div></div>`;
   const marca=t===0?R.obj:75;
-  return`<div class="panel sim simdash simples${S.simAba!=='proj'?' aba-real':''}" id="simBox">
+  return`<div class="panel sim simdash simples${S.simAba!=='proj'&&S.simAba!=='pdv'?' aba-real':''}" id="simBox">
   <header class="sim-top">
     <div class="sim-tit"><h3>Simulador de nota</h3><span>${TN[t]} · ${esc(scopeName())} · ${MESN[m]}/${ANO(m)}${pr?'':' (fechado)'}</span></div>
     <div class="sim-hd">
@@ -1428,8 +1432,8 @@ function simPanel(){
     </div>
   </header>
   ${fonte}
-  <div class="sim-abas" role="tablist"><button type="button" role="tab" class="${S.simAba!=='proj'?'on':''}" data-aba="real" aria-selected="${S.simAba!=='proj'}">Nota em tempo real</button><button type="button" role="tab" class="${S.simAba==='proj'?'on':''}" data-aba="proj" aria-selected="${S.simAba==='proj'}">Projeção do fechamento</button></div>
-  ${S.simAba!=='proj'?simRealHTML():`
+  <div class="sim-abas" role="tablist"><button type="button" role="tab" class="${S.simAba!=='proj'&&S.simAba!=='pdv'?'on':''}" data-aba="real" aria-selected="${S.simAba!=='proj'&&S.simAba!=='pdv'}">Nota em tempo real</button><button type="button" role="tab" class="${S.simAba==='proj'?'on':''}" data-aba="proj" aria-selected="${S.simAba==='proj'}">Projeção do fechamento</button><button type="button" role="tab" class="${S.simAba==='pdv'?'on':''}" data-aba="pdv" aria-selected="${S.simAba==='pdv'}">Simular um PDV</button></div>
+  ${S.simAba==='pdv'?simUmHTML():S.simAba!=='proj'?simRealHTML():`
   <div id="simHero" class="sim-hero">${simHeroHTML(R)}</div>
   ${pr?`<div class="sim-ctrl2">
     <label class="sim-rg"><span>Nota média dos que faltam <b id="simMedV" class="num">${R.mediaF!=null?fmt(R.mediaF,1):'–'}</b></span>
@@ -1472,11 +1476,11 @@ function simPdvHTML(R){const t=S.t,m=S.mes,cfg=S.sim[t],PP=cfg.porPdv||(cfg.porP
   const F=L.filter(f=>!q||`${f.pv} ${f.nome} ${C[f.c]} ${f.rota} ${f.sup}`.toLowerCase().includes(q)).map(f=>({...f,base:ov(f.c)!=null?ov(f.c):f.v,aj:PP[f.pv]||null})).sort((a,b)=>a.base-b.base);
   const nAj=Object.values(PP).filter(o=>o&&(o.fora||(o.nota!=null&&o.nota!==''))).length;
   return`<div class="sim-pdvtop"><input type="search" id="simPdvQ" placeholder="buscar código, nome, canal ou rota" value="${esc(S.simPdvQ||'')}"><span class="small">${F.length.toLocaleString('pt-BR')} cliente${F.length===1?'':'s'}${q?' encontrados':''} · ordenados pela nota esperada (os que mais puxam para baixo primeiro)</span>${nAj?`<button type="button" class="btn" id="simPdvLimpa">Limpar ${nAj} ajuste${nAj>1?'s':''}</button>`:''}</div>
-  <p class="small">Em branco, o cliente entra com a nota da regra (histórico ou canal). Digite a nota que você espera dele ou desmarque <b>Vai ser pesquisado</b> para tirá-lo da projeção.</p>
-  <div class="tw"><table class="simcan sim-pdvt"><thead><tr><th>Cliente</th><th>Canal</th><th>Rota</th>${t===0?'<th>Semana</th>':''}<th class="n">Nota da regra</th><th class="n">Sua nota</th><th class="n">Vai ser pesquisado</th></tr></thead><tbody>
+  <p class="small"><b>Última nota</b> = a última pesquisa do cliente e o mês dela. Em branco, o cliente entra com a nota da regra (histórico ou canal), que aparece apagada no campo <b>Sua nota</b>. Digite a nota que você espera dele ou desmarque <b>Vai ser pesquisado</b> para tirá-lo da projeção.</p>
+  <div class="tw"><table class="simcan sim-pdvt"><thead><tr><th>Cliente</th><th>Canal</th><th>Rota</th>${t===0?'<th>Semana</th>':''}<th class="n">Última nota</th><th class="n">Sua nota</th><th class="n">Vai ser pesquisado</th></tr></thead><tbody>
   ${F.slice(0,lim).map(f=>{const fora=!!(f.aj&&f.aj.fora),nt=f.aj&&f.aj.nota!=null&&f.aj.nota!==''?f.aj.nota:'';
     return`<tr class="${fora?'sim-fora':''}${nt!==''?' sim-ajt':''}"><td><b>${esc(f.nome||'PDV '+f.pv)}</b><small>${esc(f.pv)}</small></td><td>${esc(C[f.c])}</td><td>${esc(f.rota)}<small>${esc(f.sup)}</small></td>${t===0?`<td>${esc(f.sem&&f.sem!=='-'?f.sem:'–')}${f.dia&&f.dia!=='-'?`<small>${esc(f.dia)}</small>`:''}</td>`:''}
-      <td class="n"><span class="pill ${scoreCls(f.base)}">${fmt(f.base,1)}</span></td>
+      <td class="n">${f.ult&&f.ult.v!=null?`<span class="pill ${scoreCls(f.ult.v)}">${fmt(f.ult.v,1)}</span><small>${esc(MESN[f.ult.m]||'')}</small>`:'<span class="small">sem pesquisa</span>'}</td>
       <td class="n"><input class="simin" type="number" inputmode="decimal" min="0" max="110" step="0.1" data-pdvn="${esc(f.pv)}" value="${nt!==''?esc(String(nt)):''}" placeholder="${fmt(f.base,1)}"${fora?' disabled':''}></td>
       <td class="n"><label class="sim-pdvchk"><input type="checkbox" data-pdvf="${esc(f.pv)}"${fora?'':' checked'}> ${fora?'não':'sim'}</label></td></tr>`}).join('')}
   </tbody></table></div>${F.length>lim?`<button type="button" class="btn" id="simPdvMais">Mostrar mais ${Math.min(150,F.length-lim)} (de ${(F.length-lim).toLocaleString('pt-BR')} restantes)</button>`:''}`}
@@ -1586,6 +1590,62 @@ function simCanDetHTML(R,c){const nota=r=>r&&r.poss?r.real/r.poss*100:null,mOF=n
   return`<tr class="sim-cdet"><td colspan="5"><div class="sim-cdw">${L.length?`<table class="simcan"><thead><tr><th>PDV</th><th>Rota</th><th class="n">Oficial</th><th class="n">Online</th></tr></thead><tbody>
     ${L.map(r=>`<tr><td><b>${esc(r.pv)}</b> <span class="small">${esc(nomePV(r.pv))}</span>${r.tag?` <span class="sim-tag ${r.tag}">${r.tag}</span>`:''}</td><td>${esc(r.rota||'-')}</td><td class="n">${r.vo!=null?fmt(r.vo):'–'}</td><td class="n">${r.v!=null?`<span class="pill ${scoreCls(r.v)}">${fmt(r.v)}</span>`:'–'}</td></tr>`).join('')}
   </tbody></table>`:'<p class="small">Nenhum PDV pesquisado neste canal com este filtro.</p>'}<p class="small">${L.length} PDV${L.length===1?'':'s'} pesquisado${L.length===1?'':'s'} · piores primeiro${sai?` · ${sai} saíram da nota online`:''}</p></div></td></tr>`}
+
+// ---- Simular um PDV: digita o código (ou nome) e vê quanto a nota dele mexe na rota, supervisão, gerência e BAND ----
+function simUmRows(t){const on=simOnline(t);
+  if(on&&S.simFonte==='online')return{fonte:'online',rows:on.rows.map(r=>({pv:String(r.pv),c:+r.c,real:r.real,poss:r.poss,ger:r.ger,sup:r.sup,rota:r.rota}))};
+  const rows=[];for(let i=0;i<N;i++){if(PM.t[i]!==t||PM.m[i]!==PARC)continue;const k=RK[PM.r[i]];rows.push({pv:String(D.pdv[PM.p[i]]),c:+PM.c[i],real:PM.real[i],poss:PM.poss[i],ger:k.ger,sup:k.sup,rota:k.rota})}
+  return{fonte:'painel',rows}}
+let SIMUM_IDX=null;
+function simUmIdx(){if(SIMUM_IDX)return SIMUM_IDX;const M=new Map();
+  (D.redb||[]).forEach(r=>M.set(String(r[0]),{pv:String(r[0]),nome:r[1]||'',c:r[2],ger:r[3],sup:r[4],rota:r[5],bairro:r[6]||'',cid:r[7]||''}));
+  (D.base||[]).forEach(b=>{const o=M.get(String(b.pv))||{pv:String(b.pv),nome:b.nome,c:b.c,ger:b.ger,sup:b.sup,rota:b.rota,bairro:b.bairro||'',cid:b.cid||''};o.ice=true;o.sem=b.sem;o.dia=b.dia;o.prio=b.prio;M.set(String(b.pv),o)});
+  SIMUM_IDX=M;return M}
+function simUmHist(t,pv){const h={};for(let i=0;i<N;i++){if(PM.t[i]!==t||!PM.poss[i]||String(D.pdv[PM.p[i]])!==pv)continue;h[PM.m[i]]=PM.real[i]/PM.poss[i]*100}return h}
+function simUmCalc(t,pv,v){const X=simUmIdx().get(pv),B=simUmRows(t),rows=B.rows,meu=rows.find(r=>r.pv===pv);
+  const info=X||(meu?{pv,nome:nomePV(pv),c:meu.c,ger:meu.ger,sup:meu.sup,rota:meu.rota}:null);if(!info)return null;
+  const c=+(meu?meu.c:info.c),P=D.peso[T[t]],peso=P[C[c]]||0;
+  const doCanal=rows.filter(r=>r.c===c),possMed=meu?meu.poss:(doCanal.length?doCanal.reduce((s,r)=>s+r.poss,0)/doCanal.length:100);
+  const lv=[['Rota '+(info.rota||'–'),r=>r.rota===info.rota&&r.sup===info.sup],['Supervisão '+(info.sup||'–'),r=>r.sup===info.sup],[info.ger||'Gerência',r=>r.ger===info.ger],['BAND',()=>true]];
+  const res=lv.map(([nome,f])=>{const base=rows.filter(f),sem=base.filter(r=>r.pv!==pv),antes=aggRows(t,base).score,
+      depois=v==null?antes:aggRows(t,sem.concat([{pv,c,real:v/100*possMed,poss:possMed}])).score,ch=sem.filter(r=>r.c===c),cp=ch.reduce((s,r)=>s+r.poss,0);
+    return{nome,n:base.length,antes,depois,d:antes!=null&&depois!=null?depois-antes:null,corte:cp?ch.reduce((s,r)=>s+r.real,0)/cp*100:null}});
+  return{info,c,peso,meu,atual:meu&&meu.poss?meu.real/meu.poss*100:null,res,fonte:B.fonte}}
+function simUmBusca(q){q=String(q||'').trim().toLowerCase();if(q.length<2)return[];const out=[],dig=/^\d+$/.test(q);
+  for(const o of simUmIdx().values()){if(dig?o.pv.startsWith(q):(o.nome||'').toLowerCase().includes(q)){out.push(o);if(out.length>=8)break}}return out}
+function simUmResHTML(t,K,v){const sinal=d=>d==null?'–':Math.abs(d)<0.005?'0,00':(d>0?'▲ ':'▼ ')+fmt(Math.abs(d),2),cls=d=>d==null||Math.abs(d)<0.005?'':d>0?'up':'dn';
+  return`${!K.peso?`<div class="sim-gmsg">⚠ O canal ${esc(C[K.c])} não tem peso na nota ${TN[t]}: a nota deste PDV não mexe na nota.</div>`:''}
+  <div class="sim-umres">${K.res.map(x=>`<div class="sim-umc"><span>${esc(x.nome)}</span><b class="num ${cls(x.d)}">${sinal(x.d)}</b><em>${fmt(x.antes,2)} → <b>${fmt(x.depois,2)}</b></em>
+    <small>${x.corte!=null?`acima de <b>${fmt(x.corte,1)}</b> ajuda · abaixo puxa para baixo`:`${K.meu?'único':'primeiro'} ${esc(C[K.c])} pesquisado aqui`} · ${x.n.toLocaleString('pt-BR')} PDVs</small></div>`).join('')}</div>`}
+function simUmHTML(){const t=S.t,U=S.simUm||(S.simUm={pv:'',v:null,q:''});
+  const top=`<div class="simc sim-um"><div class="simc-t">Simular um PDV <span class="small">· digite o código ou o nome do cliente</span></div>
+    <div class="sim-umq"><input type="search" id="simUmQ" placeholder="código ou nome do PDV (ex.: 1164347)" value="${esc(U.q||'')}" autocomplete="off" inputmode="search"><div id="simUmL" class="sim-uml"></div></div>`;
+  if(!U.pv)return top+`<p class="small">O simulador mostra o PDV, as últimas notas e quanto a nota dele mexe na <b>rota</b>, na <b>supervisão</b>, na <b>gerência</b> e na <b>BAND</b> em ${MESN[PARC]}.</p></div>`;
+  const X=simUmIdx().get(U.pv),h=simUmHist(t,U.pv),ult=Object.keys(h).map(Number).filter(m=>m<PARC).sort((a,b)=>b-a)[0];
+  const K0=simUmCalc(t,U.pv,null);if(!K0)return top+`<p class="small dn">Não achei o PDV ${esc(U.pv)} na base do painel.</p></div>`;if(K0.atual!=null)h[PARC]=K0.atual;
+  if(U.v==null)U.v=K0.atual!=null?Math.round(K0.atual*10)/10:ult!=null?Math.round(h[ult]*10)/10:(K0.res[3].corte!=null?Math.round(K0.res[3].corte*10)/10:80);
+  const K=simUmCalc(t,U.pv,U.v),I=K.info;
+  const hist=D.meses.filter(m=>m<=PARC).slice(-6).map(m=>`<span class="sim-umh${m===PARC?' at':''}"><small>${MESN[m]}</small><b class="${h[m]!=null?scoreCls(h[m]):''}">${h[m]!=null?fmt(h[m],1):'–'}</b></span>`).join('');
+  return top+`<div class="sim-umpv">
+    <div class="sim-umi"><b>${esc(I.nome||'PDV '+U.pv)}</b><span>${esc(U.pv)} · ${esc(C[K.c]||'')} · ${esc(I.ger||'')} · ${esc(I.sup||'')} · rota ${esc(I.rota||'–')}</span>
+      ${t===0&&X&&X.sem&&X.sem!=='-'?`<span>Roteiro ICE: ${esc(X.sem)}${X.dia&&X.dia!=='-'?' · '+esc(X.dia):''}</span>`:''}
+      <span class="pill ${K.meu?'good':'mute'}">${K.meu?`Já pesquisado em ${MESN[PARC]}: ${fmt(K.atual,1)} · a nota simulada entra no lugar`:`Ainda não pesquisado em ${MESN[PARC]}`}</span>
+      ${t===0&&X&&!X.ice?'<span class="small">Este PDV não está na amostra ICE do mês.</span>':''}</div>
+    <div class="sim-umhs">${hist}</div></div>
+   <div class="sim-umsl"><label for="simUmV">Nota que este PDV vai tirar</label><b id="simUmVv" class="num">${fmt(U.v,1)}</b>
+     <input type="range" id="simUmV" min="0" max="110" step="0.5" value="${U.v}">
+     <div class="sim-umbt">${[[0,'0'],ult!=null?[Math.round(h[ult]*10)/10,'última ('+MESN[ult]+')']:null,K.meu?[Math.round(K.atual*10)/10,'atual']:null,[75,'75'],[100,'100']].filter(Boolean).map(([v,l])=>`<button type="button" class="btn" data-umv="${v}">${l}</button>`).join('')}<button type="button" class="btn" id="simUmX">Trocar PDV</button></div></div>
+   <div id="simUmRes">${simUmResHTML(t,K,U.v)}</div>
+   <p class="small">Base: ${K.fonte==='online'?'nota online (arquivo do portal)':'painel oficial'} de ${MESN[PARC]}. O PDV entra com a nota escolhida; se já foi pesquisado, ela substitui a nota dele.</p></div>`}
+function simUmLiga(box){const q=box.querySelector('#simUmQ');if(!q)return;const U=S.simUm,L=box.querySelector('#simUmL');
+  const lista=()=>{const R=simUmBusca(q.value);U.q=q.value;L.innerHTML=R.map(o=>`<button type="button" data-umpv="${esc(o.pv)}"><b>${esc(o.pv)}</b> ${esc(o.nome)} <small>${esc(C[o.c]||'')} · ${esc(o.ger||'')} · rota ${esc(o.rota||'–')}</small></button>`).join('')||(q.value.trim().length>=2?'<p class="small">Nenhum PDV com esse código ou nome.</p>':'');
+    L.querySelectorAll('[data-umpv]').forEach(b=>b.onclick=()=>{U.pv=b.dataset.umpv;U.v=null;U.q='';simRedraw()})};
+  q.addEventListener('input',lista);q.addEventListener('keydown',e=>{if(e.key==='Enter'){const R=simUmBusca(q.value);const ex=R.find(o=>o.pv===q.value.trim())||(R.length===1?R[0]:null);if(ex){U.pv=ex.pv;U.v=null;U.q='';simRedraw()}}});
+  if(U.q&&!U.pv)lista();if(!U.pv)setTimeout(()=>q.focus(),30);
+  const sl=box.querySelector('#simUmV');const aplica=v=>{U.v=v;const vv=$('simUmVv');if(vv)vv.textContent=fmt(v,1);const K=simUmCalc(S.t,U.pv,v);if(K)$('simUmRes').innerHTML=simUmResHTML(S.t,K,v)};
+  if(sl)sl.addEventListener('input',()=>aplica(+sl.value));
+  box.querySelectorAll('[data-umv]').forEach(b=>b.onclick=()=>{const v=+b.dataset.umv;if(sl)sl.value=v;aplica(v)});
+  const x=box.querySelector('#simUmX');if(x)x.onclick=()=>{U.pv='';U.v=null;U.q='';simRedraw()}}
 function simRealLiga(box){box.querySelectorAll('.sim-cr').forEach(tr=>{const vai=()=>{const c=+tr.dataset.c,nx=tr.nextElementSibling,ab=!SIMCANAB.has(c);
     if(ab)SIMCANAB.add(c);else SIMCANAB.delete(c);tr.classList.toggle('ab',ab);tr.setAttribute('aria-expanded',ab);const ca=tr.querySelector('.sim-car');if(ca)ca.textContent=ab?'▾':'▸';
     if(nx&&nx.classList.contains('sim-cdet'))nx.remove();if(ab)tr.insertAdjacentHTML('afterend',simCanDetHTML(simRealDados(S.t),c))};
@@ -1609,7 +1669,7 @@ function simBind(){const c=S.sim[S.t];
   on('simLimpa','click',()=>{c.inc={};c.exc='';c.proj=true;c.regra='hist';c.cob=100;c.porCanal={};c.porPdv={};simRedraw()});
   const box=$('simBox');if(!box)return;
   box.querySelectorAll('[data-aba]').forEach(b=>b.addEventListener('click',()=>{S.simAba=b.dataset.aba;simRedraw()}));
-  simRealLiga(box);
+  simRealLiga(box);simUmLiga(box);
   const md=$('simMed');if(md){md.addEventListener('input',()=>{c.proj=true;c.regra='fixo';c.fixo=+md.value;c.porCanal={};simVivo()});md.addEventListener('change',()=>simRedraw())}
   const cb=$('simCob2');if(cb){cb.addEventListener('input',()=>{c.proj=true;c.cob=+cb.value;simVivo()});cb.addEventListener('change',()=>simRedraw())}
   box.querySelectorAll('[data-canrg]').forEach(rg=>{rg.addEventListener('input',()=>{c.proj=true;c.porCanal=c.porCanal||{};c.porCanal[rg.dataset.canrg]=+rg.value;simVivo()});rg.addEventListener('change',()=>simRedraw())});
@@ -2522,7 +2582,7 @@ html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
 .rail.lado .rail-btn{width:100%;height:44px;padding:0 14px;font-size:17px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 @media print{.rail{display:none}}
 .dcard.simc{width:min(1100px,100%)}
-.sim-cr{cursor:pointer}.sim-cr:hover td,.sim-cr.ab td{background:color-mix(in srgb,var(--sim-navy2) 8%,transparent)}.sim-car{display:inline-block;width:12px;color:var(--sim-navy2)}.sim-cdet>td{padding:0 0 8px!important;background:color-mix(in srgb,var(--sim-navy2) 4%,transparent)}.sim-cdw{max-height:360px;overflow:auto;padding:4px 10px 0 22px;border-left:3px solid var(--sim-navy2)}.sim-cdw .simcan{font-size:12.5px}.sim-cdw p.small{margin:6px 0 2px}.sim-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:999px;vertical-align:middle}.sim-tag.nova{background:var(--good-bg);color:var(--good)}.sim-tag.revisada{background:var(--warn-bg);color:var(--warn)} .sim-onq{display:inline-block;white-space:normal;line-height:1.35;margin:4px 0;background:color-mix(in srgb,var(--sim-navy2) 10%,transparent);border-color:color-mix(in srgb,var(--sim-navy2) 40%,transparent)}
+.sim-cr{cursor:pointer}.sim-cr:hover td,.sim-cr.ab td{background:color-mix(in srgb,var(--sim-navy2) 8%,transparent)}.sim-car{display:inline-block;width:12px;color:var(--sim-navy2)}.sim-cdet>td{padding:0 0 8px!important;background:color-mix(in srgb,var(--sim-navy2) 4%,transparent)}.sim-cdw{max-height:360px;overflow:auto;padding:4px 10px 0 22px;border-left:3px solid var(--sim-navy2)}.sim-cdw .simcan{font-size:12.5px}.sim-cdw p.small{margin:6px 0 2px}.sim-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:999px;vertical-align:middle}.sim-tag.nova{background:var(--good-bg);color:var(--good)}.sim-tag.revisada{background:var(--warn-bg);color:var(--warn)} .sim-um{display:flex;flex-direction:column;gap:12px}.sim-umq{position:relative;max-width:560px}.sim-umq input{width:100%;font-size:16px;padding:10px 12px}.sim-uml{display:flex;flex-direction:column;margin-top:4px}.sim-uml button{font:inherit;text-align:left;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-top:0;padding:8px 12px;cursor:pointer}.sim-uml button:first-child{border-top:1px solid var(--line);border-radius:8px 8px 0 0}.sim-uml button:last-child{border-radius:0 0 8px 8px}.sim-uml button:only-child{border-radius:8px}.sim-uml button:hover{background:var(--surface-2)}.sim-uml small{color:var(--fg-3);margin-left:6px}.sim-umpv{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--surface-2);border-radius:12px;padding:12px 14px}.sim-umi{display:flex;flex-direction:column;gap:4px;min-width:0}.sim-umi>b{font-family:var(--display);font-size:24px;line-height:1.1}.sim-umi>span:not(.pill){font-size:13px;color:var(--fg-2)}.sim-umi .pill{align-self:flex-start;white-space:normal}.sim-umhs{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap}.sim-umh{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:46px;padding:6px;border-radius:8px;background:var(--surface)}.sim-umh.at{outline:2px solid var(--sim-navy2)}.sim-umh small{font-size:11px;color:var(--fg-3);text-transform:uppercase}.sim-umh b{font-family:var(--display);font-size:18px}.sim-umh b.good{color:var(--good)}.sim-umh b.warn{color:var(--warn)}.sim-umh b.serious{color:var(--serious)}.sim-umh b.crit{color:var(--crit)}.sim-umsl{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:6px 14px}.sim-umsl label{font-family:var(--display);font-weight:700;font-size:16px;color:var(--fg-2)}.sim-umsl>b{font-family:var(--display);font-size:44px;line-height:1;color:var(--sim-navy2)}.sim-umsl input[type=range]{width:100%;accent-color:var(--sim-navy2)}.sim-umbt{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}.sim-umres{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.sim-umc{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0}.sim-umc>span{font-family:var(--display);font-weight:700;font-size:15px;color:var(--fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sim-umc>b{font-family:var(--display);font-size:32px;line-height:1.05}.sim-umc>b.up{color:var(--good)}.sim-umc>b.dn{color:var(--crit)}.sim-umc em{font-style:normal;font-size:13px;color:var(--fg-2)}.sim-umc small{font-size:11.5px;color:var(--fg-3)}@media (max-width:760px){.sim-umres{grid-template-columns:repeat(2,1fr)}.sim-umsl{grid-template-columns:1fr auto}.sim-umsl input[type=range]{grid-column:1/-1}} .sim-onq{display:inline-block;white-space:normal;line-height:1.35;margin:4px 0;background:color-mix(in srgb,var(--sim-navy2) 10%,transparent);border-color:color-mix(in srgb,var(--sim-navy2) 40%,transparent)}
 .sim-pgb{width:560px;max-width:100%;margin-top:6px}
 .sim-pgb .pb-top{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:14px}
 .sim-pgb .pb-top span{font-variant-numeric:tabular-nums;font-weight:700}
@@ -4089,7 +4149,7 @@ async function geraTg(){const B=$('tgBody');B.innerHTML='<p class="small">Gerand
       <div class="tg-pe"><button type="button" class="btn" id="tgNovo">Gerar outro código</button></div>`;
     $('tgNovo').onclick=geraTg}
   catch(e){const t=String((e&&e.message)||e);B.innerHTML='<p class="small dn">'+escA(/telegram_gerar_codigo|function|not find|schema cache/i.test(t)?'O vínculo pelo Telegram ainda não foi ativado no Supabase (rode o supabase_telegram_vinculo.sql).':t)+'</p>'}}
-function poeSair(){poeAtualizar();poeTelegram();poeBuscar();if(window.r360PoeFotos)window.r360PoeFotos();
+function poeSair(){poeAtualizar();poeTelegram();poeBuscar();if(window.r360PoeFotos)window.r360PoeFotos();if(window.r360PoeAcao)window.r360PoeAcao();
   const h=document.querySelector('header.top');if(!h)return;
   if(!h.querySelector('.tema-seg'))h.appendChild(botaoTema());
   const b=document.createElement('button');b.className='sair-btn';b.type='button';b.textContent='Sair';
@@ -4752,6 +4812,14 @@ sb.auth.getSession().then(({data})=>{
 })();
 </script>
 <!-- =================== FIM DO LOGIN =================== -->
+<script>
+// AÇÃO PONTUAL: página própria (acao.html), só ADM Master e Administrador
+window.r360PoeAcao=function(){if(!['master','admin'].includes(String(window.R360_PERFIL||'').toLowerCase())||document.getElementById('apBtn')||!window.r360RailAdd)return;
+  const a=document.createElement('a');a.id='apBtn';a.className='rail-btn';a.href='acao.html';a.title='Ação pontual: controle de auditoria dos contratos';a.style.textDecoration='none';
+  a.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 12.5l2 2 4-4.5"/></svg><span class="rail-txt">Ação pontual</span>';
+  window.r360RailAdd(a,false)};
+</script>
+
 
 <script>
 // links das páginas Plano/Gerencial: ./?abrir=gestao|simulador|telegram|atualizar|fotos abre a função depois do login
