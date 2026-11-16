@@ -1196,7 +1196,7 @@ function renderGeral(){
 S.sim={0:{inc:{},exc:'',proj:true,regra:'hist',fixo:80,cob:100},1:{inc:{},exc:'',proj:true,regra:'hist',fixo:70,cob:100}};S.simOpen=false;S.simFonte='online';S.simAjOpen=false;
 // "Nota online": arquivo iRED360 pesquisa completa (uma linha por PDV). Fica só no simulador, salvo neste aparelho;
 // não entra no data.json nem nas outras abas.
-const SIMON_K='r360-nota-online-v1';let SIMON=null;try{const x=JSON.parse(localStorage.getItem(SIMON_K)||'null');if(x&&x.v===1)SIMON=x}catch(e){}
+const SIMON_K='r360-nota-online-v1';let SIMON=null;try{const x=JSON.parse(localStorage.getItem(SIMON_K)||'null');if(x&&x.v===1&&x.t&&(x.t[0]||x.t[1]))SIMON=x}catch(e){}
 const canalIdx=s=>{s=String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();for(const [k,v] of [['CASH','C&C'],['HIPER','HIPER'],['AS 3-4','AS 3-4'],['AS 1-2','AS 1-2'],['SUPER','SUPER'],['MERCEARIA','MERCEARIA'],['LANCHONETE','LANCHONETE'],['BOTECO','BOTECO'],['PADARIA','PADARIA'],['RESTAURANTE','RESTAURANTE'],['ADEGA','ADEGA'],['CONVENI','CONVENIÊNCIA']])if(s.includes(k)){const i=C.indexOf(v);return i<0?null:i}return null};
 const SIM_ADM=()=>['master','admin'].includes(window.R360_PERFIL);
 let SIMNUV={carregado:false,meu:null,pend:null};
@@ -1757,7 +1757,7 @@ function simBind(){const c=S.sim[S.t];
     for(let i=0;i<80&&vivo;i++){await new Promise(r=>setTimeout(r,3000));
       const st=await N.status();
       if(st&&st.em>t0){if(st.ok===false)return fim('<span class="dn">Não consegui: '+esc(st.msg||'erro')+'. Nada foi trocado.</span>');if(st.pct!=null&&st.pct>alvo){alvo=st.pct;txt=st.txt||txt;tEtapa=Date.now()}}
-      if(st&&st.em>t0&&st.ok===true||i%2===1){const x=await N.baixar();if(x&&x.v===1&&x.em>t0){vivo=false;clearTimeout(tk);const mm=$('simMsg');if(mm)mm.innerHTML=`<div class="sim-pgb"><div class="pb-top"><b>Pronto</b><span>100%</span></div><div class="pbar ok"><i style="width:100%"></i></div></div>`;
+      if(st&&st.em>t0&&st.ok===true||i%2===1){const x=await N.baixar();if(x&&x.v===1&&x.em>t0&&x.t&&(x.t[0]||x.t[1])){vivo=false;clearTimeout(tk);const mm=$('simMsg');if(mm)mm.innerHTML=`<div class="sim-pgb"><div class="pb-top"><b>Pronto</b><span>100%</span></div><div class="pbar ok"><i style="width:100%"></i></div></div>`;
         await new Promise(r=>setTimeout(r,900));SIMON=x;try{localStorage.setItem(SIMON_K,JSON.stringify(x))}catch(e){}S.simFonte='online';SIMNUV.pend=0;SIMNUV.pendL=[];simBadge(0);simRedraw();const T0=x.t||{};
         return fim(`<span class="up">✅ Nota online atualizada pelo robô e publicada para todos: ${T0[0]?`ICE ${(+T0[0].n).toLocaleString('pt-BR')} PDVs até ${dmH(T0[0].ate)}`:''}${T0[0]&&T0[1]?' · ':''}${T0[1]?`RED ${(+T0[1].n).toLocaleString('pt-BR')} PDVs até ${dmH(T0[1].ate)}`:''}</span>`)}}}
     if(vivo)fim('<span class="dn">O robô não respondeu em 4 minutos (o GitHub pode estar atrasado). Confira o Telegram ou tente de novo.</span>')});
