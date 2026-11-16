@@ -1236,7 +1236,7 @@ async function simImporta(file){
   if(!out.t[0]&&!out.t[1])throw new Error('não achei pesquisas ICE LATAM nem RED com a classificação do ano da pesquisa (ex.: ICE_LATAM_2026, RED_2026)');
   SIMON=out;try{localStorage.setItem(SIMON_K,JSON.stringify(out))}catch(e){}
   S.simFonte='online';return{out,semCanal}}
-function simRemoveOnline(){SIMON=null;try{localStorage.removeItem(SIMON_K)}catch(e){}S.simFonte='painel'}
+function simRemoveOnline(){SIMON=null;try{localStorage.removeItem(SIMON_K)}catch(e){}S.simFonte='painel';S.simProjOf=false}
 const dmH=ms=>{if(!ms)return'–';const d=new Date(ms),z=n=>String(n).padStart(2,'0');return`${z(d.getDate())}/${z(d.getMonth()+1)} ${z(d.getHours())}:${z(d.getMinutes())}`};
 // base da simulação: linhas {pv,c,real,poss} do painel (oficial) ou da nota online
 function simBase(t,m){const on=simOnline(t);
@@ -1416,7 +1416,7 @@ function simPanel(){
       ${SIMON&&SIM_ADM()?(()=>{const T0=SIMON.t||{},hj=new Date().toDateString()===new Date(SIMON.em).toDateString();
         return `<span class="updpor sim-onq">${SIMON.por?'🤖 <b>Robô iRED360</b> '+(SIMON.via==='agora'?'buscou agora (pedido no painel)':'buscou na rodada das '+(SIMON.turno||14)+'h'):'👤 <b>Importada à mão</b>'} · ${hj?'✅ hoje':'🕒'} ${esc(dmH(SIMON.em))}${T0[0]?` · ICE ${(+T0[0].n).toLocaleString('pt-BR')} PDVs até ${esc(dmH(T0[0].ate))}`:''}${T0[1]?` · RED ${(+T0[1].n).toLocaleString('pt-BR')} PDVs até ${esc(dmH(T0[1].ate))}`:''} · automático às 14h e 17h</span>`})():''}
       ${SIMON?`<span class="small">Nota online de <b>${dmH(SIMON.em)}</b>${SIMON.classes&&SIMON.classes.length?' · '+esc(SIMON.classes.join(', ')):''}${outroM?` · <span class="dn">é de outro mês (${MESN[SIMON.m]||'?'}), não entra na simulação</span>`:''}${SIM_ADM()?` · ${esc(SIMON.arq)} · <button type="button" class="linkb" id="simRem">remover para todos</button>`:''}</span>`
-        :`<span class="small">${SIMNUV.carregado?'Ainda não há nota online publicada.':'Buscando a nota online…'}</span>`}
+        :`<span class="small">${SIMNUV.carregado?'Ainda não há nota online publicada.':'Buscando a nota online…'}${S.simAba==='proj'&&pr&&S.simProjOf?` <b style="color:var(--fg)">A projeção está usando o painel oficial${R.B.ate?' (até '+esc(R.B.ate)+')':''}.</b>`:''}</span>`}
       ${SIM_ADM()?(SIMNUV.pend?`<span class="sim-pend" title="${esc((SIMNUV.pendL||[]).map(x=>x.nome+' ('+x.email+')'+(x.obs?' · '+x.obs:'')).join('\n'))}">${SIMNUV.pend} pedido${SIMNUV.pend>1?'s':''} de atualização esperando${SIMNUV.pendL&&SIMNUV.pendL.length?': '+SIMNUV.pendL.slice(0,4).map(x=>`<b>${esc(x.nome)}</b> <small>${x.em?esc(dmH(Date.parse(x.em))):''}${x.obs?' · “'+esc(String(x.obs).slice(0,60))+'”':''}</small>`).join(', ')+(SIMNUV.pendL.length>4?` e mais ${SIMNUV.pendL.length-4}`:''):''}</span>`:'')
         :`<div class="sim-pedir"><input id="simObs" type="text" maxlength="200" placeholder="Recado (opcional): ex.: estou na rota 131"><button type="button" class="btn pri" id="simPedir">Pedir atualização da nota</button>
           ${SIMNUV.meu?`<span class="small">Seu último pedido: ${dmH(new Date(SIMNUV.meu.criado_em).getTime())} · ${SIMNUV.meu.atendido?'<span class="up">atendido</span>':'aguardando o administrador'}</span>`:''}</div>`}
@@ -1435,7 +1435,7 @@ function simPanel(){
   </header>
   ${fonte}
   <div class="sim-abas" role="tablist"><button type="button" role="tab" class="${S.simAba!=='proj'?'on':''}" data-aba="real" aria-selected="${S.simAba!=='proj'}">Nota em tempo real</button><button type="button" role="tab" class="${S.simAba==='proj'?'on':''}" data-aba="proj" aria-selected="${S.simAba==='proj'}">Projeção do fechamento</button></div>
-  ${S.simAba!=='proj'?simRealHTML():`
+  ${S.simAba!=='proj'?simRealHTML():pr&&!simOnline(t)&&!S.simProjOf?`<div class="simc sim-semon"><b>Ainda não há nota online publicada para ${TN[t]}.</b><p class="small">A projeção do fechamento usa a nota online. ${SIM_ADM()?'Clique em <b>Buscar agora do iRED360</b> (acima) ou importe o arquivo da pesquisa completa.':'Toque em "Pedir atualização da nota" acima: o administrador recebe o aviso.'}</p><div><button type="button" class="btn" id="simProjOf">Simular mesmo assim com o painel oficial${R.B.ate?' (até '+esc(R.B.ate)+')':''}</button></div></div>`:`
   <div id="simHero" class="sim-hero">${simHeroHTML(R)}</div>
   ${pr?`<div class="sim-ctrl2">
     <label class="sim-rg"><span>Nota média dos que faltam <b id="simMedV" class="num">${R.mediaF!=null?fmt(R.mediaF,1):'–'}</b></span>
@@ -1719,6 +1719,7 @@ function simBind(){const c=S.sim[S.t];
   const box=$('simBox');if(!box)return;
   box.querySelectorAll('[data-aba]').forEach(b=>b.addEventListener('click',()=>{S.simAba=b.dataset.aba;simRedraw()}));
   simRealLiga(box);simUmLiga(box);simSelLiga(box);
+  on('simProjOf','click',()=>{S.simProjOf=true;simRedraw()});
   const md=$('simMed');if(md){md.addEventListener('input',()=>{c.proj=true;c.regra='fixo';c.fixo=+md.value;c.porCanal={};simVivo()});md.addEventListener('change',()=>simRedraw())}
   const cb=$('simCob2');if(cb){cb.addEventListener('input',()=>{c.proj=true;c.cob=+cb.value;simVivo()});cb.addEventListener('change',()=>simRedraw())}
   box.querySelectorAll('[data-canrg]').forEach(rg=>{rg.addEventListener('input',()=>{c.proj=true;c.porCanal=c.porCanal||{};c.porCanal[rg.dataset.canrg]=+rg.value;simVivo()});rg.addEventListener('change',()=>simRedraw())});
