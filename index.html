@@ -12,6 +12,19 @@
 (function(){try{var t=localStorage.getItem('r360-tema');var r=document.documentElement;if(t==='claro')r.setAttribute('data-theme','light');else if(t==='escuro')r.setAttribute('data-theme','dark');else if(t==='imagem'){r.setAttribute('data-theme','dark');r.classList.add('fundo-img')}else if(t==='imagem-claro'){r.setAttribute('data-theme','light');r.classList.add('fundo-img','fundo-claro')}
   var esc=t==='escuro'||(t!=='claro'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',esc?'#171615':'#2F3237')}catch(e){}})();</script>
 <title>RED 360º Execução · Merchandising BAND</title>
+<style id="r360-padrao-2">
+/* padrão visual 2: seleção numa cor só, RED caramelo, molduras cinza com degradê no fundo Coca */
+.seg button[aria-pressed=true],.seg button[data-t][aria-pressed=true],.seg .btn.on,.tema-seg button.on,.tab[aria-selected=true],html.fundo-img .tab[aria-selected=true]{background:#E6E3DE!important;color:#1D1B19!important;border-color:#E6E3DE!important;text-shadow:none!important;box-shadow:0 1px 3px rgba(0,0,0,.25)!important}
+:root[data-theme=light] .seg button[aria-pressed=true],:root[data-theme=light] .seg .btn.on,:root[data-theme=light] .tema-seg button.on,:root[data-theme=light] .tab[aria-selected=true],html.fundo-img.fundo-claro .seg button[aria-pressed=true],html.fundo-img.fundo-claro .seg .btn.on,html.fundo-img.fundo-claro .tema-seg button.on,html.fundo-img.fundo-claro .tab[aria-selected=true]{background:#CFCAC3!important;border-color:#CFCAC3!important}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]) .seg button[aria-pressed=true],:root:not([data-theme=dark]) .seg .btn.on,:root:not([data-theme=dark]) .tema-seg button.on,:root:not([data-theme=dark]) .tab[aria-selected=true]{background:#CFCAC3!important;border-color:#CFCAC3!important}}
+.sim-top .seg .btn.on{background:#fff!important;color:#C8102E!important}
+:root{--red:#B07A2E}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--red:#E0A757}}
+:root[data-theme=dark],html.fundo-img:not(.fundo-claro){--red:#E0A757}
+:root[data-theme=light],html.fundo-img.fundo-claro{--red:#B07A2E}
+html.fundo-img:not(.fundo-claro) .tile,html.fundo-img:not(.fundo-claro) .panel,html.fundo-img:not(.fundo-claro) .callout,html.fundo-img:not(.fundo-claro) details.grp,html.fundo-img:not(.fundo-claro) .filters{border:1.5px solid!important;border-color:rgba(214,209,202,.62) rgba(140,134,128,.5) rgba(70,66,62,.8) rgba(140,134,128,.5)!important;box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)!important}
+html.fundo-img.fundo-claro .tile,html.fundo-img.fundo-claro .panel,html.fundo-img.fundo-claro .callout,html.fundo-img.fundo-claro details.grp,html.fundo-img.fundo-claro .filters{border:1.5px solid!important;border-color:#bdb7af #a8a199 #7d766f #a8a199!important}
+</style>
 </head><body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
@@ -457,7 +470,7 @@ input.err{border-color:var(--crit)!important;box-shadow:0 0 0 2px var(--crit-bg)
     <div><b>Como a nota é calculada.</b> Nota do canal = pontos realizados ÷ pontos possíveis de todos os PDVs pesquisados do canal. Nota do escopo = média dos canais ponderada pelo peso FDS (ICE e RED têm pesos próprios), renormalizada pelos canais presentes no escopo. A nota final da remuneração (média de ICE e RED) aparece só na aba Nota final.</div>
     <div><b>Pts na nota</b> = quanto a nota ponderada do escopo subiria se o item fosse 100% executado. Junta o peso do canal, o tamanho da perda e quantos PDVs falharam.</div>
     <div id="updFoot"></div>
-    <div class="legend-cores"><b>Cores das notas:</b><span class="pill good">75 ou mais</span><span class="pill warn">70 a 74,99</span><span class="pill serious">60 a 69,99</span><span class="pill crit">abaixo de 60</span><span>Vermelho aparece só em alerta. ICE em azul, RED em grafite.</span></div>
+    <div class="legend-cores"><b>Cores das notas:</b><span class="pill good">75 ou mais</span><span class="pill warn">70 a 74,99</span><span class="pill serious">60 a 69,99</span><span class="pill crit">abaixo de 60</span><span>Vermelho aparece só em alerta. ICE em azul, RED em caramelo.</span></div>
     <div><b>Estrutura comercial:</b> todas as pesquisas (abr–out) aparecem na gerência, supervisão e rota atuais de cada cliente, tiradas do arquivo mais recente: pesquisas de outubro (iRED360 de 09/10 e ICE de outubro) e, para quem ainda não foi pesquisado em outubro, a base de pesquisa de outubro; depois a base RED de outubro; na falta delas, a última pesquisa do cliente. Consultor, supervisor e gerente vêm da Estrutura Comercial Infocom; repositor e líder de merchandising, da Base Repositores (arquivo 10-PESQUISA BASE BAND CLIENTES OUTUBRO-26).</div>
     <div>Fontes: iRED360 RED abr–out/2026; ICE LATAM abr–ago (pesquisa Dimensiva), set fechado (iRED360 ICE LATAM de 07/10) e out (iRED360 ICE LATAM de <span id="updSrc"></span>); RED de set fechado (iRED360 RED de 07/10); PESO FDS RED_ICE; Estudos GC (base e prioridades de outubro, objetivos, ICE jan–abr/2025); 10-PESQUISAS BASE BAND DIMENSIVA OUTUBRO-26 (status da pesquisa, ICE jan–mar/2026, cadastro e geolocalização); 10-PESQUISA BASE BAND CLIENTES OUTUBRO-26 (base RED, estrutura comercial, repositores e geolocalização). Pesos RED: ADEGAS 1,4 e CONVENIÊNCIA 1,0, conforme a planilha de pesos. Notas sem ajustes de auditoria.</div>
     <div>Antes e Depois: formulário oficial Band 2026 V3. Aberto pelo link do Claude, o formulário e a visita de cada cliente ficam gravados e aparecem para todos; hospedado em outro endereço, ficam salvos no aparelho de quem preencheu e podem ser enviados pelo botão Exportar visitas (aba Visitas).</div>
@@ -1027,17 +1040,18 @@ function dailySVG(t,m,cls,obj,prevScore){
   const pm0=prevM(m);const pDays=pm0!=null?new Set(rowsOf(t,pm0).filter(inScope).map(dn).filter(x=>x)):new Set();const pMin=pDays.size?Math.min(...pDays):null;
   const pts=days.map(d=>{const a=agg(t,m,i=>inScope(i)&&dn(i)<=d);const o=agg(t,m,i=>inScope(i)&&dn(i)===d);const pa=pMin!=null&&d>=pMin?agg(t,pm0,i=>inScope(i)&&dn(i)<=d):null;return{d,v:a.score,n:cnt[d],acc:a.n,dv:o.score,pv:pa?pa.score:null}});
   const w=640,h=240,ml=34,mr=78,mt=14,mb=26;const vals=pts.map(p=>p.v).concat(pts.map(p=>p.pv)).filter(v=>v!=null).concat([obj].filter(v=>v!=null));
-  let lo=Math.floor(Math.min(...vals)/5)*5-5,hi=Math.min(100,Math.ceil(Math.max(...vals)/5)*5);if(hi-lo<10)lo=hi-10;
+  let lo=Math.floor((Math.min(...vals)-2)/10)*10,hi=110;
   const nx=pts.length,bw=Math.max(4,Math.min(22,(w-ml-mr)/nx*0.6));const x=k=>nx===1?(ml+w-mr)/2:ml+k*(w-ml-mr)/(nx-1);const y=v=>mt+(hi-v)*(h-mt-mb)/(hi-lo);
-  DAYCTX={t,m,cls,obj,days};const mxN=Math.max(...pts.map(p=>p.n)),bh=(h-mt-mb)*0.32;const mm=String(((m-1)%12)+1).padStart(2,'0');const MC=`var(--${cls})`;
-  let g='';for(let v=lo;v<=hi;v+=5)g+=`<line x1="${ml}" x2="${w-mr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width=".6"/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end" style="fill:var(--fg-3);font-size:10px">${v}</text>`;
-  pts.forEach((p,k)=>{const hh=Math.max(2,p.n/mxN*bh);g+=`<rect x="${x(k)-bw/2}" y="${h-mb-hh}" width="${bw}" height="${hh}" rx="2" fill="${MC}" opacity=".16"/>`;if(nx<=16)g+=`<text x="${x(k)}" y="${h-mb-hh-3}" text-anchor="middle" style="fill:${MC};font-size:9.5px;font-weight:600;opacity:.8">${p.n}</text>`});
+  DAYCTX={t,m,cls,obj,days};const mxN=Math.max(...pts.map(p=>p.n)),bh=(h-mt-mb)*0.32;const mm=String(((m-1)%12)+1).padStart(2,'0');const MC=t===0?'var(--linha)':`var(--${cls})`;
+  let g='';{const tk=[];for(let v=lo;v<=hi;v+=10)tk.push(v);tk.forEach(v=>{g+=`<line x1="${ml}" x2="${w-mr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width=".6"${v===hi?' stroke-dasharray="2 3"':''}/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end" style="fill:var(--fg-3);font-size:10px">${v}</text>`})}
+  pts.forEach((p,k)=>{const hh=Math.max(2,p.n/mxN*bh);g+=`<rect class="r360-barra" style="animation-delay:${(k*0.04).toFixed(2)}s" x="${x(k)-bw/2}" y="${h-mb-hh}" width="${bw}" height="${hh}" rx="2" fill="${MC}" opacity=".18"/>`;if(nx<=16)g+=`<text x="${x(k)}" y="${h-mb-hh-3}" text-anchor="middle" style="fill:${MC};font-size:9.5px;font-weight:600;opacity:.8">${p.n}</text>`});
   const step=Math.ceil(nx/12);pts.forEach((p,k)=>{if(k%step===0||k===nx-1)g+=`<text x="${x(k)}" y="${h-8}" text-anchor="middle" style="fill:var(--fg-3);font-size:10px">${String(p.d).padStart(2,'0')}/${mm}</text>`});
   const hl=(v,c,dash,cap)=>v==null?'':`<line x1="${ml}" x2="${w-mr}" y1="${y(v)}" y2="${y(v)}" stroke="${c}" stroke-width="1.8" stroke-dasharray="${dash}"${cap?' stroke-linecap="round"':''}/>`;
   g+=hl(obj,'var(--obj)','7 4');
   {let dp='';pts.forEach((p,k)=>{if(p.pv!=null)dp+=(dp?'L':'M')+x(k)+' '+y(p.pv)});if(dp)g+=`<path d="${dp}" fill="none" stroke="var(--prevm)" stroke-width="1.8" stroke-dasharray="4 3" stroke-linejoin="round" opacity=".85"/>`}
-  let d='';pts.forEach((p,k)=>{if(p.v!=null)d+=(d?'L':'M')+x(k)+' '+y(p.v)});g+=`<path d="${d}" fill="none" stroke="${MC}" stroke-width="2.8" stroke-linejoin="round"/>`;
-  pts.forEach((p,k)=>{if(p.v==null)return;g+=`<circle cx="${x(k)}" cy="${y(p.v)}" r="${k===nx-1?4.5:3}" fill="${MC}"/>`});
+  {const P=[];pts.forEach((p,k)=>{if(p.v!=null)P.push([x(k),y(p.v)])});g+=r360Brilho(P,MC,y(lo),3)}
+  pts.forEach((p,k)=>{if(p.v==null)return;g+=k===nx-1?`<circle cx="${x(k)}" cy="${y(p.v)}" r="6.5" fill="var(--surface)" stroke="${MC}" stroke-width="3"/>`:`<circle cx="${x(k)}" cy="${y(p.v)}" r="2.6" fill="${MC}"/>`});
+  {const lp=pts[nx-1];if(lp.v!=null&&lp.pv!=null&&pm0!=null){const df=lp.v-lp.pv;g+=r360Selo(x(nx-1),y(hi)+24,y(lp.v),`${df>=0?'+':'−'}${fmt(Math.abs(df),2)} vs ${MESN[pm0]} no mesmo dia`,df>=0)}}
   const lv=pts[nx-1].v;const labs=[];if(lv!=null)labs.push({v:lv,t:fmt(lv,2),c:'var(--fg)',b:1});if(obj!=null)labs.push({v:obj,t:'Obj. '+fmt(obj,1),c:'var(--obj)'});{const lp=pts[nx-1].pv;if(lp!=null&&pm0!=null)labs.push({v:lp,t:MESN[pm0]+' '+fmt(lp,1),c:'var(--prevm)'})}
   labs.forEach(l=>l.y=y(l.v)+4);labs.sort((a,b)=>a.y-b.y);for(let k=1;k<labs.length;k++)if(labs[k].y-labs[k-1].y<13)labs[k].y=labs[k-1].y+13;
   labs.forEach(l=>g+=`<text x="${w-mr+8}" y="${l.y}" style="fill:${l.c};font-size:11px;font-weight:${l.b?700:600}">${l.t}</text>`);
@@ -1118,15 +1132,25 @@ function dayOpen(d){if(!DAYCTX)return;let o=$('dayDlg');if(!o){o=document.create
   const c=o.querySelector('.dcard');c.innerHTML=dayInsightHTML(d);o.hidden=false;document.body.classList.add('dlock');tt.hidden=true;c.scrollTop=0;c.focus({preventScroll:true})}
 function dayClose(){const o=$('dayDlg');if(o)o.hidden=true;document.body.classList.remove('dlock')}
 document.addEventListener('click',e=>{const r=e.target.closest&&e.target.closest('[data-dday]');if(r)dayOpen(+r.dataset.dday)});
+
+// linha com brilho + área em degradê (padrão dos gráficos de linha)
+let R360_LID=0;
+function r360Curva(P){if(!P.length)return'';let d='M'+P[0][0]+' '+P[0][1];for(let i=1;i<P.length;i++){const [x0,y0]=P[i-1],[x1,y1]=P[i],cx=(x0+x1)/2;d+=` C${cx} ${y0},${cx} ${y1},${x1} ${y1}`}return d}
+function r360Brilho(P,cor,base,larg){if(!P.length)return'';const id='rl'+(++R360_LID),d=r360Curva(P),l=P[P.length-1];
+  return`<defs><linearGradient id="${id}a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${cor}" stop-opacity=".55"/><stop offset=".55" stop-color="${cor}" stop-opacity=".16"/><stop offset="1" stop-color="${cor}" stop-opacity="0"/></linearGradient><filter id="${id}g" x="-15%" y="-60%" width="130%" height="220%"><feGaussianBlur stdDeviation="2.4" result="b1"/><feGaussianBlur stdDeviation="7" result="b2"/><feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`+
+  `<path class="r360-area" d="${d} L${l[0]} ${base} L${P[0][0]} ${base}Z" fill="url(#${id}a)" stroke="none"/><path class="r360-linha" pathLength="1" d="${d}" fill="none" stroke="${cor}" stroke-width="${larg||3.4}" stroke-linecap="round" stroke-linejoin="round" filter="url(#${id}g)"/>`+
+  `<circle class="r360-pulso" cx="${l[0]}" cy="${l[1]}" r="7" fill="none" stroke="${cor}" stroke-width="2"/>`}
+function r360Selo(xp,yTop,yPt,txt,bom){const bw=txt.length*6.3+22,c=bom?'var(--good)':'var(--crit)';return`<g class="r360-selo"><line x1="${xp}" x2="${xp}" y1="${yTop+12}" y2="${yPt-8}" stroke="${c}" stroke-opacity=".5" stroke-dasharray="2 3"/><rect x="${xp-bw+14}" y="${yTop-12}" width="${bw}" height="24" rx="12" fill="var(--surface)" stroke="${c}" stroke-width="1.4"/><text x="${xp-bw/2+14}" y="${yTop+4}" text-anchor="middle" style="fill:${c};font-weight:700;font-size:11.5px">${txt}</text></g>`}
 function trendSVG(series){
   const w=640,h=240,ml=34,mr=48,mt=14,mb=26,ms=D.meses;
-  const all=series.flatMap(s=>s.v.filter(v=>v!=null));let lo=Math.floor(Math.min(...all,70)/5)*5,hi=Math.min(100,Math.ceil(Math.max(...all,80)/5)*5);
+  const all=series.flatMap(s=>s.v.filter(v=>v!=null));let lo=Math.floor(Math.min(...all,70)/10)*10,hi=110;
   const x=i=>ml+i*(w-ml-mr)/(ms.length-1),y=v=>mt+(hi-v)*(h-mt-mb)/(hi-lo);
-  let g='';for(let v=lo;v<=hi;v+=5){g+=`<line x1="${ml}" x2="${w-mr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`}
+  let g='';const tk=[];for(let v=lo;v<=hi;v+=10)tk.push(v);tk.forEach(v=>{g+=`<line x1="${ml}" x2="${w-mr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"${v===hi?' stroke-dasharray="2 3"':''}/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`});
   ms.forEach((m,i)=>{g+=`<text x="${x(i)}" y="${h-8}" text-anchor="middle" ${m===S.mes?'style="fill:var(--fg);font-weight:700"':''}>${MESL(m)}</text>`});
-  series.forEach(s=>{let d='';s.v.forEach((v,i)=>{if(v==null)return;d+=(d?'L':'M')+x(i)+' '+y(v)});g+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="2" ${s.dash?'stroke-dasharray="5 4"':''} stroke-linejoin="round"/>`;
+  series.forEach(s=>{let d='';const P=[];s.v.forEach((v,i)=>{if(v==null)return;d+=(d?'L':'M')+x(i)+' '+y(v);P.push([x(i),y(v)])});g+=s.dash?`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/>`:r360Brilho(P,s.c,y(lo),3);
     s.v.forEach((v,i)=>{if(v==null)return;const sel=ms[i]===S.mes;if(!s.dash)g+=`<circle cx="${x(i)}" cy="${y(v)}" r="${sel?5:3.5}" fill="${s.c}" stroke="var(--surface)" stroke-width="2"/>`;g+=`<circle cx="${x(i)}" cy="${y(v)}" r="12" fill="transparent" data-tt="${s.n} · ${MESN[ms[i]]}: <b>${fmt(v)}</b>"/>`});
     let li=s.v.length-1;while(li>=0&&s.v[li]==null)li--;if(li>=0)g+=`<text x="${x(li)+8}" y="${y(s.v[li])+4}" style="fill:var(--fg-2);font-weight:700">${fmt(s.v[li])}</text>`});
+  {const sm=series.find(q=>!q.dash),so=series.find(q=>q.dash);if(sm){let li=sm.v.length-1;while(li>=0&&sm.v[li]==null)li--;if(li>=0){const v=sm.v[li],o=so?so.v[li]:null;if(o!=null){const dif=o-v;g+=r360Selo(x(li),y(hi)+24,y(v),dif>0?`faltam ${fmt(dif,2)} p/ o objetivo`:`${fmt(-dif,2)} acima do objetivo`,dif<=0)}}}}
   return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Evolução da nota">${g}</svg>`}
 
 // ---------------- VISÃO GERAL ----------------
@@ -1158,11 +1182,11 @@ function renderGeral(){
   </div>
   <div class="grid2">
     <div class="panel">
-      <header><h3>Evolução ${TN[t]} · ${esc(scopeName())}</h3><div class="legend"><span><i class="sw" style="background:var(--${cls})"></i>${T[t]}</span>${t===0?'<span><i class="sw" style="background:var(--fg-3)"></i>Objetivo (tracejado)</span>':''}</div></header>
-      ${trendSVG([{n:T[t],c:`var(--${cls})`,v:tr.map(x=>x[0])}].concat(t===0?[{n:'Objetivo',c:'var(--fg-3)',dash:1,v:tr.map(x=>x[1])}]:[]))}
+      <header><h3>Evolução ${TN[t]} · ${esc(scopeName())}</h3><div class="legend"><span><i class="sw" style="background:${t===0?'var(--linha)':`var(--${cls})`}"></i>${T[t]}</span>${t===0?'<span><i class="sw" style="background:var(--obj)"></i>Objetivo (tracejado)</span>':''}</div></header>
+      ${trendSVG([{n:T[t],c:t===0?'var(--linha)':`var(--${cls})`,v:tr.map(x=>x[0])}].concat(t===0?[{n:'Objetivo',c:'var(--obj)',dash:1,v:tr.map(x=>x[1])}]:[]))}
     </div>
     <div class="panel">
-      <header><h3>Nota dia a dia · ${MESN[m]} · ${esc(scopeName())}</h3><div class="legend dlg">${dLeg('line',`var(--${cls})`)}${T[t]} acumulado</span>${dLeg('bar',`var(--${cls})`)}PDVs no dia</span>${t===0&&obj!=null?dLeg('dash','var(--obj)')+'Objetivo</span>':''}${Ap&&Ap.score!=null?dLeg('dash2','var(--prevm)')+MESN[pm]+' no mesmo dia</span>':''}</div></header>
+      <header><h3>Nota dia a dia · ${MESN[m]} · ${esc(scopeName())}</h3><div class="legend dlg">${dLeg('line',t===0?'var(--linha)':`var(--${cls})`)}${T[t]} acumulado</span>${dLeg('bar',t===0?'var(--linha)':`var(--${cls})`)}PDVs no dia</span>${t===0&&obj!=null?dLeg('dash','var(--obj)')+'Objetivo</span>':''}${Ap&&Ap.score!=null?dLeg('dash2','var(--prevm)')+MESN[pm]+' no mesmo dia</span>':''}</div></header>
       ${dailySVG(t,m,cls,obj,Ap&&Ap.score)}
     </div>
   </div>
@@ -2582,7 +2606,7 @@ html.fundo-img .tema-seg button[data-tema=imagem].clr::after{background:#fff;bor
 html.fundo-img:not(.fundo-claro)[data-theme]{background:#120305;--fg:#ffffff;--fg-2:#e9e1e2;--fg-3:#c9bcbe;--line:rgba(255,255,255,.16)}
 html.fundo-img:not(.fundo-claro) body::before{background:linear-gradient(180deg,rgba(14,2,4,.22) 0%,rgba(14,2,4,.58) 34%,rgba(14,2,4,.80) 72%,rgba(14,2,4,.88) 100%),
  radial-gradient(90% 60% at 75% 0%,rgba(200,16,46,.28),transparent 65%),var(--login-fundo) 28% 30%/cover no-repeat}
-html.fundo-img:not(.fundo-claro) .tile,html.fundo-img:not(.fundo-claro) .panel,html.fundo-img:not(.fundo-claro) .callout,html.fundo-img:not(.fundo-claro) details.grp{border:2px solid #C8102E;border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.38)}
+html.fundo-img:not(.fundo-claro) .tile,html.fundo-img:not(.fundo-claro) .panel,html.fundo-img:not(.fundo-claro) .callout,html.fundo-img:not(.fundo-claro) details.grp{border:1.5px solid rgba(200,16,46,.42);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.38)}
 html.fundo-img:not(.fundo-claro) .tile::before,html.fundo-img:not(.fundo-claro) .panel::before,html.fundo-img:not(.fundo-claro) .callout::before,html.fundo-img:not(.fundo-claro) details.grp::before{background:linear-gradient(160deg,rgba(30,14,16,.84),rgba(12,6,7,.90))}
 html.fundo-img:not(.fundo-claro) .filters{background:rgba(14,4,6,.84);border-color:rgba(255,255,255,.22);box-shadow:0 12px 32px rgba(0,0,0,.40)}
 html.fundo-img:not(.fundo-claro) .tab{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9),0 0 14px rgba(0,0,0,.7)}
@@ -2597,7 +2621,7 @@ html.fundo-img.fundo-claro .upd{color:#2a2623}
 html.fundo-img.fundo-claro .updpor,html.fundo-img.fundo-claro .updflag,html.fundo-img.fundo-claro .eu-chip{background:rgba(255,255,255,.92);color:#141210}
 html.fundo-img:not(.fundo-claro) .updpor,html.fundo-img:not(.fundo-claro) .updflag,html.fundo-img:not(.fundo-claro) .eu-chip{background:rgba(18,8,10,.85);color:#fff}
 html.fundo-img.fundo-claro body::before{background:linear-gradient(180deg,rgba(255,251,251,.68) 0%,rgba(255,251,251,.78) 30%,rgba(248,246,244,.88) 70%,rgba(246,245,243,.93) 100%),var(--login-fundo) 28% 30%/cover no-repeat}
-html.fundo-img.fundo-claro .tile,html.fundo-img.fundo-claro .panel,html.fundo-img.fundo-claro .callout,html.fundo-img.fundo-claro details.grp{border:2px solid #C8102E;border-radius:14px;box-shadow:0 10px 28px rgba(90,0,12,.14)}
+html.fundo-img.fundo-claro .tile,html.fundo-img.fundo-claro .panel,html.fundo-img.fundo-claro .callout,html.fundo-img.fundo-claro details.grp{border:1.5px solid rgba(200,16,46,.32);border-radius:14px;box-shadow:0 10px 28px rgba(90,0,12,.14)}
 html.fundo-img.fundo-claro .tile::before,html.fundo-img.fundo-claro .panel::before,html.fundo-img.fundo-claro .callout::before,html.fundo-img.fundo-claro details.grp::before{background:linear-gradient(160deg,rgba(255,255,255,.93),rgba(255,255,255,.88))}
 html.fundo-img.fundo-claro .filters{background:rgba(255,255,255,.90);border-color:rgba(29,27,25,.20);box-shadow:0 10px 28px rgba(90,0,12,.14)}
 html.fundo-img.fundo-claro .tab:not([aria-selected=true]){color:#1D1B19;text-shadow:0 0 6px rgba(255,255,255,.9)}
@@ -2605,8 +2629,8 @@ html.fundo-img.fundo-claro .rail .rail-btn,html.fundo-img.fundo-claro .tema-seg,
 html.fundo-img.fundo-claro .rail .rail-ico{color:#C8102E}
 html.fundo-img.fundo-img.fundo-img .callout{border-left-width:5px}
 /* tema branco com imagem: tudo que tem borda fica com borda vermelha */
-html.fundo-img.fundo-claro select,html.fundo-img.fundo-claro input:not([type=checkbox]):not([type=radio]),html.fundo-img.fundo-claro .btn,html.fundo-img.fundo-claro .chip:not(.now),html.fundo-img.fundo-claro .seg,html.fundo-img.fundo-claro summary,html.fundo-img.fundo-claro .mlist,html.fundo-img.fundo-claro .cvbtn,html.fundo-img.fundo-claro .rail .rail-btn,html.fundo-img.fundo-claro .tema-seg,html.fundo-img.fundo-claro .sair-btn,html.fundo-img.fundo-claro .eu-chip,html.fundo-img.fundo-claro .updpor,html.fundo-img.fundo-claro .updflag,html.fundo-img.fundo-claro .logo{border-color:#C8102E!important}
-html.fundo-img.fundo-claro .filters{border:2px solid #C8102E}
+html.fundo-img.fundo-claro select,html.fundo-img.fundo-claro input:not([type=checkbox]):not([type=radio]),html.fundo-img.fundo-claro .btn,html.fundo-img.fundo-claro .chip:not(.now),html.fundo-img.fundo-claro .seg,html.fundo-img.fundo-claro summary,html.fundo-img.fundo-claro .mlist,html.fundo-img.fundo-claro .cvbtn,html.fundo-img.fundo-claro .rail .rail-btn,html.fundo-img.fundo-claro .tema-seg,html.fundo-img.fundo-claro .sair-btn,html.fundo-img.fundo-claro .eu-chip,html.fundo-img.fundo-claro .updpor,html.fundo-img.fundo-claro .updflag,html.fundo-img.fundo-claro .logo{border-color:rgba(200,16,46,.38)!important}
+html.fundo-img.fundo-claro .filters{border:1.5px solid rgba(200,16,46,.32)}
 @media (max-width:640px){html.fundo-img .panel{padding:10px}html.fundo-img .filters{padding:8px 10px;border-radius:12px}
  html.fundo-img .tile::before,html.fundo-img .panel::before,html.fundo-img .callout::before,html.fundo-img details.grp::before{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}}
 @media print{html.fundo-img body::before{display:none}}
@@ -4081,7 +4105,9 @@ async function carrega(){
     try{const {data:ud}=await sb.auth.getUser();const em=((ud&&ud.user&&ud.user.email)||'').toLowerCase();
       const {data:pf,error:pe}=await sb.from(TAB_PERFIS).select('perfil').eq('email',em).maybeSingle();
       if(!pe&&!pf){await sb.auth.signOut();mostra('fLogin');return msg('Seu acesso ao painel não está liberado. Fale com o administrador.')}
-      window.R360_PERFIL=String((pf&&pf.perfil)||'usuario').toLowerCase()}catch(e){}
+      window.R360_PERFIL=String((pf&&pf.perfil)||'usuario').toLowerCase();window.R360_PERFIL_REAL=window.R360_PERFIL;
+      // Visão usuário: ADM Master e Administrador podem ver o painel como um Usuário vê (só nesta aba do navegador)
+      try{if(['master','admin'].includes(window.R360_PERFIL)&&sessionStorage.getItem('r360-visao')==='usuario')window.R360_PERFIL='usuario'}catch(e){}}catch(e){}
     const {data:su,error}=await sb.storage.from(BUCKET).createSignedUrl(ARQUIVO,120);
     if(error)throw error;
     const r=await fetch(su.signedUrl,{cache:'no-store'});
@@ -4218,11 +4244,16 @@ async function geraTg(){const B=$('tgBody');B.innerHTML='<p class="small">Gerand
 function poeSair(){poeAtualizar();poeTelegram();poeBuscar();if(window.r360PoeFotos)window.r360PoeFotos();if(window.r360PoeAcao)window.r360PoeAcao();
   const h=document.querySelector('header.top');if(!h)return;
   if(!h.querySelector('.tema-seg'))h.appendChild(botaoTema());
+  if(['master','admin'].includes(window.R360_PERFIL_REAL)){const vu=window.R360_PERFIL==='usuario'&&window.R360_PERFIL_REAL!=='usuario';
+    const v=document.createElement('button');v.type='button';v.className='sair-btn visao-btn'+(vu?' on':'');v.textContent=vu?'⬅ Voltar para ADM':'👁 Visão usuário';
+    v.title=vu?'Sair da visão de usuário e voltar a ver tudo':'Ver o painel exatamente como um Usuário vê (sem Gestão, Simulador de ADM, Telegram, Atualizar…)';
+    v.onclick=()=>{try{if(vu)sessionStorage.removeItem('r360-visao');else sessionStorage.setItem('r360-visao','usuario')}catch(e){}location.reload()};h.appendChild(v);
+    if(vu&&!document.getElementById('visaoAviso')){const av=document.createElement('div');av.id='visaoAviso';av.innerHTML='<span>👁 Você está vendo o painel <b>como um Usuário vê</b>. Nada foi alterado no seu acesso.</span><button type="button">Voltar para ADM</button>';av.querySelector('button').onclick=v.onclick;document.body.prepend(av)}}
   const b=document.createElement('button');b.className='sair-btn';b.type='button';b.textContent='Sair';
   b.onclick=async()=>{await sb.auth.signOut();location.reload()};
   // quem está logado, no canto de cima, junto do Sair
   h.appendChild(b);const ch=document.createElement('span');ch.className='eu-chip';ch.innerHTML='👤 <b>…</b>';h.appendChild(ch);
-  quemSou().then(q=>{const pf=PERF_ROT[window.R360_PERFIL]||'';ch.innerHTML=`👤 <b>${escA(q.nome)}</b>${pf?`<span class="eu-pf">${escA(pf)}</span>`:''}`;ch.title=q.email||''}).catch(()=>{ch.remove()});
+  quemSou().then(q=>{const pf=PERF_ROT[window.R360_PERFIL]||'';const dono=String(q.email||'').toLowerCase()==='daniel.moura@rebic.com.br';ch.innerHTML=`${dono?'<button type="button" class="eu-est" title="Trocar o visual: cinza (padrão) ou vermelho de antes" aria-label="Trocar o visual">👤</button>':'👤'} <b>${escA(q.nome)}</b>${pf?`<span class="eu-pf">${escA(pf)}</span>`:''}`;ch.title=q.email||'';if(dono){const bt=ch.querySelector('.eu-est');const pinta=()=>{bt.classList.toggle('on',window.r360EstiloVermelho&&window.r360EstiloVermelho())};pinta();bt.onclick=e=>{e.stopPropagation();if(window.r360TrocaEstilo)window.r360TrocaEstilo();pinta()}}}).catch(()=>{ch.remove()});
 }
 
 const mesProxyG=a=>new Proxy(a,{get:(t,k)=>{if(typeof k==='string'&&/^\d+$/.test(k)){const n=+k;return t[n>12?((n-1)%12)+1:n]}return t[k]}});
@@ -4347,7 +4378,7 @@ async function poeAtualizar(){
   if(!email)return;EU_EMAIL=email;
   try{const {data,error}=await sb.from(TAB_PERFIS).select('perfil').eq('email',email).maybeSingle();
     if(error){console.warn('Perfis:',error.message);return}
-    const pf=String((data&&data.perfil)||'').toLowerCase();if(pf!=='admin'&&pf!=='master')return;EU_PERFIL=pf}catch(e){return}
+    const pf=String((data&&data.perfil)||'').toLowerCase();if(pf!=='admin'&&pf!=='master')return;if(window.R360_PERFIL==='usuario')return;EU_PERFIL=pf}catch(e){return}
   const h=document.querySelector('header.top');if(!h||$('updBtn'))return;
   const b=document.createElement('button');b.id='updBtn';b.className='rail-btn upd-btn';b.type='button';b.innerHTML='<svg class="rail-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="rail-txt">Gestão</span><span class="ubadge" id="solBadge" hidden></span>';b.setAttribute('aria-label','Gestão');b.onclick=()=>abreAdmin(SOL_PEND?'usr':'upd');
   window.r360RailAdd(b,true);
@@ -4891,4 +4922,108 @@ window.r360PoeAcao=function(){if(!['master','admin'].includes(String(window.R360
 // links das páginas Plano/Gerencial: ./?abrir=gestao|simulador|telegram|atualizar|fotos abre a função depois do login
 (function(){const q=new URLSearchParams(location.search).get('abrir');if(!q)return;const id={gestao:'updBtn',simulador:'simBtn',telegram:'tgBtn',atualizar:'buscaBtn',fotos:'fotoBtn'}[q];const limpa=()=>{try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}};if(!id)return limpa();const t0=Date.now();
   const tenta=()=>{const b=document.getElementById(id);if(b&&document.documentElement.classList.contains('authed')){limpa();setTimeout(()=>b.click(),400);return}if(Date.now()-t0<45000)setTimeout(tenta,400);else limpa()};tenta()})();
-</script></body></html>
+</script><style id="r360-padrao-2b">
+/* fundo Coca claro: bordas num padrão só, cinza */
+/* tema branco com imagem: tudo que tem borda fica com borda vermelha */
+html.fundo-img.fundo-claro select,
+html.fundo-img.fundo-claro .btn,
+html.fundo-img.fundo-claro .callout,
+html.fundo-img.fundo-claro .chip:not(.now),
+html.fundo-img.fundo-claro .cvbtn,
+html.fundo-img.fundo-claro .eu-chip,
+html.fundo-img.fundo-claro .filters,
+html.fundo-img.fundo-claro .logo,
+html.fundo-img.fundo-claro .mlist,
+html.fundo-img.fundo-claro .panel,
+html.fundo-img.fundo-claro .rail .rail-btn,
+html.fundo-img.fundo-claro .sair-btn,
+html.fundo-img.fundo-claro .seg,
+html.fundo-img.fundo-claro .tema-seg,
+html.fundo-img.fundo-claro .tile,
+html.fundo-img.fundo-claro .updflag,
+html.fundo-img.fundo-claro .updpor,
+html.fundo-img.fundo-claro details.grp,
+html.fundo-img.fundo-claro input:not([type=checkbox]):not([type=radio]),
+html.fundo-img.fundo-claro summary,
+html.fundo-img:not(.fundo-claro) .callout,
+html.fundo-img:not(.fundo-claro) .panel,
+html.fundo-img:not(.fundo-claro) .tile,
+html.fundo-img:not(.fundo-claro) details.grp{border-color:#bdb7af!important}
+html.fundo-img.fundo-claro .rail .rail-btn,html.fundo-img.fundo-claro .sair-btn,html.fundo-img.fundo-claro .eu-chip,html.fundo-img.fundo-claro .tema-seg,html.fundo-img.fundo-claro .logo,html.fundo-img.fundo-claro .filters{border-color:#bdb7af!important}
+/* rodapé (Como a nota é calculada) com moldura igual aos outros quadros */
+html.fundo-img .foot{position:relative;isolation:isolate;border-radius:14px;padding:14px 16px}
+html.fundo-img .foot::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+html.fundo-img:not(.fundo-claro) .foot{border:1.5px solid;border-color:rgba(214,209,202,.62) rgba(140,134,128,.5) rgba(70,66,62,.8) rgba(140,134,128,.5);box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
+html.fundo-img:not(.fundo-claro) .foot::before{background:linear-gradient(160deg,rgba(30,14,16,.84),rgba(12,6,7,.90))}
+html.fundo-img.fundo-claro .foot{border:1.5px solid;border-color:#bdb7af #a8a199 #7d766f #a8a199;box-shadow:0 10px 28px rgba(90,0,12,.10)}
+html.fundo-img.fundo-claro .foot::before{background:rgba(255,255,255,.92)}
+</style>
+<style>.eu-est{font:inherit;border:0;background:transparent;padding:0 2px;margin:0;cursor:pointer;border-radius:50%;line-height:1}.eu-est:hover{filter:drop-shadow(0 0 4px rgba(200,16,46,.8))}.eu-est.on{filter:drop-shadow(0 0 3px #C8102E) drop-shadow(0 0 1px #C8102E)}</style>
+<script>
+// visual do dono do painel: cinza (padrão) ou o vermelho de antes. Fica salvo só neste aparelho.
+(function(){const K='r360-estilo',ids=['r360-padrao-2','r360-padrao-2b'];
+  const ver=()=>{try{return localStorage.getItem(K)==='vermelho'}catch(e){return false}};
+  const aplica=()=>{const v=ver();ids.forEach(id=>{const el=document.getElementById(id);if(el&&el.sheet)el.sheet.disabled=v;else if(el)el.disabled=v})};
+  window.r360EstiloVermelho=ver;
+  window.r360TrocaEstilo=()=>{try{if(ver())localStorage.removeItem(K);else localStorage.setItem(K,'vermelho')}catch(e){}aplica()};
+  aplica();})();
+</script>
+<style id="r360-visao">
+.visao-btn{margin-right:6px}.visao-btn.on{background:#C8102E!important;color:#fff!important;border-color:#C8102E!important}
+#visaoAviso{position:sticky;top:0;z-index:70;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;padding:8px 14px;background:#C8102E;color:#fff;font-size:14px;text-align:center}
+#visaoAviso button{font:inherit;font-weight:700;background:#fff;color:#C8102E;border:0;border-radius:6px;padding:4px 12px;cursor:pointer}
+</style>
+<script>
+// anima ao abrir o painel e quando a pessoa clica/troca algo; atualizações de fundo não piscam a tela
+(function(){const H=document.documentElement;let tm=null;const liga=ms=>{H.classList.add('r360-anima');clearTimeout(tm);tm=setTimeout(()=>H.classList.remove('r360-anima'),ms)};
+  liga(15000);if(H.classList.contains('authed'))H.__r360a=1;new MutationObserver(()=>{if(H.classList.contains('authed')&&!H.__r360a){H.__r360a=1;liga(4500)}}).observe(H,{attributes:true,attributeFilter:['class']});['pointerdown','change','keydown'].forEach(ev=>document.addEventListener(ev,e=>{if(e.isTrusted)liga(2600)},true));window.r360Anima=()=>H.classList.contains('r360-anima')})();
+</script>
+<style id="r360-anim">
+/* ===== animações do painel (desligam sozinhas para quem pediu menos movimento no aparelho) ===== */
+@media (prefers-reduced-motion:no-preference){
+  html.r360-anima .r360-linha{stroke-dasharray:1;stroke-dashoffset:1;animation:r360Desenha 1.3s cubic-bezier(.45,.05,.25,1) .15s forwards}
+  html.r360-anima .r360-area{opacity:0;animation:r360Aparece .9s ease .55s forwards}
+  html.r360-anima .r360-selo{opacity:0;transform-box:fill-box;transform-origin:center;animation:r360Pop .45s cubic-bezier(.2,1.4,.4,1) 1.25s forwards}
+  .r360-pulso{transform-box:fill-box;transform-origin:center;opacity:0;animation:r360Pulso 2.2s ease-out 1.4s infinite}
+  html.r360-anima .r360-barra{transform-box:fill-box;transform-origin:bottom;animation:r360Cresce .6s cubic-bezier(.2,.8,.3,1) both}
+  html.r360-anima .score .tile,html.r360-anima .grid2>.panel,html.r360-anima section>.panel,html.r360-anima .footrow>*{animation:r360Sobe .5s cubic-bezier(.2,.8,.3,1) both}
+  html.r360-anima .score .tile:nth-child(2){animation-delay:.06s}
+  html.r360-anima .score .tile:nth-child(3){animation-delay:.12s}
+  html.r360-anima .score .tile:nth-child(4){animation-delay:.18s}
+  html.r360-anima .score .tile:nth-child(5){animation-delay:.24s}
+  html.r360-anima .grid2>.panel:nth-child(2){animation-delay:.1s}
+  .tile,.panel{transition:transform .2s ease,box-shadow .2s ease}
+  .score .tile:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.28)}
+  .rail-btn{transition:transform .18s ease,border-color .18s ease,background .18s ease}
+  .rail-btn:hover{transform:translateX(3px)}
+  .tab{transition:background .2s ease,color .2s ease,box-shadow .2s ease}
+  html.r360-anima .pill{animation:r360Aparece .4s ease both}
+  html.r360-anima .dovl:not([hidden]) .dcard{animation:r360Zoom .28s cubic-bezier(.2,.9,.3,1.1) both}
+}
+@keyframes r360Desenha{to{stroke-dashoffset:0}}
+@keyframes r360Aparece{from{opacity:0}to{opacity:1}}
+@keyframes r360Pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+@keyframes r360Pulso{0%{opacity:.7;transform:scale(1)}80%,100%{opacity:0;transform:scale(2.6)}}
+@keyframes r360Cresce{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes r360Sobe{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes r360Zoom{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+</style>
+<script>
+// números dos cartões contando até o valor quando a tela aparece
+(function(){if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const conta=el=>{if(el.__r360c)return;if(window.r360Anima&&!window.r360Anima())return;const t=el.textContent.trim(),m=t.match(/^([+\-−]?)([\d.]+)(,(\d+))?$/);if(!m)return;el.__r360c=1;
+    const sin=m[1],dec=m[4]?m[4].length:0,alvo=parseFloat(m[2].replace(/\./g,'')+(dec?'.'+m[4]:''));if(!isFinite(alvo))return;
+    const t0=performance.now(),dur=900,f=v=>sin+v.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+    const passo=n=>{const k=Math.min(1,(n-t0)/dur),e=1-Math.pow(1-k,3);el.textContent=f(alvo*e);if(k<1)requestAnimationFrame(passo);else el.textContent=t};requestAnimationFrame(passo)};
+  const varre=r=>{(r.querySelectorAll?r:document).querySelectorAll('.score .v.num, .sim-rtc b.num, .kp b').forEach(conta)};
+  new MutationObserver(ms=>{ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1)varre(n)}))}).observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('DOMContentLoaded',()=>varre(document));})();
+</script>
+<style id="r360-linha-verde">
+/* linha dos gráficos: verde neon (modelo "Ritmo de pesquisas"); objetivo em verde-água tracejado */
+:root{--linha:#3f8f12;--obj:#0f8a7e}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--linha:#b6f24a;--obj:#5eead4}}
+:root[data-theme=dark],html.fundo-img:not(.fundo-claro){--linha:#b6f24a;--obj:#5eead4}
+:root[data-theme=light],html.fundo-img.fundo-claro{--linha:#3f8f12;--obj:#0f8a7e}
+</style>
+</body></html>
