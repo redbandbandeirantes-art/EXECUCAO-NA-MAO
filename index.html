@@ -2276,7 +2276,7 @@ function renderMain(){
   if(!S.clients.length){m.innerHTML='<div class="card empty">Sem dados carregados.</div>';return}
   const toolbar=`<div class="toolbar"><div class="help">${nAdj()?`${nAdj()} ajuste(s) salvos para este dia <button type="button" class="btn sm" id="undo">Desfazer</button>`:'Números = ordem do dia (a ordem do pesquisador).'}</div>
      <button type="button" class="btn sm adjbtn ${S.ajuste?'on':''}" id="adjToggle">${S.ajuste?'Concluir ajuste':'Ajustar'}</button></div>`;
-  if(!R.cs.length){m.innerHTML=toolbar+'<div class="card empty">Escolha a cidade.</div>';return}
+  if(!R.cs.length){const semRota=!dayBase().length;m.innerHTML=toolbar+`<div class="card empty">${semRota?'Não tem rota para este dia nos filtros do painel.':'Escolha a cidade.'} Você pode <b>colar a lista do pesquisador</b> ou <b>incluir clientes</b> aqui embaixo.</div>`+(semRota&&!S.listaOpen?listaHTML().replace('id="listaBox" ','id="listaBox" open '):listaHTML())+addSearchHTML();return}
   if(!R.people.length){m.innerHTML=toolbar+'<div class="card empty">Adicione quem vai em <b>Quem vai</b> (botões 1, 2 ou 3 pessoas ou + Adicionar pessoa) e escreva os nomes.</div>';return}
   const tabs=['dia',...R.routes.map(r=>r.p.id),'pesq'];if(!tabs.includes(S.tab))S.tab='dia';
   const sel=R.routes.find(r=>r.p.id===S.tab);
@@ -2606,9 +2606,18 @@ function waText(id){
   return `*Rota ${r.p.nome} · ${head}*\n${r.items.length} clientes · ${fmt(r.km,1)} km ${TRANSP[r.p.transp].t.toLowerCase()} · ${hhmm(r.ini)} às ${hhmm(r.fim)}\n`+links.map(l=>`Rota no mapa${links.length>1?` (${l.de}–${l.ate})`:''}: ${l.u}`).join('\n')+'\n\n'+
    r.items.map(it=>{const c=it.c;return `Nº ${it.n} · ${hhmm(it.S)}–${hhmm(it.E)} · ${c.nome} · PV ${c.pv}\n   ${c.seg} · ICE ${fmt(c.iceN,1)} (obj ${fmt(c.objN,0)})${c.fraco&&c.iceN!=null?` · Foco: ${c.fraco[0]} ${fmt(c.fraco[1],0)}%`:''} · pesquisador chega ${hhmm(it.R)}${c.grande?' (ligar para combinar)':''}\n   ${mapa(c)}`}).join('\n');
 }
+function copyExec(t){try{const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,t.length);const ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}}
 function copyText(t){
-  const show=()=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="box"><h2>Copie o texto</h2><textarea readonly></textarea><div class="row" style="justify-content:flex-end"><button class="btn" type="button">Fechar</button></div></div>`;m.querySelector('textarea').value=t;m.querySelector('button').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};document.body.appendChild(m);const ta=m.querySelector('textarea');ta.focus();ta.select()};
-  try{navigator.clipboard.writeText(t).then(()=>toast('Copiado. Cole no WhatsApp.'),show)}catch(e){show()}
+  const show=()=>{const m=document.createElement('div');m.className='modal';
+    m.innerHTML=`<div class="box"><h2>Copiar</h2><textarea readonly></textarea><div class="row" style="justify-content:flex-end;gap:8px"><button class="btn pri" type="button" data-cp="1">Copiar</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(t)}">Abrir no WhatsApp</a><button class="btn" type="button" data-cp="0">Fechar</button></div></div>`;
+    const ta=m.querySelector('textarea');ta.value=t;
+    m.onclick=e=>{const b=e.target.closest('[data-cp]');if(e.target===m||(b&&b.dataset.cp==='0')){m.remove();return}
+      if(b&&b.dataset.cp==='1'){ta.focus();ta.select();ta.setSelectionRange(0,t.length);let ok=false;try{ok=document.execCommand('copy')}catch(_){}
+        const fim=()=>{m.remove();toast('Copiado. Cole no WhatsApp.')};
+        if(ok)fim();else{try{navigator.clipboard.writeText(t).then(fim,()=>toast('O navegador não deixou copiar: segure no texto e copie.'))}catch(_){toast('O navegador não deixou copiar: segure no texto e copie.')}}}};
+    document.body.appendChild(m);ta.focus();ta.select()};
+  const ok=()=>toast('Copiado. Cole no WhatsApp.');
+  try{navigator.clipboard.writeText(t).then(ok,()=>{copyExec(t)?ok():show()})}catch(e){copyExec(t)?ok():show()}
 }
 
 /* ---------- eventos ---------- */
@@ -3868,8 +3877,8 @@ function oSummaryHTML(list){
     <div class="tile"><div class="k">ICE ${MESN[PARC]} simulado</div><div class="v num">${fmt(sim.score,2)}</div><div class="meta">${delta(sim.score,real.score,2)} vs ${MESN[REF]}${sim.obj!=null?` · objetivo ${fmt(sim.obj,1)}`:''}</div></div>
     <div class="tile"><div class="k">Amostra de ${MESF[PARC]}</div><div class="v num">${list.length}</div><div class="meta">${feitos} já pesquisados · ${nn} não pesquisados em ${MESN[REF]} · ${sem} sem histórico</div></div>
   </div>
-  <div class="grid2"><div class="panel"><header><h3>Simulação por canal</h3></header><div class="tw"><table><thead><tr><th>Canal</th><th class="n">Peso</th><th class="n">PDVs</th><th class="n">Novos</th><th class="n">Já pesq.</th><th class="n">Real ${MESN[REF]}</th><th class="n">Simulado</th><th class="n">Objetivo</th><th>Pts na nota</th></tr></thead><tbody>
-    ${Object.entries(sim.ch).filter(([c,o])=>o.w).sort((a,b)=>b[1].w/sim.W*(100-b[1].pct)-a[1].w/sim.W*(100-a[1].pct)).map(([c,o])=>{const r=real.ch[c];const pp=o.w/sim.W*(100-o.pct);const ob=D.obj[C[c]]?D.obj[C[c]][PARC]:null;return`<tr><td><b>${C[c]}</b></td><td class="n">${fmt(o.w,2)}</td><td class="n">${o.n}</td><td class="n">${o.nn}</td><td class="n">${o.no}</td><td class="n">${r?fmt(r.pct):'–'}</td><td class="n"><span class="pill ${scoreClsI(o.pct)}">${fmt(o.pct)}</span></td><td class="n">${ob!=null?fmt(ob,0)+(o.pct>=ob?' <span class="up">✓</span>':''):'–'}</td><td style="min-width:120px">${bar(pp,mx,'ice')}</td></tr>`}).join('')}
+  <div class="grid2"><div class="panel"><header><h3>Simulação por canal</h3></header><div class="tw simc"><table><thead><tr><th>Canal</th><th class="n">Peso</th><th class="n">PDVs</th><th class="n">Novos</th><th class="n">Já pesq.</th><th class="n">Real ${MESN[REF]}</th><th class="n">Simulado</th><th class="n">Objetivo</th><th class="ptsn" title="Quantos pontos da nota ICE o canal ainda deixa de ganhar: peso × o que falta para 100%">Pts na nota</th></tr></thead><tbody>
+    ${Object.entries(sim.ch).filter(([c,o])=>o.w).sort((a,b)=>b[1].w/sim.W*(100-b[1].pct)-a[1].w/sim.W*(100-a[1].pct)).map(([c,o])=>{const r=real.ch[c];const pp=o.w/sim.W*(100-o.pct);const ob=D.obj[C[c]]?D.obj[C[c]][PARC]:null;return`<tr><td><b>${C[c]}</b></td><td class="n">${fmt(o.w,2)}</td><td class="n">${o.n}</td><td class="n">${o.nn}</td><td class="n">${o.no}</td><td class="n">${r?fmt(r.pct):'–'}</td><td class="n"><span class="pill ${scoreClsI(o.pct)}">${fmt(o.pct)}</span></td><td class="n">${ob!=null?fmt(ob,0)+(o.pct>=ob?' <span class="up">✓</span>':''):'–'}</td><td class="ptsn">${bar(pp,mx,'ice')}</td></tr>`}).join('')}
     </tbody></table></div></div>
     <div class="panel"><header><h3>${S.ger?'Leitura':'Simulação por gerência'}</h3></header>${gerT||'<p class="note">Use os filtros de supervisão, rota e canal para ver a simulação de cada equipe. Digite uma nota na coluna Simular para testar uma reversão; o resumo recalcula na hora.</p>'}</div></div>`}
 // ----- semanas da pesquisa: S1 é a semana (seg a dom) que contém o dia 1; a semana atual é calculada pela data de hoje -----
@@ -4776,7 +4785,7 @@ window.R360_rotPop=()=>{if(ROTSKIP){ROTSKIP=false;return true}const ov=$('rotOv'
 window.R360_rotAD=pv=>{rotHide(true);openAD(pv)};
 window.R360_rotClose=()=>rotHide(false);
 window.R360_rotVis=pv=>!!(VIS[pv]&&VIS[pv].vis);
-window.R360_rotBase=()=>location.origin+location.pathname;
+window.R360_rotBase=()=>/^https?:$/.test(location.protocol)?location.origin+location.pathname:'https://redbandbandeirantes-art.github.io/EXECUCAO-NA-MAO/';
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const ov=$('rotOv');if(ov&&!ov.hidden)rotHide(false)}});
 setTimeout(()=>{const m=(location.hash||'').match(/^#rot=(.+)$/);if(m)rotOpen(decodeURIComponent(m[1]))},400);
 function render(nav){
@@ -6616,18 +6625,34 @@ function botaoTema(){const g=document.createElement('div');g.className='tema-seg
   g.addEventListener('keydown',e=>{if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;e.preventDefault();const i=TEMAS.indexOf(temaBotao(temaAtual()));const n=TEMAS[(i+(e.key==='ArrowRight'?1:TEMAS.length-1))%TEMAS.length];aplicaTema(n);const b=g.querySelector(`[data-tema="${n}"]`);if(b)b.focus()});
   pintaTema(g);return g}
 try{const c=document.querySelector('#auth .card');if(c){const w=document.createElement('div');w.className='tema-login';w.appendChild(botaoTema());c.appendChild(w)}}catch(e){}
+// cabeçalho: junta quem sou / visão usuário / sair / atualização / tema num bloco só, à direita; no celular o menu vira "Menu ▾"
+function hdrActs(){const h=document.querySelector('header.top');if(!h)return null;
+  let a=h.querySelector('.hdr-acts');
+  if(!a){a=document.createElement('div');a.className='hdr-acts';a.innerHTML='<div class="hc-upd"></div><div class="hc-eu"></div><div class="hc-vis"></div><details class="rail-menu" hidden><summary><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span><span class="rm-n"></span></summary><div class="rail-menu-body"></div></details>';h.appendChild(a);
+    const md=a.querySelector('.rail-menu');md.addEventListener('click',e=>{if(e.target.closest('.rail-btn'))setTimeout(()=>{md.open=false},0)})}
+  const cu=a.querySelector('.hc-upd'),cv=a.querySelector('.hc-vis'),ce=a.querySelector('.hc-eu');
+  const put=(el,p)=>{if(el&&el.parentNode!==p)p.appendChild(el)};
+  put(document.getElementById('updBox'),cu);
+  put(h.querySelector(':scope > .visao-btn'),cv);put(h.querySelector(':scope > .tema-seg'),cv);
+  put(h.querySelector(':scope > .eu-chip'),ce);
+  const sair=[...h.querySelectorAll(':scope > .sair-btn')].find(x=>!x.classList.contains('visao-btn'));put(sair,ce);
+  a.classList.toggle('sem-menu',a.querySelector('.rail-menu').hidden);
+  a.classList.toggle('vu',!!a.querySelector('.visao-btn.on'));
+  if(cv.firstChild&&cv.firstChild.classList&&cv.firstChild.classList.contains('tema-seg')&&cv.querySelector('.visao-btn'))cv.prepend(cv.querySelector('.visao-btn'));
+  return a}
 // barra com Gestão e Abrir simulador: à esquerda do conteúdo em telas largas, no topo nas menores
 function railEl(){let r=$('rail');if(!r){r=document.createElement('div');r.id='rail';r.className='rail';document.body.appendChild(r)}return r}
 function posRail(){const r=$('rail');if(!r)return;const lado=window.innerWidth>=1000;r.classList.toggle('lado',lado);
   // a coluna fica sempre à esquerda do conteúdo; se a tela não tem sobra dos lados, o conteúdo anda para a direita para dar espaço
   document.body.style.paddingLeft='';
   if(lado){if(r.parentNode!==document.body)document.body.appendChild(r);
-    const RW=176,G=32,w=document.querySelector('.wrap');let wl=w?w.getBoundingClientRect().left+16:240;
+    const RW=148,G=14,w=document.querySelector('.wrap');let wl=w?w.getBoundingClientRect().left+16:240;
     if(wl-RW-G<16){document.body.style.paddingLeft=(RW+G+16)+'px';wl=w?w.getBoundingClientRect().left+16:RW+G+32}
     const lg=document.querySelector('header.top .logo'),topo=lg?lg.getBoundingClientRect().top+window.scrollY:20;
     r.style.left=Math.max(16,wl-RW-G)+'px';r.style.top=Math.max(16,topo-window.scrollY)+'px';return}
   r.style.left='';r.style.top='';
-  const h=document.querySelector('header.top');if(!h)return;const s0=[...h.querySelectorAll('.sair-btn')].find(x=>!x.closest('.rail'));const sair=s0||null;if(r.parentNode!==h||r.nextSibling!==sair)h.insertBefore(r,sair||null)}
+  const a=hdrActs();if(!a)return;const b=a.querySelector('.rail-menu-body');if(r.parentNode!==b)b.appendChild(r);
+  const n=r.querySelectorAll('.rail-btn').length;a.querySelector('.rm-n').textContent=n?n:'';a.querySelector('.rail-menu').hidden=!n;a.classList.toggle('sem-menu',!n)}
 window.addEventListener('resize',posRail);window.addEventListener('scroll',()=>{const r=$('rail');if(r&&r.classList.contains('lado'))posRail()},{passive:true});
 window.r360RailAdd=(b,primeiro)=>{const r=railEl();if(primeiro)r.insertBefore(b,r.firstChild);else r.appendChild(b);posRail()};
 // ---- Ligar o Telegram ao robô do painel (código de 6 letras, vale 15 minutos)
@@ -6707,7 +6732,8 @@ function poeSair(){poeAtualizar();poeTelegram();poeBuscar();if(window.r360PoeFot
   b.onclick=async()=>{await sb.auth.signOut();location.reload()};
   // quem está logado, no canto de cima, junto do Sair
   h.appendChild(b);const ch=document.createElement('span');ch.className='eu-chip';ch.innerHTML='👤 <b>…</b>';h.appendChild(ch);
-  quemSou().then(q=>{const pf=PERF_ROT[window.R360_PERFIL]||'';const dono=String(q.email||'').toLowerCase()==='daniel.moura@rebic.com.br';ch.innerHTML=`${dono?'<button type="button" class="eu-est" title="Trocar o visual: cinza (padrão) ou vermelho de antes" aria-label="Trocar o visual">👤</button>':'👤'} <b>${escA(q.nome)}</b>${pf?`<span class="eu-pf">${escA(pf)}</span>`:''}`;ch.title=q.email||'';if(dono){const bt=ch.querySelector('.eu-est');const pinta=()=>{bt.classList.toggle('on',window.r360EstiloVermelho&&window.r360EstiloVermelho())};pinta();bt.onclick=e=>{e.stopPropagation();if(window.r360TrocaEstilo)window.r360TrocaEstilo();pinta()}}}).catch(()=>{ch.remove()});
+  hdrActs();if(window.innerWidth<1000)posRail();
+  quemSou().then(q=>{const pf=PERF_ROT[window.R360_PERFIL]||'';const dono=true;ch.innerHTML=`${dono?'<button type="button" class="eu-est" title="Trocar o visual: cinza (padrão) ou vermelho de antes" aria-label="Trocar o visual">👤</button>':'👤'} <b>${escA(q.nome)}</b>${pf?`<span class="eu-pf">${escA(pf)}</span>`:''}`;ch.title=q.email||'';if(dono){const bt=ch.querySelector('.eu-est');const pinta=()=>{bt.classList.toggle('on',window.r360EstiloVermelho&&window.r360EstiloVermelho())};pinta();bt.onclick=e=>{e.stopPropagation();if(window.r360TrocaEstilo)window.r360TrocaEstilo();pinta()}}}).catch(()=>{ch.remove()});
 }
 
 const mesProxyG=a=>new Proxy(a,{get:(t,k)=>{if(typeof k==='string'&&/^\d+$/.test(k)){const n=+k;return t[n>12?((n-1)%12)+1:n]}return t[k]}});
@@ -7451,6 +7477,110 @@ sb.auth.getSession().then(({data})=>{
 });
 })();
 </script>
+<style id="cabecalho-organizado">
+/* painel ocupa a largura toda da tela (com ou sem a coluna de botões à esquerda) */
+@media (min-width:1000px){.wrap{max-width:none!important;padding-inline:24px!important}}
+header.top{display:flex!important;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:12px 24px;padding-block:14px 10px}
+header.top>.brand{min-width:0;flex:1 1 auto}
+.hdr-acts{display:flex;align-items:center;gap:18px;flex:none;min-width:0}
+.hc-upd,.hc-vis,.hc-eu{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:0}
+.hc-upd:empty,.hc-vis:empty,.hc-eu:empty{display:none}
+.hc-vis,.hc-eu{align-items:stretch}
+.hc-vis .sair-btn,.hc-eu .sair-btn{display:inline-flex;align-items:center;justify-content:center;text-align:center}
+.hc-eu .eu-chip{justify-content:center}
+.hc-upd .upd{margin:0;text-align:right}
+.hdr-acts .eu-chip{position:static!important;order:0;align-self:auto;margin:0}
+.hdr-acts .sair-btn,.hdr-acts .tema-seg{align-self:auto;margin:0}
+.hdr-acts .sair-btn{white-space:nowrap}
+.hc-eu .sair-btn:not(.visao-btn){min-width:72px}
+/* quadros menores e alinhados: as duas linhas têm a mesma altura nas duas colunas */
+@media (min-width:1000px){
+  .hdr-acts{gap:14px}
+  .hc-eu,.hc-vis{gap:6px}
+  .hdr-acts .eu-chip,.hdr-acts .sair-btn,.hdr-acts .tema-seg{height:30px!important;box-sizing:border-box;font-size:12.5px;line-height:1}
+  .hdr-acts .eu-chip{padding:0 10px;border-radius:999px}
+  .hdr-acts .sair-btn{padding:0 12px;border-radius:7px}
+  .hdr-acts .tema-seg{padding:2px;gap:1px;border-radius:7px;display:flex}
+  .hdr-acts .tema-seg button{width:28px;height:24px;border-radius:5px}
+  .hdr-acts .tema-seg button svg{width:15px;height:15px}
+  .hc-vis .tema-seg{justify-content:space-between}
+  .hc-upd .upd{font-size:12px;line-height:1.35}
+  .hc-upd .updpor{font-size:11.5px;padding:1px 8px;margin-bottom:2px}
+}
+.rail-menu{display:none}
+@media (max-width:999px){
+  header.top{flex-wrap:wrap;position:relative;gap:8px;padding-block:10px 6px}
+  .hdr-acts{flex:1 1 100%;flex-wrap:wrap;align-items:center;gap:8px}
+  .hc-eu,.hc-vis{display:contents}
+  .hc-upd{display:none}
+  .hdr-acts.sem-menu .hc-upd{display:flex;order:4;align-items:flex-start}
+  .hdr-acts.sem-menu .hc-upd .upd{display:block!important;text-align:left;margin:0}
+  .hdr-acts::before{content:"";flex-basis:100%;order:3;height:0}
+  .hdr-acts .eu-chip{order:0;margin-right:auto!important;height:34px;max-width:46vw}
+  .hdr-acts .visao-btn{order:1}
+  .hdr-acts .sair-btn:not(.visao-btn){order:2;min-width:0}
+  .hdr-acts .sair-btn{height:34px;padding:0 12px}
+  .rail-menu{order:4}
+  .hdr-acts .tema-seg{order:5;margin-left:auto!important}
+  .rail-menu{display:block}
+  .rail-menu[hidden]{display:none}
+  .rail-menu>summary{list-style:none;display:inline-flex;align-items:center;gap:8px;cursor:pointer;height:36px;padding:0 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.05em;text-transform:uppercase;user-select:none}
+  .rail-menu>summary::-webkit-details-marker{display:none}
+  .rail-menu>summary::after{content:"▾";font-size:12px;opacity:.8}
+  .rail-menu[open]>summary::after{content:"▴"}
+  .rail-menu>summary svg{color:var(--ice)}
+  .rm-n{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--ice);color:#fff;font-size:11px;letter-spacing:0;font-family:var(--body,inherit)}
+  .rm-n:empty{display:none}
+  .rail-menu-body{position:absolute;left:0;right:0;top:100%;z-index:80;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+  .rail-menu .rail{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .rail-menu .rail .rail-btn{width:100%;min-width:0;height:42px;padding:0 10px;font-size:14px;border-radius:8px;justify-content:flex-start}
+  .rail-menu .rail .rail-txt{overflow:hidden;text-overflow:ellipsis}
+}
+@media (max-width:640px){
+  .eyebrow{display:none}
+  .hdr-acts.sem-menu .hc-upd .upd>br,.hdr-acts.sem-menu .hc-upd .upd .updpor{display:none}
+  header.top h1{font-size:17px!important}
+  .hdr-acts .sair-btn,.hdr-acts .eu-chip{font-size:12.5px;height:32px}
+  .rail-menu>summary{height:32px;font-size:14px;padding:0 12px}
+  .hdr-acts .tema-seg button{width:30px;height:26px}
+  #visaoAviso{font-size:12.5px;padding:6px 10px;gap:8px;line-height:1.3}
+  #visaoAviso button{padding:3px 10px;font-size:12px;white-space:nowrap}
+}
+html.fundo-img:not(.fundo-claro) .rail-menu-body{background:rgba(18,8,10,.94);border-color:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+html.fundo-img.fundo-claro .rail-menu-body{background:rgba(255,255,255,.96)}
+html.fundo-img:not(.fundo-claro) .rail-menu>summary{background:rgba(18,8,10,.85);border-color:rgba(255,255,255,.16);color:#fff;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+html.fundo-img.fundo-claro .rail-menu>summary{background:rgba(255,255,255,.90);border-color:rgba(29,27,25,.14);color:#141210}
+/* visão usuário: o Voltar para ADM fica só na barra vermelha; usuário, Sair e tema numa linha só */
+.hdr-acts.vu .visao-btn{display:none!important}
+.hdr-acts.vu .hc-eu{flex-direction:row;align-items:center}
+.hdr-acts.vu .hc-vis{justify-content:center}
+/* abas numa linha só no computador: o tamanho da letra acompanha a largura da tela */
+@media (min-width:1000px){
+  .tabs{flex-wrap:nowrap!important;overflow:visible!important;gap:2px!important}
+  .tabs .tab{flex:1 1 auto;padding:8px 6px!important;font-size:clamp(12px,.92vw,17px)!important;letter-spacing:.02em!important;text-align:center;white-space:nowrap}
+}
+/* Simulação por canal: a coluna Pts na nota se adapta ao tamanho do quadro */
+.tw.simc{container-type:inline-size}
+.simc td.ptsn{min-width:140px}
+@container (max-width:760px){
+  .simc td.ptsn{min-width:0}
+  .simc td.ptsn .bar{display:none}
+  .simc th,.simc td{padding-inline:8px}
+}
+@container (max-width:560px){
+  .simc th:nth-child(4),.simc td:nth-child(4),.simc th:nth-child(5),.simc td:nth-child(5){display:none}
+  .simc table{font-size:12.5px}
+  .simc th{font-size:10px;letter-spacing:.02em}
+  .simc th,.simc td{padding-inline:5px}
+  .simc .pill{padding:2px 6px}
+  .simc td:first-child b{font-size:12.5px}
+}
+/* botões da coluna da esquerda menores */
+.rail.lado{width:148px!important;gap:6px!important}
+.rail.lado .rail-btn{height:34px!important;padding:0 10px!important;font-size:13.5px!important;gap:7px!important;border-radius:8px!important}
+.rail.lado .rail-ico{width:15px;height:15px}
+@media print{.hdr-acts{display:none!important}}
+</style>
 <!-- =================== FIM DO LOGIN =================== -->
 <script>
 // AÇÃO PONTUAL: página própria (acao.html), só ADM Master e Administrador
